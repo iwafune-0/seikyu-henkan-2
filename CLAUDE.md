@@ -6,6 +6,10 @@
 **目的**: 毎月の請求書処理業務（PDF→Excel編集→PDF生成）を自動化し、工数を90%削減する
 **技術スタック**: React 18 + TypeScript + Vite / Node.js 20 + Python 3.11 / PostgreSQL 15 (Supabase)
 
+### ポート設定
+- **フロントエンド**: `localhost:5174`（Vite開発サーバー）
+- **バックエンド**: `localhost:3001`（Express APIサーバー）
+
 ---
 
 ## エンジニアリング姿勢と倫理
@@ -160,14 +164,18 @@ process_logs (
 ### 3.1 フロントエンド
 
 ```
-- React 18
+- React 19
 - TypeScript 5.x
-- Vite 5.x
-- Tailwind CSS 3.x
-- shadcn/ui
+- Vite 7.x
+- Material-UI (MUI) v7.3.4
 - Zustand（状態管理）
 - Supabase Auth UI
 ```
+
+**MUI v7重要な破壊的変更**:
+- `TypographyOptions`は`@mui/material/styles/createTypography`からインポート不可
+- 代わりに`ThemeOptions['typography']`を使用する
+- 全ての型インポートは`import type { ... } from '@mui/material/styles'`を使用（`verbatimModuleSyntax`対応）
 
 ### 3.2 バックエンド
 
