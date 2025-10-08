@@ -1,7 +1,40 @@
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
 import type { User } from '@/types'
 import { supabase } from '@/lib/supabase'
+
+const AUTH_STORAGE_KEY = 'auth-storage'
+
+// ストレージヘルパー
+const saveAuthState = (state: { user: User | null; isAuthenticated: boolean }, remember: boolean) => {
+  const data = JSON.stringify({ state: { user: state.user, isAuthenticated: state.isAuthenticated } })
+  if (remember) {
+    localStorage.setItem(AUTH_STORAGE_KEY, data)
+    sessionStorage.removeItem(AUTH_STORAGE_KEY)
+  } else {
+    sessionStorage.setItem(AUTH_STORAGE_KEY, data)
+    localStorage.removeItem(AUTH_STORAGE_KEY)
+  }
+}
+
+const loadAuthState = (): { user: User | null; isAuthenticated: boolean } | null => {
+  const localData = localStorage.getItem(AUTH_STORAGE_KEY)
+  const sessionData = sessionStorage.getItem(AUTH_STORAGE_KEY)
+  const data = localData || sessionData
+
+  if (!data) return null
+
+  try {
+    const parsed = JSON.parse(data)
+    return parsed.state
+  } catch {
+    return null
+  }
+}
+
+const clearAuthState = () => {
+  localStorage.removeItem(AUTH_STORAGE_KEY)
+  sessionStorage.removeItem(AUTH_STORAGE_KEY)
+}
 
 interface AuthState {
   user: User | null
@@ -10,27 +43,28 @@ interface AuthState {
 
   // Actions
   setUser: (user: User | null) => void
-  login: (email: string, password: string) => Promise<void>
+  login: (email: string, password: string, remember: boolean) => Promise<void>
   logout: () => Promise<void>
   checkAuth: () => Promise<void>
 }
 
-export const useAuthStore = create<AuthState>()(
-  persist(
-    (set) => ({
-      user: null,
-      isLoading: true,
-      isAuthenticated: false,
+// 初期状態を復元
+const initialState = loadAuthState()
 
-      setUser: (user) => {
-        set({
-          user,
-          isAuthenticated: !!user,
-          isLoading: false
-        })
-      },
+export const useAuthStore = create<AuthState>()((set) => ({
+  user: initialState?.user || null,
+  isLoading: false,
+  isAuthenticated: initialState?.isAuthenticated || false,
 
-      login: async (email: string, password: string) => {
+  setUser: (user) => {
+    set({
+      user,
+      isAuthenticated: !!user,
+      isLoading: false
+    })
+  },
+
+  login: async (email: string, password: string, remember: boolean = false) => {
         console.log('auth store login called:', { email })
         set({ isLoading: true })
         try {
@@ -71,11 +105,13 @@ export const useAuthStore = create<AuthState>()(
             await new Promise(resolve => setTimeout(resolve, 500))
 
             console.log('Setting authenticated user')
-            set({
+            const authState = {
               user,
               isAuthenticated: true,
               isLoading: false
-            })
+            }
+            set(authState)
+            saveAuthState({ user, isAuthenticated: true }, remember)
             console.log('Mock login successful')
             return
           }
@@ -96,11 +132,13 @@ export const useAuthStore = create<AuthState>()(
               role: (data.user.user_metadata?.role as 'admin' | 'user') || 'user',
               created_at: data.user.created_at || new Date().toISOString(),
             }
-            set({
+            const authState = {
               user,
               isAuthenticated: true,
               isLoading: false
-            })
+            }
+            set(authState)
+            saveAuthState({ user, isAuthenticated: true }, remember)
           }
         } catch (error) {
           set({ isLoading: false })
@@ -108,66 +146,58 @@ export const useAuthStore = create<AuthState>()(
         }
       },
 
-      logout: async () => {
-        await supabase.auth.signOut()
+  logout: async () => {
+    await supabase.auth.signOut()
+    set({
+      user: null,
+      isAuthenticated: false,
+      isLoading: false
+    })
+    clearAuthState()
+  },
+
+  checkAuth: async () => {
+    console.log('checkAuth called')
+    set({ isLoading: true })
+    try {
+      // モック認証の場合は、既存のstateを維持
+      if (import.meta.env.VITE_SUPABASE_URL === 'https://mock-project.supabase.co') {
+        console.log('Mock mode: preserving existing auth state')
+        const currentState = useAuthStore.getState()
+        console.log('Current state:', { user: currentState.user, isAuthenticated: currentState.isAuthenticated })
+        set({ isLoading: false })
+        return
+      }
+
+      // 本番用のSupabase認証チェック
+      const { data: { session } } = await supabase.auth.getSession()
+
+      if (session?.user) {
+        const user: User = {
+          id: session.user.id,
+          email: session.user.email || '',
+          role: (session.user.user_metadata?.role as 'admin' | 'user') || 'user',
+          created_at: session.user.created_at || new Date().toISOString(),
+        }
+        set({
+          user,
+          isAuthenticated: true,
+          isLoading: false
+        })
+      } else {
         set({
           user: null,
           isAuthenticated: false,
           isLoading: false
         })
-      },
-
-      checkAuth: async () => {
-        console.log('checkAuth called')
-        set({ isLoading: true })
-        try {
-          // モック認証の場合は、既存のstateを維持
-          if (import.meta.env.VITE_SUPABASE_URL === 'https://mock-project.supabase.co') {
-            console.log('Mock mode: preserving existing auth state')
-            const currentState = useAuthStore.getState()
-            console.log('Current state:', { user: currentState.user, isAuthenticated: currentState.isAuthenticated })
-            set({ isLoading: false })
-            return
-          }
-
-          // 本番用のSupabase認証チェック
-          const { data: { session } } = await supabase.auth.getSession()
-
-          if (session?.user) {
-            const user: User = {
-              id: session.user.id,
-              email: session.user.email || '',
-              role: (session.user.user_metadata?.role as 'admin' | 'user') || 'user',
-              created_at: session.user.created_at || new Date().toISOString(),
-            }
-            set({
-              user,
-              isAuthenticated: true,
-              isLoading: false
-            })
-          } else {
-            set({
-              user: null,
-              isAuthenticated: false,
-              isLoading: false
-            })
-          }
-        } catch (error) {
-          console.error('checkAuth error:', error)
-          set({
-            user: null,
-            isAuthenticated: false,
-            isLoading: false
-          })
-        }
-      },
-    }),
-    {
-      name: 'auth-storage',
-      partialize: (state) => ({
-        user: state.user,
-        isAuthenticated: state.isAuthenticated
-      }),
+      }
+    } catch (error) {
+      console.error('checkAuth error:', error)
+      set({
+        user: null,
+        isAuthenticated: false,
+        isLoading: false
+      })
     }
-  )
-)
+  },
+}))

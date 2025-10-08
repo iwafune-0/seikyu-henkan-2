@@ -46,10 +46,10 @@ export function LoginPage() {
 
     setIsLoading(true)
 
-    console.log('ログイン開始:', { email, password })
+    console.log('ログイン開始:', { email, password, remember })
 
     try {
-      await login(email, password)
+      await login(email, password, remember)
       console.log('ログイン成功')
       navigate('/process')
     } catch (err: any) {

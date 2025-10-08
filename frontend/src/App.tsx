@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute'
+import { useAuthStore } from '@/stores/auth'
 
 // Auth pages
 import { LoginPage } from '@/pages/auth/LoginPage'
@@ -11,6 +12,23 @@ import { ProcessPage } from '@/pages/process/ProcessPage'
 import { HistoryPage } from '@/pages/history/HistoryPage'
 import { UsersPage } from '@/pages/users/UsersPage'
 import { CompaniesPage } from '@/pages/companies/CompaniesPage'
+
+function RootRedirect() {
+  const { isAuthenticated, isLoading } = useAuthStore()
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-muted-foreground">読み込み中...</p>
+        </div>
+      </div>
+    )
+  }
+
+  return <Navigate to={isAuthenticated ? '/process' : '/login'} replace />
+}
 
 function App() {
   return (
@@ -55,9 +73,9 @@ function App() {
           }
         />
 
-        {/* Default redirect */}
-        <Route path="/" element={<Navigate to="/login" replace />} />
-        <Route path="*" element={<Navigate to="/login" replace />} />
+        {/* Default redirect - check auth state first */}
+        <Route path="/" element={<RootRedirect />} />
+        <Route path="*" element={<RootRedirect />} />
       </Routes>
     </BrowserRouter>
   )
