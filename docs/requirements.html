@@ -1,0 +1,1206 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>月次処理自動化システム 要件定義書</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', Meiryo, sans-serif;
+            line-height: 1.8;
+            color: #333;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: white;
+            padding: 40px 60px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        h1 {
+            font-size: 2.2em;
+            color: #1a1a1a;
+            border-bottom: 4px solid #0066cc;
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+        }
+
+        h2 {
+            font-size: 1.8em;
+            color: #0066cc;
+            margin-top: 50px;
+            margin-bottom: 20px;
+            padding-left: 15px;
+            border-left: 5px solid #0066cc;
+        }
+
+        h3 {
+            font-size: 1.4em;
+            color: #333;
+            margin-top: 30px;
+            margin-bottom: 15px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        h4 {
+            font-size: 1.2em;
+            color: #555;
+            margin-top: 25px;
+            margin-bottom: 12px;
+        }
+
+        h5 {
+            font-size: 1.1em;
+            color: #666;
+            margin-top: 20px;
+            margin-bottom: 10px;
+        }
+
+        .metadata {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+            border: 1px solid #e0e0e0;
+        }
+
+        .metadata p {
+            margin: 5px 0;
+            font-weight: 600;
+        }
+
+        .toc {
+            background: #f8f9fa;
+            padding: 25px;
+            border-radius: 8px;
+            margin: 30px 0;
+            border: 1px solid #e0e0e0;
+        }
+
+        .toc h2 {
+            margin-top: 0;
+            font-size: 1.5em;
+        }
+
+        .toc ol {
+            margin-left: 25px;
+            margin-top: 15px;
+        }
+
+        .toc li {
+            margin: 8px 0;
+        }
+
+        .toc a {
+            color: #0066cc;
+            text-decoration: none;
+        }
+
+        .toc a:hover {
+            text-decoration: underline;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            background: white;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        th {
+            background: #0066cc;
+            color: white;
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+        }
+
+        td {
+            padding: 12px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        tr:hover {
+            background: #f8f9fa;
+        }
+
+        pre {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            overflow-x: auto;
+            border: 1px solid #e0e0e0;
+            margin: 20px 0;
+            font-family: 'Courier New', Consolas, monospace;
+            font-size: 0.9em;
+            line-height: 1.6;
+        }
+
+        code {
+            background: #f0f0f0;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', Consolas, monospace;
+            font-size: 0.9em;
+        }
+
+        ul, ol {
+            margin-left: 30px;
+            margin: 15px 0 15px 30px;
+        }
+
+        li {
+            margin: 8px 0;
+        }
+
+        p {
+            margin: 15px 0;
+        }
+
+        .note {
+            background: #fff9e6;
+            border-left: 4px solid #ffcc00;
+            padding: 15px 20px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+
+        .warning {
+            background: #fff0f0;
+            border-left: 4px solid #ff3333;
+            padding: 15px 20px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+
+        .info {
+            background: #e6f3ff;
+            border-left: 4px solid #0066cc;
+            padding: 15px 20px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+
+        .system-diagram {
+            background: #f8f9fa;
+            padding: 25px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border: 2px solid #0066cc;
+            font-family: 'Courier New', Consolas, monospace;
+            white-space: pre;
+            line-height: 1.8;
+        }
+
+        .status-complete {
+            color: #28a745;
+            font-weight: bold;
+        }
+
+        .status-pending {
+            color: #6c757d;
+        }
+
+        hr {
+            border: none;
+            border-top: 2px solid #e0e0e0;
+            margin: 40px 0;
+        }
+
+        @media print {
+            body {
+                background: white;
+                padding: 0;
+            }
+
+            .container {
+                box-shadow: none;
+                padding: 20px;
+            }
+
+            h2 {
+                page-break-before: always;
+            }
+
+            table, pre, .system-diagram {
+                page-break-inside: avoid;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>月次処理自動化システム 要件定義書</h1>
+
+        <div class="metadata">
+            <p><strong>バージョン:</strong> 1.0</p>
+            <p><strong>作成日:</strong> 2025-10-06</p>
+            <p><strong>最終更新:</strong> 2025-10-07</p>
+            <p><strong>ステータス:</strong> <span class="status-complete">確定</span></p>
+        </div>
+
+        <div class="toc">
+            <h2>目次</h2>
+            <ol>
+                <li><a href="#section1">プロジェクト概要</a></li>
+                <li><a href="#section2">成果定義</a></li>
+                <li><a href="#section3">システム要件</a></li>
+                <li><a href="#section4">機能要件</a></li>
+                <li><a href="#section5">非機能要件</a></li>
+                <li><a href="#section6">技術スタック</a></li>
+                <li><a href="#section7">データベース設計</a></li>
+                <li><a href="#section8">外部サービス</a></li>
+                <li><a href="#section9">セキュリティ要件</a></li>
+                <li><a href="#section10">開発・デプロイ環境</a></li>
+            </ol>
+        </div>
+
+        <hr>
+
+        <h2 id="section1">1. プロジェクト概要</h2>
+
+        <h3>1.1 システム名</h3>
+        <p><strong>月次処理自動化システム</strong></p>
+
+        <h3>1.2 目的</h3>
+        <p>毎月25日～翌月5日に受領する4種類のPDF（見積書・請求書・注文請書・納品書）を自動処理し、取引先ごとのExcelファイル編集とPDF生成を自動化することで、月次業務の工数を90%削減する。</p>
+
+        <h3>1.3 対象ユーザー</h3>
+        <ul>
+            <li>社内スタッフ（管理者・一般ユーザー）</li>
+            <li>招待制による限定的なアクセス</li>
+        </ul>
+
+        <h3>1.4 対象取引先</h3>
+        <ul>
+            <li><strong>現在:</strong> ネクストビッツ様、オフビートワークス様</li>
+            <li><strong>将来:</strong> 追加可能な設計</li>
+        </ul>
+
+        <hr>
+
+        <h2 id="section2">2. 成果定義</h2>
+
+        <h3>2.1 成果の詳細定義</h3>
+        <p>毎月25日～翌月5日に受領する4種類のPDF（見積書・請求書・注文請書・納品書）を事前チェックし、取引先を自動判別、先月分のExcel（注文書・検収書）を各社の処理ルールに従って自動編集。処理結果（ExcelファイルとPDF 2種）を1分以内で出力し、DBに永久保存。ログイン機能により過去の処理結果をいつでもダウンロード可能。管理者と一般ユーザーの権限分離に対応した業務自動化システム。</p>
+
+        <h3>2.2 定量的指標</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>指標</th>
+                    <th>目標値</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>処理時間削減</strong></td>
+                    <td>手作業10分 → 自動化1分以内（90%削減）</td>
+                </tr>
+                <tr>
+                    <td><strong>エラー事前検知率</strong></td>
+                    <td>100%（処理開始前に問題検知・通知）</td>
+                </tr>
+                <tr>
+                    <td><strong>処理成功率</strong></td>
+                    <td>100%（事前チェック通過後）</td>
+                </tr>
+                <tr>
+                    <td><strong>月間工数削減</strong></td>
+                    <td>取引先2社で月20分程度削減</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h3>2.3 定性的指標</h3>
+        <ul>
+            <li><strong>脱属人化:</strong> マニュアルを見ずに誰でも実行可能</li>
+            <li><strong>ストレスフリー:</strong> 定型業務から解放され創造的業務に集中できる</li>
+            <li><strong>安心感:</strong> 事前チェックで問題を検知し、エラーなく処理完了</li>
+            <li><strong>トレーサビリティ:</strong> 過去の処理結果をいつでも参照・再ダウンロード可能</li>
+            <li><strong>将来対応:</strong> ユーザー増加・取引先追加に柔軟に対応可能</li>
+        </ul>
+
+        <hr>
+
+        <h2 id="section3">3. システム要件</h2>
+
+        <h3>3.1 システム構成</h3>
+        <div class="system-diagram">[ユーザー]
+    ↓
+[React Frontend (AWS Amplify)]
+    ↓ REST API
+[Node.js API (AWS Lambda)]
+    ↓ 処理委譲
+[Python PDF/Excel処理 (AWS Lambda)]
+    ↓
+[Supabase PostgreSQL]
+ ├─ 認証（Supabase Auth）
+ ├─ ユーザー・権限管理
+ ├─ ファイル保存（BYTEA型）
+ └─ 処理ログ・エラーログ</div>
+
+        <h3>3.2 対応ブラウザ</h3>
+        <ul>
+            <li>Google Chrome（最新版）</li>
+            <li>Microsoft Edge（最新版）</li>
+            <li>Firefox（最新版）</li>
+            <li>Safari（最新版）</li>
+        </ul>
+
+        <h3>3.3 動作環境</h3>
+        <ul>
+            <li><strong>フロントエンド:</strong> モダンブラウザ（ES2020対応）</li>
+            <li><strong>バックエンド:</strong> AWS Lambda（Node.js 20 + Python 3.11）</li>
+            <li><strong>データベース:</strong> PostgreSQL 15（Supabase）</li>
+        </ul>
+
+        <hr>
+
+        <h2 id="section4">4. 機能要件</h2>
+
+        <h3>4.1 ページ構成（全8ページ）</h3>
+
+        <h4>認証関連ページ（3ページ）</h4>
+
+        <h5>P-001a: ログインページ</h5>
+        <ul>
+            <li><strong>権限:</strong> ゲスト（未ログイン）</li>
+            <li><strong>機能:</strong>
+                <ul>
+                    <li>メールアドレス + パスワード入力</li>
+                    <li>ログイン状態保持チェックボックス</li>
+                    <li>パスワードリセットリンク</li>
+                </ul>
+            </li>
+        </ul>
+
+        <h5>P-001b: 招待受諾・パスワード設定ページ</h5>
+        <ul>
+            <li><strong>権限:</strong> 招待リンク保有者</li>
+            <li><strong>機能:</strong>
+                <ul>
+                    <li>メールアドレス表示（変更不可）</li>
+                    <li>パスワード設定（8文字以上）</li>
+                    <li>パスワード確認入力</li>
+                </ul>
+            </li>
+        </ul>
+
+        <h5>P-001c: パスワードリセットページ</h5>
+        <ul>
+            <li><strong>権限:</strong> パスワードリセットリンク保有者</li>
+            <li><strong>機能:</strong>
+                <ul>
+                    <li>新パスワード設定（8文字以上）</li>
+                    <li>パスワード確認入力</li>
+                </ul>
+            </li>
+        </ul>
+
+        <h4>メイン機能ページ（5ページ）</h4>
+
+        <h5>P-002: PDF処理実行ページ</h5>
+        <ul>
+            <li><strong>権限:</strong> 全ユーザー</li>
+            <li><strong>機能:</strong>
+                <ul>
+                    <li>4つのPDF統合アップロード（見積書・請求書・注文請書・納品書）</li>
+                    <li>自動判別（取引先特定）</li>
+                    <li>事前チェック（フォーマット検証・データ確認）</li>
+                    <li>初回のみExcelアップロード（2回目以降は自動取得）</li>
+                    <li>処理実行（プログレスバー表示）</li>
+                    <li>処理完了後の即時ダウンロード（Excel・注文書PDF・検収書PDF）</li>
+                </ul>
+            </li>
+        </ul>
+
+        <div class="info">
+            <strong>画面遷移:</strong>
+            <pre>初期状態（PDFドロップゾーン）
+  ↓ 4つのPDFをドロップ
+判別中（自動判別実行）
+  ↓
+判別完了・事前チェック完了
+  ↓ [初回のみ] Excelアップロード
+処理実行可能
+  ↓ [処理を実行]ボタン
+処理中（プログレスバー）
+  ↓
+処理完了（ダウンロードボタン表示）</pre>
+        </div>
+
+        <h5>P-003: 処理履歴・ダウンロードページ</h5>
+        <ul>
+            <li><strong>権限:</strong> 全ユーザー（全員が全データ閲覧可能）</li>
+            <li><strong>機能:</strong>
+                <ul>
+                    <li>処理履歴一覧表示（取引先名・処理日・処理者・状態）</li>
+                    <li>フィルター機能（取引先・期間・処理者）</li>
+                    <li>ファイル再ダウンロード（Excel・注文書PDF・検収書PDF）</li>
+                    <li>処理時間表示</li>
+                    <li>エラー詳細表示（モーダル）</li>
+                </ul>
+            </li>
+        </ul>
+
+        <h5>P-004: ユーザー管理ページ（管理者専用）</h5>
+        <ul>
+            <li><strong>権限:</strong> 管理者専用</li>
+            <li><strong>機能:</strong>
+                <ul>
+                    <li>ユーザー一覧表示（メールアドレス・ロール・登録日）</li>
+                    <li>新規ユーザー招待（モーダル）</li>
+                    <li>ユーザー削除（確認モーダル）</li>
+                    <li>権限変更（即座に適用）</li>
+                </ul>
+            </li>
+        </ul>
+
+        <div class="note">
+            <strong>保護機能:</strong>
+            <ul>
+                <li>自分自身の編集ブロック</li>
+                <li>最終管理者の削除/降格ブロック</li>
+            </ul>
+        </div>
+
+        <h5>P-005: 取引先設定ページ（管理者専用）</h5>
+        <ul>
+            <li><strong>権限:</strong> 管理者専用</li>
+            <li><strong>機能:</strong>
+                <ul>
+                    <li>取引先一覧表示</li>
+                    <li>取引先詳細表示・編集</li>
+                    <li>テンプレートExcelの確認・ダウンロード・更新</li>
+                    <li>処理ルール表示（読み取り専用）</li>
+                    <li>処理履歴確認</li>
+                </ul>
+            </li>
+        </ul>
+
+        <div class="info">
+            <strong>処理ルールの管理:</strong>
+            <ul>
+                <li>Phase 1（MVP）: 開発者がコード修正</li>
+                <li>Phase 2（将来）: 設定ファイル方式</li>
+                <li>Phase 3（将来）: GUI設定画面</li>
+            </ul>
+        </div>
+
+        <h3>4.2 認証・権限設計</h3>
+
+        <h4>ユーザーロール</h4>
+        <table>
+            <thead>
+                <tr>
+                    <th>ロール</th>
+                    <th>権限</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>管理者</strong></td>
+                    <td>
+                        ・ユーザー管理（招待・削除・権限変更）<br>
+                        ・処理実行<br>
+                        ・全ユーザーのデータ閲覧・ダウンロード<br>
+                        ・処理ログ閲覧<br>
+                        ・エラーログ閲覧<br>
+                        ・取引先設定管理
+                    </td>
+                </tr>
+                <tr>
+                    <td><strong>一般ユーザー</strong></td>
+                    <td>
+                        ・処理実行<br>
+                        ・全ユーザーのデータ閲覧・ダウンロード<br>
+                        ・処理ログ閲覧<br>
+                        ・エラーログ閲覧
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+
+        <div class="note">
+            <strong>注:</strong> 管理者と一般ユーザーの実質的な違いは「ユーザー管理機能」と「取引先設定管理機能」のみ
+        </div>
+
+        <h4>認証方式</h4>
+        <ul>
+            <li><strong>招待制:</strong> 管理者が招待メール送信 → ユーザーがパスワード設定</li>
+            <li>メール + パスワード認証</li>
+            <li>パスワード自動ハッシュ化（bcrypt）</li>
+            <li>JWTトークンベースのセッション管理</li>
+            <li>Row Level Security（データベースレベルの権限制御）</li>
+        </ul>
+
+        <h4>認証フロー</h4>
+        <div class="info">
+            <strong>初回登録:</strong>
+            <pre>管理者が招待 → 招待メール受信 → リンククリック
+→ パスワード設定 → 登録完了 → 自動ログイン</pre>
+
+            <strong>2回目以降:</strong>
+            <pre>ログインページ → メール + パスワード入力 → ログイン</pre>
+        </div>
+
+        <h3>4.3 PDF処理ルール</h3>
+
+        <h4>処理対象ファイル</h4>
+        <table>
+            <thead>
+                <tr>
+                    <th>ファイル種別</th>
+                    <th>必須</th>
+                    <th>用途</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>見積書</td>
+                    <td>✅</td>
+                    <td>データ抽出元</td>
+                </tr>
+                <tr>
+                    <td>請求書</td>
+                    <td>✅</td>
+                    <td>データ抽出元</td>
+                </tr>
+                <tr>
+                    <td>注文請書</td>
+                    <td>✅</td>
+                    <td>データ抽出元</td>
+                </tr>
+                <tr>
+                    <td>納品書</td>
+                    <td>✅</td>
+                    <td>データ抽出元</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h4>処理フロー</h4>
+        <pre>1. PDFアップロード（4ファイル）
+   ↓
+2. 取引先自動判別（PDF内容から特定）
+   ↓
+3. 事前チェック
+   - フォーマット検証
+   - データ存在確認
+   - 金額整合性チェック
+   ↓
+4. 前回Excelの取得
+   - 初回: 手動アップロード → DB保存
+   - 2回目以降: DB自動取得
+   ↓
+5. Excel自動編集
+   - 処理ルールに従ってデータ転記
+   - 数式はそのまま保持
+   ↓
+6. PDF生成
+   - 注文書PDF
+   - 検収書PDF
+   ↓
+7. DB保存 + ダウンロード提供</pre>
+
+        <h4>処理ルール例（ネクストビッツ様）</h4>
+
+        <div class="info">
+            <strong>自動計算項目（Excelの数式）:</strong>
+            <ul>
+                <li>注文番号: yyyymmdd-01 形式</li>
+                <li>注文書明細タイトル: yyyy年mm月作業費</li>
+                <li>金額: 数量 × 単価</li>
+                <li>摘要: 見積番号：***-**-*** 形式</li>
+            </ul>
+
+            <strong>PDF→Excel転記:</strong>
+            <ul>
+                <li>発行日: 前回+1ヶ月の1日</li>
+                <li>発注金額: 請求書の合計金額</li>
+                <li>件名: 見積書の件名（パターン変換）</li>
+                <li>数量: 見積書の数量（1式→1に変換）</li>
+                <li>単価: 見積書の単価</li>
+                <li>小計・消費税・合計: 請求書と一致チェック</li>
+            </ul>
+
+            <strong>固定値チェック:</strong>
+            <ul>
+                <li>宛名: 株式会社ネクストビッツ 御中</li>
+                <li>明細の締め: 以下、余白</li>
+            </ul>
+        </div>
+
+        <hr>
+
+        <h2 id="section5">5. 非機能要件</h2>
+
+        <h3>5.1 性能要件</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>項目</th>
+                    <th>要件</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>処理時間</strong></td>
+                    <td>1分以内（PDF解析→Excel編集→PDF生成）</td>
+                </tr>
+                <tr>
+                    <td><strong>同時実行</strong></td>
+                    <td>5ユーザーまで同時処理可能</td>
+                </tr>
+                <tr>
+                    <td><strong>ファイルサイズ</strong></td>
+                    <td>PDF 1ファイルあたり最大10MB</td>
+                </tr>
+                <tr>
+                    <td><strong>レスポンスタイム</strong></td>
+                    <td>画面遷移2秒以内</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h3>5.2 可用性要件</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>項目</th>
+                    <th>要件</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>稼働率</strong></td>
+                    <td>99.5%以上</td>
+                </tr>
+                <tr>
+                    <td><strong>バックアップ</strong></td>
+                    <td>データベース日次自動バックアップ</td>
+                </tr>
+                <tr>
+                    <td><strong>障害復旧</strong></td>
+                    <td>24時間以内</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h3>5.3 保守性要件</h3>
+        <ul>
+            <li>コードレビュー実施</li>
+            <li>単体テスト・統合テスト実施</li>
+            <li>E2Eテスト実施</li>
+            <li>TypeScript型安全性確保</li>
+            <li>ESLint/Prettierによるコード品質管理</li>
+        </ul>
+
+        <h3>5.4 拡張性要件</h3>
+        <ul>
+            <li>取引先追加に対応可能な設計</li>
+            <li>ユーザー数増加に対応可能な設計</li>
+            <li>処理ルール変更に対応可能な設計</li>
+        </ul>
+
+        <hr>
+
+        <h2 id="section6">6. 技術スタック</h2>
+
+        <h3>6.1 フロントエンド</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>技術</th>
+                    <th>バージョン</th>
+                    <th>用途</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>React</td>
+                    <td>18</td>
+                    <td>UIフレームワーク</td>
+                </tr>
+                <tr>
+                    <td>TypeScript</td>
+                    <td>5.x</td>
+                    <td>型安全性</td>
+                </tr>
+                <tr>
+                    <td>Vite</td>
+                    <td>5.x</td>
+                    <td>ビルドツール</td>
+                </tr>
+                <tr>
+                    <td>Tailwind CSS</td>
+                    <td>3.x</td>
+                    <td>スタイリング</td>
+                </tr>
+                <tr>
+                    <td>shadcn/ui</td>
+                    <td>latest</td>
+                    <td>UIコンポーネント</td>
+                </tr>
+                <tr>
+                    <td>Zustand</td>
+                    <td>latest</td>
+                    <td>状態管理</td>
+                </tr>
+                <tr>
+                    <td>Supabase Auth UI</td>
+                    <td>latest</td>
+                    <td>認証UI</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h3>6.2 バックエンド</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>技術</th>
+                    <th>バージョン</th>
+                    <th>用途</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Node.js</td>
+                    <td>20</td>
+                    <td>ランタイム</td>
+                </tr>
+                <tr>
+                    <td>Express</td>
+                    <td>4.x</td>
+                    <td>APIフレームワーク</td>
+                </tr>
+                <tr>
+                    <td>TypeScript</td>
+                    <td>5.x</td>
+                    <td>型安全性</td>
+                </tr>
+                <tr>
+                    <td>Python</td>
+                    <td>3.11</td>
+                    <td>PDF/Excel処理</td>
+                </tr>
+                <tr>
+                    <td>pdfplumber</td>
+                    <td>latest</td>
+                    <td>PDF解析</td>
+                </tr>
+                <tr>
+                    <td>openpyxl</td>
+                    <td>latest</td>
+                    <td>Excel編集</td>
+                </tr>
+                <tr>
+                    <td>LibreOffice</td>
+                    <td>latest</td>
+                    <td>PDF生成</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h3>6.3 データベース</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>技術</th>
+                    <th>バージョン</th>
+                    <th>用途</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>PostgreSQL</td>
+                    <td>15</td>
+                    <td>RDBMS</td>
+                </tr>
+                <tr>
+                    <td>Supabase</td>
+                    <td>latest</td>
+                    <td>DBホスティング + 認証</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h3>6.4 インフラ</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>技術</th>
+                    <th>用途</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>AWS Amplify</td>
+                    <td>フロントエンドホスティング</td>
+                </tr>
+                <tr>
+                    <td>AWS Lambda Docker Image</td>
+                    <td>バックエンド実行環境</td>
+                </tr>
+                <tr>
+                    <td>Supabase</td>
+                    <td>データベース + 認証</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <hr>
+
+        <h2 id="section7">7. データベース設計</h2>
+
+        <h3>7.1 テーブル定義</h3>
+
+        <h4>profiles（ユーザープロファイル）</h4>
+        <pre><code>CREATE TABLE profiles (
+  id UUID REFERENCES auth.users PRIMARY KEY,
+  email TEXT NOT NULL,
+  role TEXT CHECK (role IN ('admin', 'user')) DEFAULT 'user',
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);</code></pre>
+
+        <h4>companies（取引先）- テンプレートExcel含む</h4>
+        <pre><code>CREATE TABLE companies (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  name TEXT NOT NULL,
+  display_name TEXT NOT NULL, -- 宛名（Excel表記）
+  is_active BOOLEAN DEFAULT TRUE,
+  last_processed_at TIMESTAMPTZ,
+
+  -- テンプレートExcel（最新版のみ保持）
+  template_excel BYTEA,
+  template_filename TEXT,
+  template_updated_at TIMESTAMPTZ,
+  template_updated_by UUID REFERENCES profiles(id),
+
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);</code></pre>
+
+        <div class="note">
+            <strong>注:</strong> テンプレートExcelは履歴を残さず、最新版のみ保持します。
+        </div>
+
+        <h4>processed_files（処理済みファイル）</h4>
+        <pre><code>CREATE TABLE processed_files (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID REFERENCES profiles(id),
+  company_id UUID REFERENCES companies(id),
+  process_date DATE NOT NULL,
+
+  -- ファイルをバイナリで保存
+  excel_file BYTEA NOT NULL,
+  excel_filename TEXT NOT NULL,
+  order_pdf BYTEA NOT NULL,
+  order_pdf_filename TEXT NOT NULL,
+  inspection_pdf BYTEA NOT NULL,
+  inspection_pdf_filename TEXT NOT NULL,
+
+  -- 処理情報
+  processing_time INTEGER, -- 秒
+  status TEXT CHECK (status IN ('success', 'error')),
+  error_message TEXT,
+
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);</code></pre>
+
+        <h4>process_logs（処理ログ）</h4>
+        <pre><code>CREATE TABLE process_logs (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID REFERENCES profiles(id),
+  company_id UUID REFERENCES companies(id),
+  status TEXT CHECK (status IN ('success', 'error')),
+  error_message TEXT,
+  error_detail TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);</code></pre>
+
+        <hr>
+
+        <h2 id="section8">8. 外部サービス</h2>
+
+        <h3>8.1 使用する外部サービス（3つ）</h3>
+
+        <h4>Supabase 🔐</h4>
+        <ul>
+            <li><strong>用途:</strong> データベース + 認証</li>
+            <li><strong>機能:</strong>
+                <ul>
+                    <li>PostgreSQL 15データベース</li>
+                    <li>Supabase Auth（招待制ユーザー管理）</li>
+                    <li>Row Level Security（権限制御）</li>
+                    <li>ファイルストレージ（BYTEA型でDB保存）</li>
+                </ul>
+            </li>
+            <li><strong>無料枠:</strong> 10,000 MAU、500MB DB</li>
+            <li><strong>月額費用:</strong> $0</li>
+            <li><strong>必要タイミング:</strong> 開発開始時から（ローカル開発でも使用）</li>
+        </ul>
+
+        <h4>AWS Amplify ☁️</h4>
+        <ul>
+            <li><strong>用途:</strong> フロントエンドホスティング</li>
+            <li><strong>機能:</strong>
+                <ul>
+                    <li>Git連携自動デプロイ</li>
+                    <li>HTTPS対応</li>
+                    <li>CDN配信</li>
+                </ul>
+            </li>
+            <li><strong>無料枠:</strong> 月1,000ビルド分、5GB転送</li>
+            <li><strong>月額費用:</strong> $0</li>
+            <li><strong>必要タイミング:</strong> Phase 10（デプロイメント）のみ</li>
+        </ul>
+
+        <h4>AWS Lambda ⚡</h4>
+        <ul>
+            <li><strong>用途:</strong> バックエンドAPI + PDF/Excel処理</li>
+            <li><strong>機能:</strong>
+                <ul>
+                    <li>サーバーレス実行環境</li>
+                    <li>Docker Image対応（LibreOffice実行）</li>
+                    <li>自動スケーリング</li>
+                </ul>
+            </li>
+            <li><strong>無料枠:</strong> 100万リクエスト/月</li>
+            <li><strong>月額費用:</strong> $0</li>
+            <li><strong>必要タイミング:</strong> Phase 10（デプロイメント）のみ</li>
+        </ul>
+
+        <h3>8.2 外部API不要な項目</h3>
+        <div class="info">
+            以下は外部APIを<strong>使用しません</strong>（自前実装）:
+            <ul>
+                <li>❌ PDF解析API → pdfplumberで自前実装</li>
+                <li>❌ Excel編集API → openpyxlで自前実装</li>
+                <li>❌ PDF生成API → LibreOfficeで自前実装</li>
+                <li>❌ ファイルストレージサービス → PostgreSQL BYTEA型で保存</li>
+                <li>❌ メール送信サービス → Supabase Auth内蔵機能を使用</li>
+            </ul>
+        </div>
+
+        <hr>
+
+        <h2 id="section9">9. セキュリティ要件</h2>
+
+        <h3>9.1 認証・認可</h3>
+        <ul>
+            <li>招待制による厳格なアクセス制御</li>
+            <li>パスワードの自動ハッシュ化（bcrypt）</li>
+            <li>JWTトークンベースのセッション管理</li>
+            <li>Row Level Security（RLS）によるデータベースレベルの権限制御</li>
+        </ul>
+
+        <h3>9.2 データ保護</h3>
+        <ul>
+            <li>HTTPS通信（全通信暗号化）</li>
+            <li>パスワードの不可逆暗号化</li>
+            <li>ファイルはデータベース内に保存（URLリンクでの直接アクセス不可、ログイン後にのみダウンロード可能）</li>
+        </ul>
+
+        <h3>9.3 脆弱性対策</h3>
+        <ul>
+            <li>XSS対策（React自動エスケープ）</li>
+            <li>CSRF対策（JWTトークン）</li>
+            <li>SQLインジェクション対策（プリペアドステートメント）</li>
+            <li>依存ライブラリの定期的な脆弱性チェック</li>
+        </ul>
+
+        <hr>
+
+        <h2 id="section10">10. 開発・デプロイ環境</h2>
+
+        <h3>10.1 ローカル開発環境</h3>
+        <pre><code>フロントエンド:
+  - npm run dev (Vite開発サーバー)
+  - localhost:5173 (例)
+  - AWS Amplify不要
+
+バックエンド:
+  - npm run dev (Node.js Express)
+  - localhost:3000 (例)
+  - AWS Lambda不要
+  - Dockerも不要（通常のNode.js + Python）
+
+データベース:
+  - Supabase無料プロジェクト（リモート接続）</code></pre>
+
+        <div class="info">
+            <strong>Phase 1-9まではローカルで完全に開発・テスト可能。AWSは最後のデプロイ時のみ使用。</strong>
+        </div>
+
+        <h3>10.2 本番環境</h3>
+        <pre><code>フロントエンド:
+  - AWS Amplify
+  - Git連携自動デプロイ
+  - HTTPS対応
+
+バックエンド:
+  - AWS Lambda Docker Image
+  - Docker Image (Node.js + Python + LibreOffice)
+  - 初回起動: 5〜10秒（コールドスタート）
+
+データベース:
+  - Supabase PostgreSQL
+  - 自動バックアップ</code></pre>
+
+        <h3>10.3 月額費用</h3>
+        <pre><code>AWS Amplify: $0（無料枠内）
+AWS Lambda: $0（100万リクエスト/月無料）
+Supabase: $0（無料枠内）
+
+合計: $0/月</code></pre>
+
+        <hr>
+
+        <h2>付録A: 用語集</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>用語</th>
+                    <th>定義</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>コールドスタート</strong></td>
+                    <td>Lambda関数が初めて起動する際の待ち時間（5〜10秒）</td>
+                </tr>
+                <tr>
+                    <td><strong>Row Level Security (RLS)</strong></td>
+                    <td>データベースレベルでのアクセス制御機能</td>
+                </tr>
+                <tr>
+                    <td><strong>BYTEA型</strong></td>
+                    <td>PostgreSQLのバイナリデータ型（ファイル保存用）</td>
+                </tr>
+                <tr>
+                    <td><strong>JWT</strong></td>
+                    <td>JSON Web Token（認証トークン形式）</td>
+                </tr>
+                <tr>
+                    <td><strong>MAU</strong></td>
+                    <td>Monthly Active Users（月間アクティブユーザー数）</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <hr>
+
+        <h2>付録B: 開発フェーズ</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Phase</th>
+                    <th>名称</th>
+                    <th>概要</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Phase 1</td>
+                    <td>要件定義</td>
+                    <td><span class="status-complete">✅ 完了</span></td>
+                </tr>
+                <tr>
+                    <td>Phase 2</td>
+                    <td>Git/GitHub管理</td>
+                    <td>リポジトリ準備</td>
+                </tr>
+                <tr>
+                    <td>Phase 3</td>
+                    <td>フロントエンド基盤</td>
+                    <td>React+Vite基盤構築</td>
+                </tr>
+                <tr>
+                    <td>Phase 4</td>
+                    <td>ページ実装</td>
+                    <td>8ページ実装</td>
+                </tr>
+                <tr>
+                    <td>Phase 5</td>
+                    <td>環境構築</td>
+                    <td>Supabase設定</td>
+                </tr>
+                <tr>
+                    <td>Phase 6</td>
+                    <td>バックエンド計画</td>
+                    <td>実装順序計画</td>
+                </tr>
+                <tr>
+                    <td>Phase 7</td>
+                    <td>バックエンド実装</td>
+                    <td>API実装</td>
+                </tr>
+                <tr>
+                    <td>Phase 8</td>
+                    <td>API統合</td>
+                    <td>フロントエンド連携</td>
+                </tr>
+                <tr>
+                    <td>Phase 9</td>
+                    <td>E2Eテスト</td>
+                    <td>品質担保</td>
+                </tr>
+                <tr>
+                    <td>Phase 10</td>
+                    <td>デプロイメント</td>
+                    <td>AWS本番デプロイ</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <hr>
+
+        <div class="metadata">
+            <h3>文書管理</h3>
+            <ul>
+                <li>本要件定義書は確定版です</li>
+                <li>変更が発生した場合はバージョンを更新してください</li>
+                <li>質問・不明点は開発チームまでお問い合わせください</li>
+            </ul>
+        </div>
+
+        <div class="metadata">
+            <h3>承認</h3>
+            <table>
+                <tbody>
+                    <tr>
+                        <td><strong>作成者:</strong></td>
+                        <td>BlueLamp要件定義エンジニア</td>
+                    </tr>
+                    <tr>
+                        <td><strong>レビュー者:</strong></td>
+                        <td>-</td>
+                    </tr>
+                    <tr>
+                        <td><strong>承認者:</strong></td>
+                        <td>-</td>
+                    </tr>
+                    <tr>
+                        <td><strong>承認日:</strong></td>
+                        <td>-</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</body>
+</html>

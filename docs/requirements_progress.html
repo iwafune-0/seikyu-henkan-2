@@ -1,0 +1,1269 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>要件定義進捗記録 - 月次処理自動化システム</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', Meiryo, sans-serif;
+            line-height: 1.8;
+            color: #333;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .header .date {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .content {
+            padding: 40px;
+        }
+
+        .section {
+            margin-bottom: 50px;
+        }
+
+        .section-title {
+            font-size: 2em;
+            color: #667eea;
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 10px;
+            margin-bottom: 25px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .section-title .icon {
+            font-size: 1.2em;
+        }
+
+        .progress-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .progress-item {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            border-left: 5px solid #ddd;
+            transition: all 0.3s ease;
+        }
+
+        .progress-item:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .progress-item.completed {
+            border-left-color: #28a745;
+            background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+        }
+
+        .progress-item.in-progress {
+            border-left-color: #ffc107;
+            background: linear-gradient(135deg, #fff3cd 0%, #ffe69c 100%);
+        }
+
+        .progress-item.pending {
+            border-left-color: #6c757d;
+        }
+
+        .progress-item .status {
+            font-weight: bold;
+            font-size: 1.1em;
+            margin-bottom: 8px;
+        }
+
+        .progress-item.completed .status::before {
+            content: "✅ ";
+        }
+
+        .progress-item.in-progress .status::before {
+            content: "🔄 ";
+        }
+
+        .progress-item.pending .status::before {
+            content: "⏳ ";
+        }
+
+        .card {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 25px;
+            margin-bottom: 20px;
+            border: 1px solid #e0e0e0;
+            transition: all 0.3s ease;
+        }
+
+        .card:hover {
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .card-title {
+            font-size: 1.4em;
+            color: #764ba2;
+            margin-bottom: 15px;
+            font-weight: bold;
+        }
+
+        .metric-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .metric {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+            border: 2px solid #e0e0e0;
+        }
+
+        .metric .label {
+            font-size: 0.9em;
+            color: #666;
+            margin-bottom: 8px;
+        }
+
+        .metric .value {
+            font-size: 1.8em;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .table-container {
+            overflow-x: auto;
+            margin: 20px 0;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        th {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px;
+            text-align: left;
+            font-weight: bold;
+        }
+
+        td {
+            padding: 15px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        tr:hover {
+            background: #f8f9fa;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            font-weight: bold;
+        }
+
+        .badge-success {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .badge-warning {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .badge-info {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+
+        .badge-secondary {
+            background: #e2e3e5;
+            color: #383d41;
+        }
+
+        .page-card {
+            background: white;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            padding: 25px;
+            margin-bottom: 25px;
+            transition: all 0.3s ease;
+        }
+
+        .page-card:hover {
+            border-color: #667eea;
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.2);
+        }
+
+        .page-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .page-id {
+            background: #667eea;
+            color: white;
+            padding: 5px 15px;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+
+        .page-title {
+            font-size: 1.6em;
+            color: #333;
+            font-weight: bold;
+        }
+
+        .page-meta {
+            display: flex;
+            gap: 15px;
+            margin: 15px 0;
+            flex-wrap: wrap;
+        }
+
+        .mockup {
+            background: #2d3748;
+            color: #e2e8f0;
+            padding: 20px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            margin: 15px 0;
+            overflow-x: auto;
+            white-space: pre;
+            line-height: 1.6;
+        }
+
+        .feature-list {
+            list-style: none;
+            padding-left: 0;
+        }
+
+        .feature-list li {
+            padding: 10px 0;
+            padding-left: 30px;
+            position: relative;
+        }
+
+        .feature-list li::before {
+            content: "✓";
+            position: absolute;
+            left: 0;
+            color: #28a745;
+            font-weight: bold;
+            font-size: 1.2em;
+        }
+
+        .architecture {
+            background: #f8f9fa;
+            padding: 30px;
+            border-radius: 10px;
+            margin: 20px 0;
+            text-align: center;
+        }
+
+        .architecture pre {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            display: inline-block;
+            text-align: left;
+            border: 2px solid #e0e0e0;
+        }
+
+        .next-action {
+            background: linear-gradient(135deg, #fff3cd 0%, #ffe69c 100%);
+            border: 2px solid #ffc107;
+            border-radius: 10px;
+            padding: 30px;
+            margin-top: 40px;
+        }
+
+        .next-action h3 {
+            color: #856404;
+            font-size: 1.6em;
+            margin-bottom: 20px;
+        }
+
+        .next-action ul {
+            list-style: none;
+            padding-left: 0;
+        }
+
+        .next-action li {
+            padding: 12px 0;
+            padding-left: 35px;
+            position: relative;
+            font-size: 1.1em;
+        }
+
+        .next-action li::before {
+            content: "▶";
+            position: absolute;
+            left: 0;
+            color: #ffc107;
+            font-weight: bold;
+        }
+
+        .summary-box {
+            background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+            border: 2px solid #28a745;
+            border-radius: 10px;
+            padding: 25px;
+            margin: 20px 0;
+        }
+
+        .summary-box h4 {
+            color: #155724;
+            font-size: 1.3em;
+            margin-bottom: 15px;
+        }
+
+        .code-block {
+            background: #2d3748;
+            color: #e2e8f0;
+            padding: 20px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 15px 0;
+        }
+
+        .code-block code {
+            font-family: 'Courier New', monospace;
+            font-size: 0.95em;
+        }
+
+        @media (max-width: 768px) {
+            .content {
+                padding: 20px;
+            }
+
+            .header h1 {
+                font-size: 1.8em;
+            }
+
+            .section-title {
+                font-size: 1.5em;
+            }
+
+            .metric-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .toc {
+            background: #f8f9fa;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            padding: 25px;
+            margin-bottom: 40px;
+        }
+
+        .toc h3 {
+            color: #667eea;
+            margin-bottom: 15px;
+        }
+
+        .toc ul {
+            list-style: none;
+            padding-left: 0;
+        }
+
+        .toc li {
+            padding: 8px 0;
+        }
+
+        .toc a {
+            color: #667eea;
+            text-decoration: none;
+            transition: all 0.3s ease;
+        }
+
+        .toc a:hover {
+            color: #764ba2;
+            padding-left: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📋 要件定義進捗記録</h1>
+            <div class="date">プロジェクト: 月次処理自動化システム | 開始日: 2025-10-06</div>
+        </div>
+
+        <div class="content">
+            <!-- 目次 -->
+            <div class="toc">
+                <h3>📑 目次</h3>
+                <ul>
+                    <li><a href="#progress">進捗状況</a></li>
+                    <li><a href="#step1">Step#1: 成果定義</a></li>
+                    <li><a href="#step2">Step#2: 実現可能性調査</a></li>
+                    <li><a href="#step3">Step#3: 認証・権限設計</a></li>
+                    <li><a href="#step4">Step#4: ページリスト</a></li>
+                    <li><a href="#architecture">システム構成</a></li>
+                    <li><a href="#database">データベース設計</a></li>
+                    <li><a href="#next">次回の作業</a></li>
+                </ul>
+            </div>
+
+            <!-- 進捗状況 -->
+            <div class="section" id="progress">
+                <div class="section-title">
+                    <span class="icon">📊</span>
+                    進捗状況
+                </div>
+                <div class="progress-container">
+                    <div class="progress-item completed">
+                        <div class="status">Step#1</div>
+                        <div>成果定義の確定</div>
+                    </div>
+                    <div class="progress-item completed">
+                        <div class="status">Step#2</div>
+                        <div>実現可能性調査</div>
+                    </div>
+                    <div class="progress-item completed">
+                        <div class="status">Step#3</div>
+                        <div>認証・権限設計</div>
+                    </div>
+                    <div class="progress-item in-progress">
+                        <div class="status">Step#4</div>
+                        <div>ページリスト作成</div>
+                    </div>
+                    <div class="progress-item pending">
+                        <div class="status">Step#5</div>
+                        <div>技術スタック最終決定</div>
+                    </div>
+                    <div class="progress-item pending">
+                        <div class="status">Step#6</div>
+                        <div>外部API最終決定</div>
+                    </div>
+                    <div class="progress-item pending">
+                        <div class="status">Step#7</div>
+                        <div>要件定義書の書き出し</div>
+                    </div>
+                    <div class="progress-item pending">
+                        <div class="status">Step#8</div>
+                        <div>SCOPE_PROGRESS進捗表挿入</div>
+                    </div>
+                    <div class="progress-item pending">
+                        <div class="status">Step#9</div>
+                        <div>CLAUDE.md生成</div>
+                    </div>
+                    <div class="progress-item pending">
+                        <div class="status">Step#10</div>
+                        <div>ページの深掘り</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step#1 -->
+            <div class="section" id="step1">
+                <div class="section-title">
+                    <span class="icon">🎯</span>
+                    Step#1: 成果定義の確定
+                </div>
+
+                <div class="card">
+                    <div class="card-title">成果の詳細定義</div>
+                    <p>毎月25日～翌月5日に受領する4種類のPDF（見積書・請求書・注文請書・納品書）を事前チェックし、取引先を自動判別、先月分のExcel（注文書・検収書）を各社の処理ルールに従って自動編集。処理結果（ExcelファイルとPDF 2種）を<strong>1分以内</strong>で出力し、DBに永久保存。ログイン機能により過去の処理結果をいつでもダウンロード可能。管理者と一般ユーザーの権限分離に対応した業務自動化システム</p>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">定量的指標</div>
+                    <div class="metric-grid">
+                        <div class="metric">
+                            <div class="label">処理時間削減</div>
+                            <div class="value">90%</div>
+                        </div>
+                        <div class="metric">
+                            <div class="label">目標処理時間</div>
+                            <div class="value">1分以内</div>
+                        </div>
+                        <div class="metric">
+                            <div class="label">エラー事前検知率</div>
+                            <div class="value">100%</div>
+                        </div>
+                        <div class="metric">
+                            <div class="label">処理成功率</div>
+                            <div class="value">100%</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">定性的指標</div>
+                    <ul class="feature-list">
+                        <li><strong>脱属人化</strong>: マニュアルを見ずに誰でも実行可能</li>
+                        <li><strong>ストレスフリー</strong>: 定型業務から解放され創造的業務に集中できる</li>
+                        <li><strong>安心感</strong>: 事前チェックで問題を検知し、エラーなく処理完了</li>
+                        <li><strong>トレーサビリティ</strong>: 過去の処理結果をいつでも参照・再ダウンロード可能</li>
+                        <li><strong>将来対応</strong>: ユーザー増加・取引先追加に柔軟に対応可能</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Step#2 -->
+            <div class="section" id="step2">
+                <div class="section-title">
+                    <span class="icon">🔍</span>
+                    Step#2: 実現可能性調査
+                </div>
+
+                <div class="summary-box">
+                    <h4>✅ すべての要件が実現可能です</h4>
+                    <p>PDF解析、Excel編集、ファイル保存、認証機能のすべてについて、適切な技術スタックを特定しました。無料枠内での運用が可能です。</p>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">推奨技術と選定理由</div>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>機能</th>
+                                    <th>推奨技術</th>
+                                    <th>選定理由</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><strong>PDF解析</strong></td>
+                                    <td>pdfplumber (Python)</td>
+                                    <td>日本語対応、テーブル構造抽出、フォーマット判別が可能</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Excel編集</strong></td>
+                                    <td>openpyxl (Python)</td>
+                                    <td>既存テンプレート完全保持、フォーマット維持</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>PDF生成</strong></td>
+                                    <td>LibreOffice</td>
+                                    <td>ExcelからPDF変換、高品質、無料</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>ファイル保存</strong></td>
+                                    <td>PostgreSQL BYTEA型</td>
+                                    <td>シンプル、トランザクション保証、追加サービス不要</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>認証</strong></td>
+                                    <td>Supabase Auth</td>
+                                    <td>PostgreSQL統合、Row Level Security、無料枠10,000 MAU</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">必要な外部サービス</div>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>サービス名</th>
+                                    <th>用途</th>
+                                    <th>無料枠</th>
+                                    <th>備考</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><strong>Supabase</strong></td>
+                                    <td>認証 + DB + ファイル保存</td>
+                                    <td>10,000 MAU、500MB DB</td>
+                                    <td>PostgreSQL完全互換</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Vercel</strong></td>
+                                    <td>フロントエンドホスティング</td>
+                                    <td>無料</td>
+                                    <td>React自動デプロイ</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Google Cloud Run</strong></td>
+                                    <td>バックエンドホスティング</td>
+                                    <td>月200万リクエスト無料</td>
+                                    <td>Node.js + Python</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">💰 コスト試算</div>
+                    <div class="metric-grid">
+                        <div class="metric">
+                            <div class="label">初期費用</div>
+                            <div class="value">$0</div>
+                        </div>
+                        <div class="metric">
+                            <div class="label">月額費用</div>
+                            <div class="value">$0</div>
+                        </div>
+                        <div class="metric">
+                            <div class="label">年間費用</div>
+                            <div class="value">$0</div>
+                        </div>
+                        <div class="metric">
+                            <div class="label">ストレージ使用量</div>
+                            <div class="value">36MB/年</div>
+                        </div>
+                    </div>
+                    <p style="margin-top: 20px; text-align: center; color: #28a745; font-weight: bold;">すべて無料枠内で運用可能！</p>
+                </div>
+            </div>
+
+            <!-- Step#3 -->
+            <div class="section" id="step3">
+                <div class="section-title">
+                    <span class="icon">🔐</span>
+                    Step#3: 認証・権限設計
+                </div>
+
+                <div class="card">
+                    <div class="card-title">ユーザーロールと権限</div>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>ロール</th>
+                                    <th>できること</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><span class="badge badge-info">管理者</span></td>
+                                    <td>
+                                        ✓ ユーザー管理（招待・削除・権限変更）<br>
+                                        ✓ 処理実行<br>
+                                        ✓ 全ユーザーのデータ閲覧・ダウンロード<br>
+                                        ✓ 処理ログ閲覧<br>
+                                        ✓ エラーログ閲覧
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td><span class="badge badge-secondary">一般ユーザー</span></td>
+                                    <td>
+                                        ✓ 処理実行<br>
+                                        ✓ 全ユーザーのデータ閲覧・ダウンロード<br>
+                                        ✓ 処理ログ閲覧<br>
+                                        ✓ エラーログ閲覧
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <p style="margin-top: 15px; padding: 15px; background: #fff3cd; border-radius: 5px;">
+                        <strong>注記:</strong> 管理者と一般ユーザーの実質的な違いは「ユーザー管理機能」のみ。全員が全データを閲覧可能（小規模チームでの情報共有を重視）
+                    </p>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">認証方式: 招待制</div>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-top: 20px;">
+                        <div style="background: white; padding: 20px; border-radius: 8px; border: 2px solid #e0e0e0;">
+                            <h4 style="color: #667eea; margin-bottom: 15px;">🆕 初回登録</h4>
+                            <ol style="padding-left: 20px;">
+                                <li>管理者が招待メールを送信</li>
+                                <li>ユーザーに招待メールが届く</li>
+                                <li>招待リンクをクリック</li>
+                                <li>パスワード設定ページに移動</li>
+                                <li>パスワードを設定して登録完了</li>
+                                <li>自動ログイン</li>
+                            </ol>
+                        </div>
+                        <div style="background: white; padding: 20px; border-radius: 8px; border: 2px solid #e0e0e0;">
+                            <h4 style="color: #667eea; margin-bottom: 15px;">🔑 2回目以降</h4>
+                            <ol style="padding-left: 20px;">
+                                <li>ログインページにアクセス</li>
+                                <li>メール + パスワードを入力</li>
+                                <li>ログイン</li>
+                            </ol>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">セキュリティ機能</div>
+                    <ul class="feature-list">
+                        <li>パスワードの自動ハッシュ化（bcrypt）</li>
+                        <li>JWTトークンベースのセッション管理</li>
+                        <li>Row Level Security（データベースレベルの権限制御）</li>
+                        <li>ログイン状態保持機能（チェックボックス）</li>
+                        <li>パスワードリセット機能</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Step#4 -->
+            <div class="section" id="step4">
+                <div class="section-title">
+                    <span class="icon">📄</span>
+                    Step#4: ページリスト（進行中）
+                </div>
+
+                <div class="summary-box">
+                    <h4>確定済み: 8ページ</h4>
+                    <p>認証関連3ページ + メイン機能5ページ</p>
+                </div>
+
+                <!-- 認証関連ページ -->
+                <h3 style="color: #667eea; margin-top: 30px; margin-bottom: 20px;">認証関連ページ</h3>
+
+                <div class="page-card">
+                    <div class="page-card-header">
+                        <span class="page-id">P-001a</span>
+                        <span class="badge badge-secondary">ゲスト</span>
+                    </div>
+                    <div class="page-title">ログインページ</div>
+                    <div class="page-meta">
+                        <span class="badge badge-info">認証</span>
+                    </div>
+                    <p><strong>目的:</strong> システムへのログイン</p>
+                    <h4 style="margin-top: 15px; margin-bottom: 10px;">機能:</h4>
+                    <ul class="feature-list">
+                        <li>メールアドレス入力</li>
+                        <li>パスワード入力</li>
+                        <li>ログイン状態を保持するチェックボックス</li>
+                        <li>ログインボタン</li>
+                        <li>パスワードリセットリンク</li>
+                        <li>システム名表示</li>
+                    </ul>
+                    <div class="mockup">┌─────────────────────────┐
+│ 月次処理自動化システム   │
+├─────────────────────────┤
+│                         │
+│ メールアドレス           │
+│ [________________]      │
+│                         │
+│ パスワード              │
+│ [________________]      │
+│                         │
+│ □ ログイン状態を保持する │
+│                         │
+│ [ログイン]              │
+│                         │
+│ パスワードを忘れた方はこちら │
+└─────────────────────────┘</div>
+                </div>
+
+                <div class="page-card">
+                    <div class="page-card-header">
+                        <span class="page-id">P-001b</span>
+                        <span class="badge badge-warning">招待ユーザー</span>
+                    </div>
+                    <div class="page-title">招待受諾・パスワード設定ページ</div>
+                    <div class="page-meta">
+                        <span class="badge badge-info">認証</span>
+                    </div>
+                    <p><strong>目的:</strong> 初回登録時のパスワード設定</p>
+                    <h4 style="margin-top: 15px; margin-bottom: 10px;">機能:</h4>
+                    <ul class="feature-list">
+                        <li>メールアドレス表示（変更不可）</li>
+                        <li>パスワード入力（8文字以上）</li>
+                        <li>パスワード確認入力</li>
+                        <li>アカウント作成ボタン</li>
+                    </ul>
+                    <div class="mockup">┌─────────────────────────┐
+│ 月次処理自動化システム   │
+├─────────────────────────┤
+│ ようこそ！               │
+│ アカウントを設定してください │
+│                         │
+│ メールアドレス           │
+│ example@company.com     │
+│ （変更不可）            │
+│                         │
+│ パスワード（8文字以上）  │
+│ [________________]      │
+│                         │
+│ パスワード確認           │
+│ [________________]      │
+│                         │
+│ [アカウントを作成]       │
+└─────────────────────────┘</div>
+                </div>
+
+                <div class="page-card">
+                    <div class="page-card-header">
+                        <span class="page-id">P-001c</span>
+                        <span class="badge badge-warning">リセットユーザー</span>
+                    </div>
+                    <div class="page-title">パスワードリセットページ</div>
+                    <div class="page-meta">
+                        <span class="badge badge-info">認証</span>
+                    </div>
+                    <p><strong>目的:</strong> パスワードを忘れた場合の再設定</p>
+                    <h4 style="margin-top: 15px; margin-bottom: 10px;">機能:</h4>
+                    <ul class="feature-list">
+                        <li>新しいパスワード入力（8文字以上）</li>
+                        <li>パスワード確認入力</li>
+                        <li>パスワード変更ボタン</li>
+                    </ul>
+                    <div class="mockup">┌─────────────────────────┐
+│ 月次処理自動化システム   │
+├─────────────────────────┤
+│ パスワードをリセット     │
+│                         │
+│ 新しいパスワード（8文字以上） │
+│ [________________]      │
+│                         │
+│ パスワード確認           │
+│ [________________]      │
+│                         │
+│ [パスワードを変更]       │
+└─────────────────────────┘</div>
+                </div>
+
+                <!-- メイン機能ページ -->
+                <h3 style="color: #667eea; margin-top: 40px; margin-bottom: 20px;">メイン機能ページ</h3>
+
+                <div class="page-card" style="border: 3px solid #ff6b6b;">
+                    <div class="page-card-header">
+                        <span class="page-id">P-002</span>
+                        <span class="badge badge-success">全ユーザー</span>
+                    </div>
+                    <div style="background: #ff6b6b; color: white; padding: 8px 15px; border-radius: 5px; margin-bottom: 15px; font-weight: bold; display: inline-block;">
+                        🔴 次回確認必須
+                    </div>
+                    <div class="page-title">PDF処理実行ページ</div>
+                    <div class="page-meta">
+                        <span class="badge badge-info">処理実行</span>
+                        <span class="badge badge-warning">コア機能</span>
+                    </div>
+                    <p><strong>目的:</strong> 4つのPDFをアップロードし、自動処理を実行</p>
+                    <div style="background: #fff3cd; padding: 15px; border-radius: 8px; margin: 15px 0; border: 2px solid #ffc107;">
+                        <strong>⚠️ 次回確認事項:</strong>
+                        <ul style="margin-top: 10px; padding-left: 20px;">
+                            <li>4つのPDFは必須か任意か</li>
+                            <li>取引先の指定方法（事前選択 or 自動判別 or ハイブリッド）</li>
+                            <li>事前チェックの表示タイミング（アップロード直後 or 処理実行時）</li>
+                            <li>処理対象月の指定方法（自動判定 or 手動選択 or PDF抽出）</li>
+                            <li>アップロード方法（個別選択 or ドラッグ&ドロップ or 一括選択）</li>
+                        </ul>
+                    </div>
+                    <h4 style="margin-top: 15px; margin-bottom: 10px;">機能（仮）:</h4>
+                    <ul class="feature-list">
+                        <li>4つのPDFファイルアップロード（見積書・請求書・注文請書・納品書）</li>
+                        <li>取引先の自動判別表示</li>
+                        <li>事前チェック結果表示</li>
+                        <li>処理実行ボタン</li>
+                        <li>処理進捗表示（プログレスバー）</li>
+                        <li><strong>ハイブリッド方式の処理完了後動作:</strong>
+                            <ul style="margin-top: 10px; padding-left: 20px;">
+                                <li>同じページに完了メッセージ表示</li>
+                                <li>3つのダウンロードボタン表示（Excel・注文書PDF・検収書PDF）</li>
+                                <li>「処理履歴で確認する」ボタン</li>
+                                <li>「続けて処理する」ボタン</li>
+                            </ul>
+                        </li>
+                    </ul>
+                    <p style="margin-top: 15px; padding: 10px; background: #e9ecef; border-radius: 5px; font-style: italic;">
+                        ※ モックアップは次回の確認後に作成します
+                    </p>
+                </div>
+
+                <div class="page-card">
+                    <div class="page-card-header">
+                        <span class="page-id">P-003</span>
+                        <span class="badge badge-success">全ユーザー</span>
+                    </div>
+                    <div class="page-title">処理履歴・ダウンロードページ</div>
+                    <div class="page-meta">
+                        <span class="badge badge-info">履歴管理</span>
+                    </div>
+                    <p><strong>目的:</strong> 過去の処理結果を閲覧・再ダウンロード</p>
+                    <h4 style="margin-top: 15px; margin-bottom: 10px;">機能:</h4>
+                    <ul class="feature-list">
+                        <li>処理履歴一覧（取引先名・処理日・処理者・状態）</li>
+                        <li>フィルター機能（取引先・期間・処理者）</li>
+                        <li>ファイルダウンロードボタン（Excel・注文書PDF・検収書PDF）</li>
+                        <li>処理時間表示</li>
+                        <li><strong>最小限のログ機能:</strong>
+                            <ul style="margin-top: 10px; padding-left: 20px;">
+                                <li>成功時: 処理時間のみ表示</li>
+                                <li>失敗時: 簡単なエラーメッセージ + 「詳細を見る」ボタン</li>
+                                <li>「詳細を見る」クリック: モーダル（ポップアップ）でエラー詳細表示</li>
+                            </ul>
+                        </li>
+                    </ul>
+                    <div class="mockup">┌─────────────────────────────────────────────┐
+│ 処理履歴                                     │
+├─────────────────────────────────────────────┤
+│ 🔍 [取引先 ▼] [期間 ▼] [処理者 ▼] [検索]   │
+├─────────────────────────────────────────────┤
+│ 処理日時          取引先        処理者  状態  │
+├─────────────────────────────────────────────┤
+│ 2025/10/06 14:30 ネクストビッツ  田中   成功 ✅ │
+│   [Excel] [注文書] [検収書]                  │
+│   処理時間: 16秒                             │
+├─────────────────────────────────────────────┤
+│ 2025/09/25 16:45 ネクストビッツ  田中   失敗 ❌ │
+│   エラー: 請求書のフォーマットが期待値と異なります │
+│   [詳細を見る]                               │
+└─────────────────────────────────────────────┘</div>
+                    <h4 style="margin-top: 20px; margin-bottom: 10px;">エラー詳細モーダル（ポップアップ）:</h4>
+                    <div class="mockup">┌─────────────────────────────┐
+│ エラー詳細            [×]    │
+├─────────────────────────────┤
+│ 処理日時: 2025/09/25 16:45    │
+│ 取引先: ネクストビッツ様      │
+│ 処理者: 田中                  │
+│                              │
+│ エラー内容:                   │
+│ 請求書のフォーマットが        │
+│ 期待値と異なります            │
+│                              │
+│ 詳細:                         │
+│ - 期待: セルB5に金額         │
+│ - 実際: セルB5が空欄         │
+│                              │
+│ 対処方法:                     │
+│ 1. 請求書PDFを開いて確認      │
+│ 2. フォーマット変更を確認     │
+│ 3. 変更されている場合は       │
+│    管理者に連絡              │
+│                              │
+│          [閉じる]            │
+└─────────────────────────────┘</div>
+                </div>
+
+                <div class="page-card" style="border: 3px solid #ff6b6b;">
+                    <div class="page-card-header">
+                        <span class="page-id">P-004</span>
+                        <span class="badge badge-info">管理者専用</span>
+                    </div>
+                    <div style="background: #ff6b6b; color: white; padding: 8px 15px; border-radius: 5px; margin-bottom: 15px; font-weight: bold; display: inline-block;">
+                        🔴 次回確認必須
+                    </div>
+                    <div class="page-title">ユーザー管理ページ</div>
+                    <div class="page-meta">
+                        <span class="badge badge-info">管理機能</span>
+                    </div>
+                    <p><strong>目的:</strong> ユーザーの招待・削除・権限変更</p>
+                    <div style="background: #fff3cd; padding: 15px; border-radius: 8px; margin: 15px 0; border: 2px solid #ffc107;">
+                        <strong>⚠️ 次回確認事項:</strong>
+                        <ul style="margin-top: 10px; padding-left: 20px;">
+                            <li>自分自身の削除・権限変更をブロックするか？</li>
+                            <li>最終管理者（管理者が1人のみの時）の保護をするか？</li>
+                        </ul>
+                    </div>
+                    <h4 style="margin-top: 15px; margin-bottom: 10px;">機能（仮）:</h4>
+                    <ul class="feature-list">
+                        <li>ユーザー一覧表示（メールアドレス・ロール・登録日）</li>
+                        <li>新規ユーザー招待（メールアドレス入力・ロール選択）</li>
+                        <li>ユーザー削除</li>
+                        <li>権限変更（一般ユーザー ⇔ 管理者）</li>
+                    </ul>
+                    <p style="margin-top: 15px; padding: 10px; background: #e9ecef; border-radius: 5px; font-style: italic;">
+                        ※ モックアップは次回の確認後に作成します
+                    </p>
+                </div>
+
+                <div class="page-card" style="border: 3px solid #ff6b6b;">
+                    <div class="page-card-header">
+                        <span class="page-id">P-005</span>
+                        <span class="badge badge-info">管理者専用</span>
+                    </div>
+                    <div style="background: #ff6b6b; color: white; padding: 8px 15px; border-radius: 5px; margin-bottom: 15px; font-weight: bold; display: inline-block;">
+                        🔴 次回確認必須
+                    </div>
+                    <div class="page-title">取引先設定ページ</div>
+                    <div class="page-meta">
+                        <span class="badge badge-info">管理機能</span>
+                    </div>
+                    <p><strong>目的:</strong> 取引先ごとのPDFフォーマット設定と処理ルール定義</p>
+                    <div style="background: #fff3cd; padding: 15px; border-radius: 8px; margin: 15px 0; border: 2px solid #ffc107;">
+                        <strong>⚠️ 次回確認事項:</strong>
+                        <ul style="margin-top: 10px; padding-left: 20px;">
+                            <li>PDFフォーマット設定の具体的な方法</li>
+                            <li>処理ルール設定の詳細</li>
+                            <li>テンプレートExcelの管理方法</li>
+                        </ul>
+                    </div>
+                    <h4 style="margin-top: 15px; margin-bottom: 10px;">機能（仮）:</h4>
+                    <ul class="feature-list">
+                        <li>取引先一覧（ネクストビッツ様・オフビートワークス様）</li>
+                        <li>PDFフォーマット期待値設定（どのセルに何があるべきか）</li>
+                        <li>処理ルール設定（Excelのどのセルに何を転記するか）</li>
+                        <li>テンプレートExcelファイルアップロード（注文書・検収書）</li>
+                    </ul>
+                    <p style="margin-top: 15px; padding: 10px; background: #e9ecef; border-radius: 5px; font-style: italic;">
+                        ※ モックアップは次回の確認後に作成します
+                    </p>
+                </div>
+            </div>
+
+            <!-- システム構成 -->
+            <div class="section" id="architecture">
+                <div class="section-title">
+                    <span class="icon">🏗️</span>
+                    システム構成
+                </div>
+
+                <div class="architecture">
+                    <pre>[ユーザー]
+    ↓
+[React Frontend (Vercel)]
+    ↓ REST API
+[Node.js API (Google Cloud Run)]
+    ↓ HTTP
+[Python PDF処理 (Google Cloud Run)]
+    ↓
+[Supabase PostgreSQL]
+ ├─ 認証（Supabase Auth）
+ ├─ ユーザー・権限管理
+ ├─ ファイル保存（BYTEA型）
+ └─ 処理ログ・エラーログ</pre>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">技術スタック（仮決定）</div>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>レイヤー</th>
+                                    <th>技術</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><strong>フロントエンド</strong></td>
+                                    <td>React 18 + TypeScript, Vite, Tailwind CSS, Zustand</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>バックエンド（Node.js）</strong></td>
+                                    <td>Node.js 20 + Express + TypeScript</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>バックエンド（Python）</strong></td>
+                                    <td>Python 3.11 + FastAPI, pdfplumber, openpyxl, LibreOffice</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>データベース</strong></td>
+                                    <td>Supabase PostgreSQL 15</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>認証</strong></td>
+                                    <td>Supabase Auth</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>ホスティング</strong></td>
+                                    <td>Vercel（フロント）、Google Cloud Run（バック）</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- データベース設計 -->
+            <div class="section" id="database">
+                <div class="section-title">
+                    <span class="icon">💾</span>
+                    データベース設計
+                </div>
+
+                <div class="code-block">
+                    <code>-- ユーザープロファイル
+CREATE TABLE profiles (
+  id UUID REFERENCES auth.users PRIMARY KEY,
+  email TEXT,
+  role TEXT CHECK (role IN ('admin', 'user')) DEFAULT 'user',
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 処理済みファイル
+CREATE TABLE processed_files (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID REFERENCES profiles(id),
+  company_name TEXT NOT NULL,
+  process_date DATE NOT NULL,
+
+  -- ファイルをバイナリで保存
+  excel_file BYTEA NOT NULL,
+  excel_filename TEXT NOT NULL,
+  order_pdf BYTEA NOT NULL,
+  order_pdf_filename TEXT NOT NULL,
+  inspection_pdf BYTEA NOT NULL,
+  inspection_pdf_filename TEXT NOT NULL,
+
+  -- 処理情報
+  processing_time INTEGER, -- 秒
+  status TEXT CHECK (status IN ('success', 'error')),
+  error_message TEXT,
+
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 処理ログ
+CREATE TABLE process_logs (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID REFERENCES profiles(id),
+  company_name TEXT,
+  status TEXT CHECK (status IN ('success', 'error')),
+  error_message TEXT,
+  error_detail TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);</code>
+                </div>
+            </div>
+
+            <!-- 次回の作業 -->
+            <div class="next-action" id="next">
+                <h3>📅 次回の作業</h3>
+                <p style="margin-bottom: 20px;">次回セッション開始時に以下の内容から再開します：</p>
+
+                <div style="background: #ff6b6b; color: white; padding: 20px; border-radius: 8px; margin-bottom: 25px; border: 3px solid #c92a2a;">
+                    <h4 style="color: white; margin-bottom: 15px; font-size: 1.3em;">🔴 優先度：高（未確認のページ）</h4>
+                    <p style="font-size: 1.1em; margin-bottom: 15px;"><strong>以下の3つのページは詳細確認がまだ完了していません！</strong></p>
+                    <ul style="list-style: none; padding-left: 0;">
+                        <li style="padding: 12px 0; font-size: 1.1em; border-bottom: 1px solid rgba(255,255,255,0.3);">
+                            <strong>📄 P-002: PDF処理実行ページ</strong>
+                            <ul style="margin-top: 10px; padding-left: 20px; list-style: disc; opacity: 0.9;">
+                                <li>4つのPDFの必須/任意</li>
+                                <li>取引先の指定方法（事前選択 or 自動判別）</li>
+                                <li>事前チェックの表示タイミング</li>
+                                <li>処理対象月の指定方法</li>
+                                <li>アップロード方法（個別 or ドラッグ&ドロップ）</li>
+                            </ul>
+                        </li>
+                        <li style="padding: 12px 0; font-size: 1.1em; border-bottom: 1px solid rgba(255,255,255,0.3);">
+                            <strong>👥 P-004: ユーザー管理ページ</strong>
+                            <ul style="margin-top: 10px; padding-left: 20px; list-style: disc; opacity: 0.9;">
+                                <li>質問1: 自分自身の削除・権限変更をブロックするか？</li>
+                                <li>質問2: 最終管理者（管理者が1人のみの時）の保護をするか？</li>
+                            </ul>
+                        </li>
+                        <li style="padding: 12px 0; font-size: 1.1em;">
+                            <strong>🏢 P-005: 取引先設定ページ</strong>
+                            <ul style="margin-top: 10px; padding-left: 20px; list-style: disc; opacity: 0.9;">
+                                <li>PDFフォーマット設定の具体的な方法</li>
+                                <li>処理ルール設定の詳細</li>
+                                <li>テンプレートExcelの管理方法</li>
+                            </ul>
+                        </li>
+                    </ul>
+                </div>
+
+                <h4 style="color: #856404; margin-top: 25px; margin-bottom: 15px;">続けて進めるステップ</h4>
+                <ul>
+                    <li><strong>Step#5:</strong> 技術スタック最終決定
+                        <ul style="margin-top: 10px; padding-left: 20px; list-style: disc;">
+                            <li>Google Cloud Runについての質問に回答</li>
+                            <li>最終的な技術スタックの確定</li>
+                        </ul>
+                    </li>
+                    <li><strong>Step#6:</strong> 外部API最終決定</li>
+                    <li><strong>Step#7:</strong> 要件定義書の書き出し</li>
+                    <li><strong>Step#8:</strong> SCOPE_PROGRESS進捗表挿入</li>
+                    <li><strong>Step#9:</strong> CLAUDE.md生成</li>
+                    <li><strong>Step#10:</strong> ページの深掘り</li>
+                </ul>
+
+                <div style="background: white; padding: 20px; border-radius: 8px; margin-top: 25px; border: 2px solid #ffc107;">
+                    <strong>📍 再開ポイント:</strong><br>
+                    <code>docs/requirements_progress.html</code> を開いて、赤枠の3つのページ確認から再開
+                </div>
+            </div>
+
+            <!-- 決定事項まとめ -->
+            <div class="section">
+                <div class="section-title">
+                    <span class="icon">✅</span>
+                    決定事項まとめ
+                </div>
+
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 20px;">
+                    <div class="summary-box">
+                        <h4>確定済み項目</h4>
+                        <ul class="feature-list">
+                            <li>システム名: 月次処理自動化システム</li>
+                            <li>認証方式: 招待制（Supabase Auth）</li>
+                            <li>権限設計: 全員が全データ閲覧可能</li>
+                            <li>ファイル保存: PostgreSQL BYTEA型</li>
+                            <li>処理完了後動作: ハイブリッド方式</li>
+                            <li>ログ機能: 最小限</li>
+                            <li>エラー詳細表示: モーダル</li>
+                            <li>ログイン状態保持: あり</li>
+                        </ul>
+                    </div>
+
+                    <div style="background: #fff3cd; border: 2px solid #ffc107; border-radius: 10px; padding: 25px;">
+                        <h4 style="color: #856404; margin-bottom: 15px;">保留中項目（次回確認）</h4>
+                        <ul style="list-style: none; padding-left: 0;">
+                            <li style="padding: 8px 0;">⏸️ Google Cloud Run vs 代替案</li>
+                            <li style="padding: 8px 0;">⏸️ <strong>P-002: PDF処理実行ページの詳細</strong></li>
+                            <li style="padding: 8px 0;">⏸️ <strong>P-004: ユーザー管理ページの保護機能</strong></li>
+                            <li style="padding: 8px 0;">⏸️ <strong>P-005: 取引先設定ページの詳細仕様</strong></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- フッター -->
+            <div style="text-align: center; padding: 40px 20px; border-top: 2px solid #e0e0e0; margin-top: 50px;">
+                <p style="color: #666; font-size: 1.1em;">
+                    <strong>記録日時:</strong> 2025-10-06<br>
+                    <strong>次回セッション:</strong> P-004の質問から再開
+                </p>
+                <p style="margin-top: 20px; color: #667eea; font-weight: bold; font-size: 1.2em;">
+                    お疲れさまでした！ 🎉
+                </p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
