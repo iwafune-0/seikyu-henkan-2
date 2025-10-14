@@ -28,8 +28,12 @@ export const API_PATHS = {
   ACCEPT_INVITATION: '/api/auth/accept-invitation',
 
   // ユーザー関連
-  USERS: '/api/users',
-  USER_BY_ID: (id: string) => `/api/users/${id}`,
+  USERS: {
+    LIST: '/api/users',
+    INVITE: '/api/users/invite',
+    UPDATE_ROLE: (id: string) => `/api/users/${id}/role`,
+    DELETE: (id: string) => `/api/users/${id}`,
+  },
 
   // 取引先関連
   COMPANIES: '/api/companies',
@@ -50,6 +54,8 @@ export interface User {
   id: string
   email: string
   role: UserRole
+  is_deleted?: boolean
+  deleted_at?: string
   created_at: string
 }
 
@@ -77,6 +83,43 @@ export interface AcceptInvitationRequest {
   token: string
   password: string
   confirm_password: string
+}
+
+// ========================================
+// ユーザー管理関連型定義（P-004）
+// ========================================
+export interface UserListResponse {
+  users: User[]
+  total: number
+}
+
+export interface InviteUserRequest {
+  email: string
+  role: UserRole
+}
+
+export interface InviteUserResponse {
+  success: boolean
+  message: string
+}
+
+export interface UpdateUserRoleRequest {
+  role: UserRole
+}
+
+export interface UpdateUserRoleResponse {
+  success: boolean
+  user: User
+}
+
+export interface DeleteUserRequest {
+  // 論理削除のため、リクエストボディは不要
+  // DELETEメソッドでIDのみ使用
+}
+
+export interface DeleteUserResponse {
+  success: boolean
+  message: string
 }
 
 // ========================================

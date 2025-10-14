@@ -64,7 +64,7 @@ export function LoginPage() {
     <PublicLayout>
       <div className="w-full max-w-md">
         <div className="bg-card border border-border rounded-lg shadow-sm p-4 sm:p-8">
-          <h2 className="text-xl sm:text-2xl font-bold text-center mb-4 sm:mb-6">ログイン</h2>
+          <h2 className="text-lg sm:text-xl lg:text-2xl font-bold text-center mb-4 sm:mb-6">ログイン</h2>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* メールアドレス */}

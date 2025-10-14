@@ -136,14 +136,15 @@ export function ResetPasswordPage() {
     <PublicLayout>
       <div className="w-full max-w-md">
         <div className="bg-card border border-border rounded-lg shadow-sm p-4 sm:p-8">
-          <h2 className="text-xl sm:text-2xl font-bold text-center mb-4 sm:mb-6">
+          <h2 className="text-lg sm:text-xl lg:text-2xl font-bold text-center mb-4 sm:mb-6">
             パスワードリセット
           </h2>
 
           {step === 'email' ? (
             <form onSubmit={handleEmailSubmit} className="space-y-4">
               <p className="text-sm text-muted-foreground mb-4">
-                登録されているメールアドレスを入力してください。パスワードリセット用のリンクを送信します。
+                登録されているメールアドレスを入力してください。<br />
+                パスワードリセット用のリンクを送信します。
               </p>
 
               {/* メールアドレス */}

@@ -80,6 +80,12 @@ export const useAuthStore = create<AuthState>()((set) => ({
                 role: 'admin',
                 created_at: new Date().toISOString(),
               },
+              'admin2@example.com': {
+                id: 'mock-admin2-id',
+                email: 'admin2@example.com',
+                role: 'admin',
+                created_at: new Date().toISOString(),
+              },
               'user@example.com': {
                 id: 'mock-user-id',
                 email: 'user@example.com',

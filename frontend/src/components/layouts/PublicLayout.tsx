@@ -9,8 +9,8 @@ export function PublicLayout({ children }: PublicLayoutProps) {
     <div className="min-h-screen bg-background flex flex-col">
       {/* Header */}
       <header className="border-b border-border">
-        <div className="container mx-auto px-4 h-16 flex items-center">
-          <h1 className="text-xl font-semibold text-primary">
+        <div className="h-16 flex items-center px-6">
+          <h1 className="text-xl sm:text-2xl lg:text-3xl font-semibold text-primary">
             月次処理自動化システム
           </h1>
         </div>
