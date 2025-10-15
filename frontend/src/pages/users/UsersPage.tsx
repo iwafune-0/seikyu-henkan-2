@@ -35,6 +35,7 @@ import {
   TextField,
   Typography,
   Alert,
+  Snackbar,
   type SelectChangeEvent,
 } from '@mui/material'
 import { PersonAdd as PersonAddIcon } from '@mui/icons-material'
@@ -65,10 +66,26 @@ export function UsersPage() {
   const [confirmMessage, setConfirmMessage] = useState('')
   const [confirmResolver, setConfirmResolver] = useState<((value: boolean) => void) | null>(null)
 
-  // アラート表示
+  // Snackbar（成功通知・軽微なエラー用）
+  const [snackbar, setSnackbar] = useState({
+    open: false,
+    message: '',
+    severity: 'success' as 'success' | 'error',
+  })
+
+  // アラート表示（重要な警告のみ）
   const showAlert = (message: string) => {
     setAlertMessage(message)
     setAlertOpen(true)
+  }
+
+  // Snackbar表示（成功通知・軽微なエラー）
+  const showSnackbar = (message: string, severity: 'success' | 'error' = 'success') => {
+    setSnackbar({ open: true, message, severity })
+  }
+
+  const handleCloseSnackbar = () => {
+    setSnackbar((prev) => ({ ...prev, open: false }))
   }
 
   // 確認ダイアログ表示
@@ -121,7 +138,7 @@ export function UsersPage() {
   // ユーザー招待
   const handleInviteUser = async () => {
     if (!inviteEmail) {
-      showAlert('メールアドレスを入力してください')
+      showSnackbar('メールアドレスを入力してください', 'error')
       return
     }
 
@@ -131,11 +148,11 @@ export function UsersPage() {
         email: inviteEmail,
         role: inviteRole,
       })
-      showAlert(response.message)
+      showSnackbar(response.message, 'success')
       handleCloseInviteModal()
       await fetchUsers()
     } catch (err) {
-      showAlert(err instanceof Error ? err.message : '招待に失敗しました')
+      showSnackbar(err instanceof Error ? err.message : '招待に失敗しました', 'error')
     } finally {
       setLoading(false)
     }
@@ -167,11 +184,11 @@ export function UsersPage() {
     setLoading(true)
     try {
       await UsersService.deleteUser(deleteTarget.id)
-      showAlert(`ユーザーを削除しました: ${deleteTarget.email}\n\n※ 論理削除のため、処理履歴には引き続き表示されます。`)
+      showSnackbar(`ユーザーを削除しました: ${deleteTarget.email}`, 'success')
       handleCloseDeleteModal()
       await fetchUsers()
     } catch (err) {
-      showAlert(err instanceof Error ? err.message : '削除に失敗しました')
+      showSnackbar(err instanceof Error ? err.message : '削除に失敗しました', 'error')
     } finally {
       setLoading(false)
     }
@@ -198,10 +215,10 @@ export function UsersPage() {
     setLoading(true)
     try {
       await UsersService.updateUserRole(user.id, { role: newRole })
-      showAlert(`ロールを変更しました: ${user.email}\n${oldRoleName} → ${newRoleName}`)
+      showSnackbar(`ロールを変更しました: ${user.email} (${oldRoleName} → ${newRoleName})`, 'success')
       await fetchUsers()
     } catch (err) {
-      showAlert(err instanceof Error ? err.message : 'ロール変更に失敗しました')
+      showSnackbar(err instanceof Error ? err.message : 'ロール変更に失敗しました', 'error')
     } finally {
       setLoading(false)
     }
@@ -445,6 +462,22 @@ export function UsersPage() {
             </Button>
           </DialogActions>
         </Dialog>
+
+        {/* Snackbar（成功通知・軽微なエラー用） */}
+        <Snackbar
+          open={snackbar.open}
+          autoHideDuration={3000}
+          onClose={handleCloseSnackbar}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+        >
+          <Alert
+            onClose={handleCloseSnackbar}
+            severity={snackbar.severity}
+            sx={{ width: '100%' }}
+          >
+            {snackbar.message}
+          </Alert>
+        </Snackbar>
       </Box>
     </AuthenticatedLayout>
   )
