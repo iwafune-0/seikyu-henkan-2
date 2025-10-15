@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Phase 4-B: P-004 実装 - 作業記録（初心者向け版）</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.8;
+            color: #2c3e50;
+            background: linear-gradient(135deg, #6dd5ed 0%, #2193b0 100%);
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 10px 50px rgba(0,0,0,0.15);
+            overflow: hidden;
+        }
+
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 50px 40px;
+            text-align: center;
+        }
+
+        header h1 {
+            font-size: 36px;
+            margin-bottom: 15px;
+            font-weight: 700;
+        }
+
+        header .meta {
+            font-size: 15px;
+            opacity: 0.95;
+            margin-top: 10px;
+        }
+
+        .term-explain {
+            font-size: 0.85em;
+            color: #7f8c8d;
+            font-weight: normal;
+        }
+
+        .content {
+            padding: 50px;
+        }
+
+        h2 {
+            color: #2193b0;
+            font-size: 28px;
+            margin: 50px 0 25px 0;
+            padding-bottom: 12px;
+            border-bottom: 4px solid #6dd5ed;
+            font-weight: 700;
+        }
+
+        h3 {
+            color: #667eea;
+            font-size: 22px;
+            margin: 35px 0 18px 0;
+            font-weight: 600;
+        }
+
+        h4 {
+            color: #555;
+            font-size: 18px;
+            margin: 25px 0 12px 0;
+            font-weight: 600;
+        }
+
+        .section {
+            margin-bottom: 50px;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 6px 16px;
+            border-radius: 25px;
+            font-size: 13px;
+            font-weight: 600;
+            margin-right: 10px;
+            margin-bottom: 8px;
+        }
+
+        .badge.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .badge.warning {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+
+        .badge.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+
+        .card {
+            background: #f8f9fa;
+            border-left: 5px solid #667eea;
+            padding: 25px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+
+        .card.warning {
+            border-left-color: #ffc107;
+            background: #fff9e6;
+        }
+
+        .card.success {
+            border-left-color: #28a745;
+            background: #e8f5e9;
+        }
+
+        .card.info {
+            border-left-color: #17a2b8;
+            background: #e7f3ff;
+        }
+
+        .checklist {
+            list-style: none;
+            padding-left: 0;
+            margin: 15px 0;
+        }
+
+        .checklist li {
+            padding: 10px 0;
+            padding-left: 35px;
+            position: relative;
+            line-height: 1.6;
+        }
+
+        .checklist li:before {
+            content: "☐";
+            position: absolute;
+            left: 0;
+            font-size: 20px;
+            color: #667eea;
+        }
+
+        .checklist li.checked:before {
+            content: "✓";
+            color: #28a745;
+            font-weight: bold;
+        }
+
+        code {
+            background: #f4f4f4;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            color: #d63384;
+            border: 1px solid #e9ecef;
+        }
+
+        pre {
+            background: #2d2d2d;
+            color: #f8f8f2;
+            padding: 25px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 20px 0;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        pre code {
+            background: none;
+            color: inherit;
+            padding: 0;
+            border: none;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        table th,
+        table td {
+            padding: 15px;
+            text-align: left;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        table th {
+            background: #667eea;
+            color: white;
+            font-weight: 600;
+            font-size: 15px;
+        }
+
+        table tr:hover {
+            background: #f8f9fa;
+        }
+
+        table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .priority-high {
+            color: #dc3545;
+            font-weight: bold;
+        }
+
+        .priority-medium {
+            color: #ffc107;
+            font-weight: bold;
+        }
+
+        .priority-low {
+            color: #6c757d;
+        }
+
+        .next-steps {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px;
+            border-radius: 12px;
+            margin-top: 50px;
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .next-steps h2 {
+            color: white;
+            border-bottom-color: rgba(255,255,255,0.3);
+        }
+
+        .next-steps h3 {
+            color: #ffd700;
+        }
+
+        .next-steps a {
+            color: #ffd700;
+            text-decoration: underline;
+        }
+
+        footer {
+            background: #2d2d2d;
+            color: white;
+            text-align: center;
+            padding: 30px;
+            font-size: 14px;
+        }
+
+        ul, ol {
+            margin: 15px 0;
+            padding-left: 25px;
+        }
+
+        li {
+            margin: 8px 0;
+            line-height: 1.7;
+        }
+
+        p {
+            margin: 12px 0;
+            line-height: 1.8;
+        }
+
+        a {
+            color: #2193b0;
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Phase <span class="term-explain">（プロジェクトの段階）</span> 4-B: P-004 ユーザー管理ページ実装</h1>
+            <div class="meta">
+                <span class="badge success">Phase 4-B</span>
+                <span class="badge info">作業日: 2025-10-10</span>
+            </div>
+        </header>
+
+        <div class="content">
+            <!-- 1. 今日完了した作業 -->
+            <section class="section">
+                <h2>1. 今日完了した作業</h2>
+
+                <div class="card success">
+                    <h3>✅ 1.1 要件定義の更新（v1.5）</h3>
+                    <ul>
+                        <li><strong>論理削除仕様 <span class="term-explain">（データを消さずに「削除済み」フラグを立てる方式）</span></strong>を明確化</li>
+                        <li><strong>最終管理者保護ロジック <span class="term-explain">（管理者が1人しかいない時の削除防止機能）</span></strong>の仕様を確定
+                            <ul>
+                                <li>変更前: 「自分自身の編集ブロック <span class="term-explain">（自分は変更できない）</span>」（スタッフ移動時に問題）</li>
+                                <li>変更後: 「管理者が1人のみの場合のみブロック」（権限引き継ぎ可能）</li>
+                            </ul>
+                        </li>
+                    </ul>
+                    <h4>更新したファイル</h4>
+                    <ul>
+                        <li><code>docs/requirements.md</code> → v1.5</li>
+                        <li><code>CLAUDE.md</code> → v1.5対応</li>
+                        <li><code>mockups/UsersPage.html</code> → v1.5仕様に更新</li>
+                    </ul>
+                </div>
+
+                <div class="card success">
+                    <h3>✅ 1.2 型定義の更新</h3>
+                    <p><strong>ファイル</strong>: <code>frontend/src/types/index.ts</code></p>
+                    <p><span class="term-explain">型定義 = プログラムで使うデータの形を決めること（TypeScriptの機能）</span></p>
+                    <h4>追加・変更内容</h4>
+                    <pre><code>// User型に論理削除フィールドを追加
+export interface User {
+  id: string
+  email: string
+  role: UserRole
+  is_deleted?: boolean    // ← 追加（削除済みフラグ）
+  deleted_at?: string     // ← 追加（削除日時）
+  created_at: string
+}
+
+// API_PATHS.USERSをオブジェクト形式に変更
+USERS: {
+  LIST: '/api/users',
+  INVITE: '/api/users/invite',
+  UPDATE_ROLE: (id: string) => `/api/users/${id}/role`,
+  DELETE: (id: string) => `/api/users/${id}`,
+}
+
+// P-004専用の型定義を追加
+export interface UserListResponse { ... }
+export interface InviteUserRequest { ... }
+export interface InviteUserResponse { ... }
+export interface UpdateUserRoleRequest { ... }
+export interface UpdateUserRoleResponse { ... }
+export interface DeleteUserResponse { ... }</code></pre>
+                </div>
+
+                <div class="card success">
+                    <h3>✅ 1.3 Material-UI <span class="term-explain">（画面部品を簡単に作れるライブラリ）</span> v7 のインストール</h3>
+                    <p>Phase 4の途中で、MUI <span class="term-explain">（Material-UIの略称）</span> がインストールされていないことが判明。</p>
+                    <h4>インストールしたパッケージ <span class="term-explain">（プログラムの部品集）</span></h4>
+                    <pre><code>npm install @mui/material@^7.3.4 @mui/icons-material@^7.3.4 @emotion/react@^11.14.0 @emotion/styled@^11.14.1</code></pre>
+                    <p><strong>注意</strong>: CLAUDE.md <span class="term-explain">（プロジェクトのルールファイル）</span> には「Material-UI (MUI) v7.3.4」と記載されていたが、実際にはインストールされていなかった。</p>
+                </div>
+
+                <div class="card success">
+                    <h3>✅ 1.4 モックサービス <span class="term-explain">（仮のAPI機能）</span> の実装</h3>
+                    <p><strong>ファイル</strong>: <code>frontend/src/services/mock/usersService.ts</code> (171行)</p>
+                    <p><span class="term-explain">※ モック = 本物のデータベースがなくても動作確認できる仮の機能</span></p>
+                    <h4>実装した機能</h4>
+                    <ol>
+                        <li><strong>ユーザー一覧取得</strong> (<code>getUsers()</code>)
+                            <ul>
+                                <li>削除済みユーザーは除外</li>
+                                <li>300msの遅延で API <span class="term-explain">（プログラム間の通信）</span> 動作をシミュレート</li>
+                            </ul>
+                        </li>
+                        <li><strong>ユーザー招待</strong> (<code>inviteUser()</code>)
+                            <ul>
+                                <li>モックユーザーを配列に追加</li>
+                                <li>招待成功メッセージを返す</li>
+                                <li><strong>実際のメール送信なし</strong>（Phase 7で実装予定）</li>
+                            </ul>
+                        </li>
+                        <li><strong>ロール <span class="term-explain">（役割・権限）</span> 変更</strong> (<code>updateUserRole()</code>)
+                            <ul>
+                                <li>最終管理者チェック付き</li>
+                                <li>管理者が1人のみの場合は降格をブロック</li>
+                            </ul>
+                        </li>
+                        <li><strong>ユーザー削除</strong> (<code>deleteUser()</code>)
+                            <ul>
+                                <li><strong>論理削除</strong>（<code>is_deleted = true</code>, <code>deleted_at</code> 設定）</li>
+                                <li>最終管理者チェック付き</li>
+                            </ul>
+                        </li>
+                    </ol>
+                    <h4>@MOCK_TO_API マーカー <span class="term-explain">（将来のAPI統合用の目印）</span></h4>
+                    <p>各関数に将来のAPI <span class="term-explain">（実際の通信機能）</span> 統合用のコメントを追加：</p>
+                    <pre><code>/**
+ * @MOCK_TO_API: GET {API_PATHS.USERS.LIST}
+ */
+async getUsers(): Promise&lt;UserListResponse&gt; { ... }</code></pre>
+                </div>
+
+                <div class="card success">
+                    <h3>✅ 1.5 React <span class="term-explain">（画面を作る技術）</span> コンポーネント <span class="term-explain">（画面部品）</span> の実装</h3>
+                    <p><strong>ファイル</strong>: <code>frontend/src/pages/users/UsersPage.tsx</code> (308行)</p>
+                    <h4>実装した機能</h4>
+                    <ol>
+                        <li><strong>ユーザー一覧テーブル</strong>
+                            <ul>
+                                <li>Material-UI の Table コンポーネント</li>
+                                <li>インライン <span class="term-explain">（その場で）</span> ロール変更（Select ドロップダウン <span class="term-explain">（選択メニュー）</span>）</li>
+                                <li>削除ボタン</li>
+                            </ul>
+                        </li>
+                        <li><strong>招待モーダル <span class="term-explain">（ポップアップ画面）</span></strong>
+                            <ul>
+                                <li>メールアドレス入力</li>
+                                <li>ロール選択（管理者/一般ユーザー）</li>
+                                <li>Material-UI の Dialog <span class="term-explain">（ダイアログ = ポップアップ画面）</span> コンポーネント</li>
+                            </ul>
+                        </li>
+                        <li><strong>削除確認モーダル</strong>
+                            <ul>
+                                <li>ユーザー情報表示</li>
+                                <li>警告メッセージ</li>
+                                <li>Material-UI の Dialog コンポーネント</li>
+                            </ul>
+                        </li>
+                        <li><strong>最終管理者保護ロジック</strong>
+                            <ul>
+                                <li>ロール変更時のチェック</li>
+                                <li>削除時のチェック</li>
+                                <li>管理者が1人のみの場合にアラート表示</li>
+                            </ul>
+                        </li>
+                    </ol>
+                    <h4>TypeScript <span class="term-explain">（型付きJavaScript、エラーを減らせる）</span> エラー修正</h4>
+                    <ul>
+                        <li>イベントハンドラ <span class="term-explain">（ボタンを押したときの処理）</span> の型を明示的に指定
+                            <ul>
+                                <li><code>SelectChangeEvent</code> 型の追加</li>
+                                <li><code>React.ChangeEvent&lt;HTMLInputElement&gt;</code> 型の追加</li>
+                            </ul>
+                        </li>
+                        <li>未使用インポート <span class="term-explain">（使っていない読み込み）</span> の削除</li>
+                    </ul>
+                </div>
+
+                <div class="card success">
+                    <h3>✅ 1.6 ビルド <span class="term-explain">（プログラムを実行可能な形にすること）</span> エラーの解消</h3>
+                    <ol>
+                        <li>MUIパッケージのインストール</li>
+                        <li>TypeScriptコンパイル <span class="term-explain">（プログラムを機械語に翻訳）</span> エラーの修正</li>
+                        <li>開発サーバー <span class="term-explain">（開発中に使う仮のサーバー）</span> の再起動</li>
+                    </ol>
+                    <p><strong>結果</strong>: エラーなしでビルド成功 ✅</p>
+                </div>
+            </section>
+
+            <!-- 2. 調査・確認した内容 -->
+            <section class="section">
+                <h2>2. 調査・確認した内容</h2>
+
+                <div class="card info">
+                    <h3>📧 Supabase <span class="term-explain">（データベースと認証のサービス）</span> 招待機能の調査</h3>
+                    <p>Phase 7（バックエンド <span class="term-explain">（サーバー側のプログラム）</span> 実装）前に、Supabaseの招待機能が使えるか調査しました。</p>
+
+                    <h4>調査結果（2025年最新）</h4>
+                    <p>✅ <strong>無料プランでも利用可能</strong></p>
+                    <ul>
+                        <li><code>supabase.auth.admin.inviteUserByEmail()</code> が使える</li>
+                        <li>メール送信も標準で含まれる</li>
+                        <li>追加料金なし</li>
+                    </ul>
+
+                    <p>⚠️ <strong>メールレート制限 <span class="term-explain">（送信数の上限）</span></strong></p>
+                    <ul>
+                        <li>無料プラン: <strong>2通/時間</strong>（SupabaseのSMTP <span class="term-explain">（メール送信の仕組み）</span> 使用時）</li>
+                        <li>本番環境ではカスタムSMTP推奨（SendGrid <span class="term-explain">（メール送信サービス）</span>、AWS SES <span class="term-explain">（Amazonのメール送信サービス）</span> 等）</li>
+                    </ul>
+
+                    <p><strong>結論</strong>:</p>
+                    <ul>
+                        <li>社内スタッフのみ（数人）なら無料プランで十分</li>
+                        <li>Phase 7で実装予定</li>
+                        <li>Phase 5でSupabaseプロジェクト作成時に実際にテスト</li>
+                    </ul>
+                </div>
+            </section>
+
+            <!-- 3. 未解決の懸案事項 -->
+            <section class="section">
+                <h2>3. 未解決の懸案事項</h2>
+
+                <div class="card warning">
+                    <h3>⚠️ 3.1 モック認証 <span class="term-explain">（仮のログイン機能）</span> のパスワードチェック</h3>
+                    <p><strong>問題</strong>: 現在のモック認証は、パスワードの長さ（8文字以上）しかチェックしていない</p>
+
+                    <pre><code>// 現在の実装
+if (password.length < 8) {
+  throw new Error('パスワードは8文字以上で入力してください')
+}
+// ✅ ここで成功（パスワード内容は検証していない）</code></pre>
+
+                    <h4>影響</h4>
+                    <ul>
+                        <li>開発環境でのみ使用（本番では使わない）</li>
+                        <li>Phase 7でSupabase認証 <span class="term-explain">（本物のログイン機能）</span> に切り替わる</li>
+                        <li>UI <span class="term-explain">（画面）</span> の動作確認には影響なし</li>
+                    </ul>
+
+                    <h4>選択肢</h4>
+                    <p><strong>A: このまま進める（推奨）</strong></p>
+                    <ul>
+                        <li>Phase 4の目的（UI確認）は達成できる</li>
+                        <li>Phase 7でSupabase認証に切り替わる</li>
+                        <li>開発効率が良い</li>
+                    </ul>
+
+                    <p><strong>B: モック認証に正しいパスワードチェックを追加</strong></p>
+                    <pre><code>const mockPasswords: Record&lt;string, string&gt; = {
+  'admin@example.com': 'password123',
+  'admin2@example.com': 'password123',
+  'user@example.com': 'password123',
+}
+
+if (mockPasswords[email] !== password) {
+  throw new Error('パスワードが正しくありません')
+}</code></pre>
+
+                    <p><strong>推奨</strong>: オプションA（Phase 7までこのまま）</p>
+                </div>
+
+                <div class="card warning">
+                    <h3>⚠️ 3.2 P-004のブラウザ動作確認（未完了）</h3>
+                    <p>開発サーバーは起動しているが、実際のブラウザでの動作確認は未実施。</p>
+
+                    <h4>確認すべき内容</h4>
+                    <ul class="checklist">
+                        <li>ユーザー一覧テーブルの表示</li>
+                        <li>招待モーダルの動作</li>
+                        <li>ロール変更機能</li>
+                        <li>最終管理者保護の動作</li>
+                        <li>ユーザー削除機能</li>
+                        <li>レスポンシブデザイン <span class="term-explain">（スマホ対応）</span></li>
+                        <li>スタイル <span class="term-explain">（見た目）</span> の確認</li>
+                    </ul>
+
+                    <h4>アクセス方法</h4>
+                    <ol>
+                        <li><a href="http://localhost:5174/" target="_blank">http://localhost:5174/</a></li>
+                        <li>ログイン（<code>admin@example.com</code> / 8文字以上のパスワード）</li>
+                        <li><a href="http://localhost:5174/users" target="_blank">http://localhost:5174/users</a> にアクセス</li>
+                    </ol>
+                </div>
+            </section>
+
+            <!-- 4. 次回の作業内容 -->
+            <section class="section next-steps">
+                <h2>4. 次回の作業内容</h2>
+
+                <h3 class="priority-high">🎯 優先度：高</h3>
+
+                <h4>4.1 P-004のブラウザ動作確認</h4>
+                <ol>
+                    <li>開発サーバー起動（すでに起動中）</li>
+                    <li>ブラウザで動作確認</li>
+                    <li>不具合があれば修正</li>
+                </ol>
+
+                <h4>4.2 SCOPE_PROGRESS.md <span class="term-explain">（進捗管理ファイル）</span> の更新</h4>
+                <ul>
+                    <li>P-004のステータス <span class="term-explain">（状態）</span> を「🔄 着手中」→「✅ 完成」に変更</li>
+                    <li>Phase 4の進捗率を更新</li>
+                </ul>
+
+                <h4>4.3 Phase 4の残りページ実装</h4>
+                <p>Phase 4で実装すべきページ：</p>
+                <ul class="checklist">
+                    <li><strong>P-002</strong>: PDF処理実行ページ（最重要）</li>
+                    <li><strong>P-003</strong>: 処理履歴・ダウンロードページ</li>
+                    <li><strong>P-005</strong>: 取引先設定ページ（管理者専用）</li>
+                </ul>
+
+                <p><strong>推奨実装順序</strong>:</p>
+                <ol>
+                    <li><strong>P-003</strong>（処理履歴）→ データ表示のみでシンプル</li>
+                    <li><strong>P-005</strong>（取引先設定）→ P-004と似た構造</li>
+                    <li><strong>P-002</strong>（PDF処理）→ 最も複雑、最後に実装</li>
+                </ol>
+
+                <h3 class="priority-medium">🎯 優先度：中</h3>
+                <h4>4.4 モック認証のパスワードチェック強化（オプション）</h4>
+                <p>上記「3.1 モック認証のパスワードチェック」の対応を決定</p>
+
+                <h3 class="priority-low">🎯 優先度：低（Phase 5以降）</h3>
+                <h4>4.5 Phase 5: 環境構築</h4>
+                <ul>
+                    <li>Supabaseプロジェクト作成</li>
+                    <li>環境変数 <span class="term-explain">（プログラムの設定値）</span> の設定</li>
+                    <li>招待機能の動作確認</li>
+                </ul>
+
+                <h4>4.6 Phase 6: バックエンド計画</h4>
+                <ul>
+                    <li>バックエンドAPI <span class="term-explain">（サーバー側の通信機能）</span> の設計</li>
+                    <li>実装順序の計画</li>
+                </ul>
+            </section>
+
+            <!-- 5. ファイル変更一覧 -->
+            <section class="section">
+                <h2>5. ファイル変更一覧</h2>
+
+                <h3>新規作成</h3>
+                <ul>
+                    <li><code>frontend/src/services/mock/usersService.ts</code> (171行)</li>
+                    <li><code>frontend/src/pages/users/UsersPage.tsx</code> (308行)</li>
+                </ul>
+
+                <h3>更新</h3>
+                <ul>
+                    <li><code>docs/requirements.md</code> (v1.4 → v1.5)</li>
+                    <li><code>CLAUDE.md</code> (論理削除仕様追加)</li>
+                    <li><code>mockups/UsersPage.html</code> (v1.5仕様に更新)</li>
+                    <li><code>frontend/src/types/index.ts</code> (User型、API_PATHS、P-004型定義追加)</li>
+                    <li><code>frontend/package.json</code> (MUI依存関係追加)</li>
+                </ul>
+            </section>
+
+            <!-- 6. 開発サーバー情報 -->
+            <section class="section">
+                <h2>6. 開発サーバー情報</h2>
+
+                <table>
+                    <tr>
+                        <th>項目</th>
+                        <th>内容</th>
+                    </tr>
+                    <tr>
+                        <td>起動コマンド</td>
+                        <td><code>npm run dev</code></td>
+                    </tr>
+                    <tr>
+                        <td>URL</td>
+                        <td><a href="http://localhost:5174/" target="_blank">http://localhost:5174/</a></td>
+                    </tr>
+                    <tr>
+                        <td>ステータス</td>
+                        <td><span class="badge success">起動中（バックグラウンド実行 <span class="term-explain">- 裏で動いている状態</span>）</span></td>
+                    </tr>
+                </table>
+            </section>
+
+            <!-- 7. 次回セッション開始時のチェックリスト -->
+            <section class="section">
+                <h2>7. 次回セッション <span class="term-explain">（次の作業）</span> 開始時のチェックリスト</h2>
+
+                <div class="card">
+                    <h3>✅ 開始前の確認</h3>
+                    <ul class="checklist">
+                        <li>開発サーバーが起動しているか確認
+                            <pre><code>cd /home/iwafune-hiroko/seikyu-henkan-2/frontend
+npm run dev</code></pre>
+                        </li>
+                        <li>ブラウザで <a href="http://localhost:5174/" target="_blank">http://localhost:5174/</a> にアクセス</li>
+                        <li>このドキュメント（<code>docs/phase4_b_summary.md</code>）を読む</li>
+                    </ul>
+
+                    <h3>🎯 最初のタスク</h3>
+                    <p><strong>「P-004のブラウザ動作確認」から開始</strong></p>
+                    <ol>
+                        <li>ログイン（<code>admin@example.com</code> / <code>password123</code>）</li>
+                        <li><code>/users</code> ページにアクセス</li>
+                        <li>上記「3.2」の確認項目をチェック</li>
+                        <li>問題があれば修正、なければ次のページ実装へ</li>
+                    </ol>
+                </div>
+            </section>
+
+            <!-- 8. 参考情報 -->
+            <section class="section">
+                <h2>8. 参考情報</h2>
+
+                <h3>モックユーザー <span class="term-explain">（開発用の仮ユーザー）</span></h3>
+                <table>
+                    <tr>
+                        <th>メールアドレス</th>
+                        <th>ロール</th>
+                        <th>パスワード</th>
+                    </tr>
+                    <tr>
+                        <td>admin@example.com</td>
+                        <td>管理者</td>
+                        <td>8文字以上なら何でもOK</td>
+                    </tr>
+                    <tr>
+                        <td>admin2@example.com</td>
+                        <td>管理者</td>
+                        <td>8文字以上なら何でもOK</td>
+                    </tr>
+                    <tr>
+                        <td>user@example.com</td>
+                        <td>一般ユーザー</td>
+                        <td>8文字以上なら何でもOK</td>
+                    </tr>
+                </table>
+
+                <h3>重要なドキュメント</h3>
+                <ul>
+                    <li>要件定義書: <code>docs/requirements.md</code> (v1.5)</li>
+                    <li>開発ルール: <code>CLAUDE.md</code></li>
+                    <li>進捗管理: <code>docs/SCOPE_PROGRESS.md</code></li>
+                    <li>HTMLモックアップ <span class="term-explain">（画面のデザイン見本）</span>: <code>mockups/UsersPage.html</code></li>
+                </ul>
+            </section>
+        </div>
+
+        <footer>
+            <p><strong>作成日</strong>: 2025-10-10</p>
+            <p><strong>次回更新</strong>: P-004動作確認完了後</p>
+        </footer>
+    </div>
+</body>
+</html>

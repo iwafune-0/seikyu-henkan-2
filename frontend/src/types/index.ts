@@ -36,8 +36,15 @@ export const API_PATHS = {
   },
 
   // 取引先関連
-  COMPANIES: '/api/companies',
-  COMPANY_BY_ID: (id: string) => `/api/companies/${id}`,
+  COMPANIES: {
+    LIST: '/api/companies',
+    GET: (id: string) => `/api/companies/${id}`,
+    UPDATE: (id: string) => `/api/companies/${id}`,
+    UPLOAD_TEMPLATE: (id: string) => `/api/companies/${id}/template`,
+    DOWNLOAD_TEMPLATE: (id: string) => `/api/companies/${id}/template`,
+    PROCESSING_RULES: (id: string) => `/api/companies/${id}/rules`,
+    PROCESS_HISTORY: (id: string) => `/api/companies/${id}/history`,
+  },
 
   // PDF処理関連
   PROCESS_PDF: '/api/process/pdf',
@@ -123,7 +130,7 @@ export interface DeleteUserResponse {
 }
 
 // ========================================
-// 取引先関連型定義
+// 取引先関連型定義（P-005）
 // ========================================
 export interface Company {
   id: string
@@ -136,6 +143,28 @@ export interface Company {
   template_updated_at?: string
   template_updated_by?: string
   created_at: string
+}
+
+export interface CompanyListResponse {
+  companies: Company[]
+  total: number
+}
+
+export interface UpdateCompanyRequest {
+  name?: string
+  display_name?: string
+  is_active?: boolean
+}
+
+export interface UpdateCompanyResponse {
+  success: boolean
+  company: Company
+}
+
+export interface UploadTemplateResponse {
+  success: boolean
+  filename: string
+  updated_at: string
 }
 
 // ========================================

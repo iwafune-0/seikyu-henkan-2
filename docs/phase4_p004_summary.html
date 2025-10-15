@@ -1,0 +1,995 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Phase 4: P-004（ユーザー管理ページ）実装完了報告</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      line-height: 1.7;
+      color: #333;
+      background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 1000px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+      overflow: hidden;
+    }
+
+    .header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 40px;
+      text-align: center;
+    }
+
+    .header h1 {
+      font-size: 2rem;
+      margin-bottom: 10px;
+    }
+
+    .header .meta {
+      font-size: 0.95rem;
+      opacity: 0.95;
+    }
+
+    .content {
+      padding: 40px;
+    }
+
+    .section {
+      margin-bottom: 50px;
+    }
+
+    .section h2 {
+      font-size: 1.6rem;
+      color: #667eea;
+      margin-bottom: 20px;
+      padding-bottom: 10px;
+      border-bottom: 3px solid #667eea;
+    }
+
+    .section h3 {
+      font-size: 1.3rem;
+      color: #764ba2;
+      margin-top: 30px;
+      margin-bottom: 15px;
+    }
+
+    .section h4 {
+      font-size: 1.1rem;
+      color: #555;
+      margin-top: 20px;
+      margin-bottom: 10px;
+    }
+
+    /* 用語解説ボックス */
+    .term-box {
+      background: #f0f4ff;
+      border-left: 4px solid #667eea;
+      padding: 15px 20px;
+      margin: 20px 0;
+      border-radius: 6px;
+    }
+
+    .term-box .term-title {
+      font-weight: bold;
+      color: #667eea;
+      margin-bottom: 8px;
+      font-size: 1rem;
+    }
+
+    .term-box .term-content {
+      color: #555;
+      font-size: 0.95rem;
+    }
+
+    /* 注意ボックス */
+    .warning-box {
+      background: #fff3cd;
+      border-left: 4px solid #ffc107;
+      padding: 15px 20px;
+      margin: 20px 0;
+      border-radius: 6px;
+    }
+
+    .warning-box .warning-title {
+      font-weight: bold;
+      color: #856404;
+      margin-bottom: 8px;
+      font-size: 1rem;
+    }
+
+    /* 成功ボックス */
+    .success-box {
+      background: #d4edda;
+      border-left: 4px solid #28a745;
+      padding: 15px 20px;
+      margin: 20px 0;
+      border-radius: 6px;
+    }
+
+    .success-box .success-title {
+      font-weight: bold;
+      color: #155724;
+      margin-bottom: 8px;
+      font-size: 1rem;
+    }
+
+    /* チェックリスト */
+    .checklist {
+      list-style: none;
+      padding-left: 0;
+    }
+
+    .checklist li {
+      padding: 10px 0;
+      padding-left: 35px;
+      position: relative;
+    }
+
+    .checklist li:before {
+      content: "✓";
+      position: absolute;
+      left: 0;
+      top: 8px;
+      width: 24px;
+      height: 24px;
+      background: #28a745;
+      color: white;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      font-size: 0.9rem;
+    }
+
+    /* コードブロック */
+    .code-block {
+      background: #2d3748;
+      color: #e2e8f0;
+      padding: 20px;
+      border-radius: 8px;
+      margin: 20px 0;
+      overflow-x: auto;
+      font-family: "Consolas", "Monaco", monospace;
+      font-size: 0.9rem;
+      line-height: 1.6;
+    }
+
+    /* テーブル */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 20px 0;
+      background: white;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    table th {
+      background: #667eea;
+      color: white;
+      padding: 15px;
+      text-align: left;
+      font-weight: 600;
+    }
+
+    table td {
+      padding: 15px;
+      border-bottom: 1px solid #e2e8f0;
+    }
+
+    table tr:last-child td {
+      border-bottom: none;
+    }
+
+    table tr:hover {
+      background: #f7fafc;
+    }
+
+    /* バッジ */
+    .badge {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      margin-right: 5px;
+    }
+
+    .badge-success {
+      background: #d4edda;
+      color: #155724;
+    }
+
+    .badge-warning {
+      background: #fff3cd;
+      color: #856404;
+    }
+
+    .badge-info {
+      background: #d1ecf1;
+      color: #0c5460;
+    }
+
+    /* フロー図 */
+    .flow {
+      background: #f8f9fa;
+      padding: 25px;
+      border-radius: 8px;
+      margin: 20px 0;
+      font-family: monospace;
+      white-space: pre-line;
+      line-height: 2;
+      border: 2px solid #e2e8f0;
+    }
+
+    .flow-step {
+      padding: 8px 0;
+    }
+
+    .flow-arrow {
+      color: #667eea;
+      font-weight: bold;
+    }
+
+    /* カード */
+    .card {
+      background: #f8f9fa;
+      border: 2px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 20px;
+      margin: 15px 0;
+    }
+
+    .card-title {
+      font-weight: bold;
+      color: #764ba2;
+      margin-bottom: 10px;
+      font-size: 1.1rem;
+    }
+
+    /* 目次 */
+    .toc {
+      background: #f8f9fa;
+      border: 2px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 25px;
+      margin-bottom: 40px;
+    }
+
+    .toc h2 {
+      font-size: 1.3rem;
+      color: #333;
+      margin-bottom: 15px;
+      border: none;
+      padding: 0;
+    }
+
+    .toc ul {
+      list-style: none;
+      padding-left: 0;
+    }
+
+    .toc li {
+      padding: 8px 0;
+    }
+
+    .toc a {
+      color: #667eea;
+      text-decoration: none;
+      font-weight: 500;
+    }
+
+    .toc a:hover {
+      text-decoration: underline;
+    }
+
+    /* フッター */
+    .footer {
+      background: #2d3748;
+      color: white;
+      text-align: center;
+      padding: 30px;
+      font-size: 0.9rem;
+    }
+
+    /* レスポンシブ */
+    @media (max-width: 768px) {
+      body {
+        padding: 10px;
+      }
+
+      .header {
+        padding: 30px 20px;
+      }
+
+      .header h1 {
+        font-size: 1.5rem;
+      }
+
+      .content {
+        padding: 20px;
+      }
+
+      .section h2 {
+        font-size: 1.4rem;
+      }
+
+      .section h3 {
+        font-size: 1.2rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- ヘッダー -->
+    <div class="header">
+      <h1>📊 Phase 4: P-004（ユーザー管理ページ）実装完了報告</h1>
+      <div class="meta">
+        <strong>日付:</strong> 2025-10-14 |
+        <strong>フェーズ:</strong> Phase 4（ページ実装） |
+        <strong>ステータス:</strong> <span class="badge badge-success">✅ 完成（モック）</span>
+      </div>
+    </div>
+
+    <!-- コンテンツ -->
+    <div class="content">
+      <!-- 目次 -->
+      <div class="toc">
+        <h2>📋 目次</h2>
+        <ul>
+          <li><a href="#overview">1. 実装概要</a></li>
+          <li><a href="#responsive">2. レスポンシブ対応</a></li>
+          <li><a href="#ui">3. UI改善</a></li>
+          <li><a href="#protection">4. 保護機能</a></li>
+          <li><a href="#phase7">5. Phase 7での修正予定</a></li>
+          <li><a href="#files">6. 実装ファイル一覧</a></li>
+          <li><a href="#build">7. ビルド確認</a></li>
+          <li><a href="#git">8. Git情報</a></li>
+          <li><a href="#next">9. 次のステップ</a></li>
+          <li><a href="#learning">10. 技術的な学び</a></li>
+        </ul>
+      </div>
+
+      <!-- 1. 実装概要 -->
+      <div class="section" id="overview">
+        <h2>1. 実装概要</h2>
+        <p>P-004（ユーザー管理ページ）のUI実装を完了しました。管理者専用のページで、ユーザーの招待・削除・権限変更を行えます。</p>
+
+        <div class="term-box">
+          <div class="term-title">💡 用語解説: UI（ユーザーインターフェース）</div>
+          <div class="term-content">
+            UIは「User Interface（ユーザーインターフェース）」の略で、ユーザーが見る画面や操作する部分のことです。ボタンやテーブル、フォームなど、目に見えるすべての要素を指します。
+          </div>
+        </div>
+
+        <h3>実装した機能</h3>
+        <ul class="checklist">
+          <li>レスポンシブ対応（デスクトップ/タブレット/モバイル）</li>
+          <li>ハンバーガーメニュー実装</li>
+          <li>ユーザー一覧表示（テーブル/カードレイアウト）</li>
+          <li>新規ユーザー招待（モーダル）</li>
+          <li>ユーザー削除（確認ダイアログ、論理削除想定）</li>
+          <li>権限変更（管理者 ⇄ 一般ユーザー）</li>
+          <li>最終管理者保護機能</li>
+          <li>alert/confirm → Material-UI Dialog化</li>
+          <li>フォントサイズ階層の統一（全認証ページ含む）</li>
+        </ul>
+
+        <div class="term-box">
+          <div class="term-title">💡 用語解説: モーダル</div>
+          <div class="term-content">
+            モーダル（Modal）は、画面の上に表示されるポップアップウィンドウのことです。ユーザーがモーダル内の操作を完了するか閉じるまで、背後の画面は操作できなくなります。例: 新規ユーザー招待の入力フォーム
+          </div>
+        </div>
+
+        <div class="term-box">
+          <div class="term-title">💡 用語解説: モック</div>
+          <div class="term-content">
+            モック（Mock）は「模造品」「仮のもの」という意味です。実際のデータベースやサーバーに接続せず、ダミーのデータを使って動作確認するための仮実装を指します。Phase 4では見た目と操作感を確認するためにモックを使っています。
+          </div>
+        </div>
+      </div>
+
+      <!-- 2. レスポンシブ対応 -->
+      <div class="section" id="responsive">
+        <h2>2. レスポンシブ対応</h2>
+        <p>画面サイズに応じて、最適なレイアウトに自動的に切り替わります。</p>
+
+        <div class="term-box">
+          <div class="term-title">💡 用語解説: レスポンシブデザイン</div>
+          <div class="term-content">
+            レスポンシブデザインとは、スマホ・タブレット・パソコンなど、異なる画面サイズに応じて自動的にレイアウトが変わるデザイン手法です。1つのコードで全デバイスに対応できます。
+          </div>
+        </div>
+
+        <h3>デスクトップ（1024px以上）</h3>
+        <div class="card">
+          <div class="card-title">🖥️ デスクトップ表示</div>
+          <ul>
+            <li><strong>ヘッダー:</strong> 1行レイアウト、サイドバー常時表示</li>
+            <li><strong>ユーザー一覧:</strong> テーブル表示（4列: メールアドレス・ロール・登録日・削除ボタン）</li>
+            <li><strong>システムタイトル:</strong> 30px（text-3xl）</li>
+            <li><strong>ページタイトル:</strong> 24px（1.5rem）</li>
+          </ul>
+        </div>
+
+        <h3>タブレット・モバイル（1024px未満）</h3>
+        <div class="card">
+          <div class="card-title">📱 モバイル/タブレット表示</div>
+          <ul>
+            <li><strong>ヘッダー:</strong> 2行レイアウト
+              <ul style="margin-top: 8px;">
+                <li>1行目: ハンバーガーメニュー + システムタイトル + ログアウト</li>
+                <li>2行目: ユーザー情報（メールアドレス・ロール）</li>
+              </ul>
+            </li>
+            <li><strong>サイドバー:</strong> ハンバーガーメニュー（オーバーレイ表示）</li>
+            <li><strong>ユーザー一覧:</strong> カードレイアウト（1つずつ縦に並ぶ）</li>
+            <li><strong>システムタイトル:</strong> 20px（mobile）/ 24px（tablet）</li>
+            <li><strong>ページタイトル:</strong> 18px（mobile）/ 20px（tablet）</li>
+          </ul>
+        </div>
+
+        <div class="term-box">
+          <div class="term-title">💡 用語解説: ハンバーガーメニュー</div>
+          <div class="term-content">
+            ハンバーガーメニューは、スマホやタブレットでよく見る「三本線（≡）」のアイコンです。タップするとメニューが開きます。画面が小さい時にメニューを隠して、必要な時だけ表示するための工夫です。
+          </div>
+        </div>
+
+        <div class="term-box">
+          <div class="term-title">💡 用語解説: オーバーレイ</div>
+          <div class="term-content">
+            オーバーレイ（Overlay）は、画面の上に重ねて表示する半透明の背景層のことです。モーダルやサイドバーを表示する際、背後の画面を暗くして操作できなくすることで、ユーザーの注意を集中させます。
+          </div>
+        </div>
+
+        <div class="term-box">
+          <div class="term-title">💡 用語解説: ブレークポイント</div>
+          <div class="term-content">
+            ブレークポイントは、レスポンシブデザインでレイアウトが切り替わる境界となる画面幅のことです。例えば「1024px以上はデスクトップ表示、1024px未満はモバイル表示」というように、画面サイズによって表示を変えます。
+          </div>
+        </div>
+
+        <table>
+          <thead>
+            <tr>
+              <th>ブレークポイント</th>
+              <th>画面幅</th>
+              <th>デバイス</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>xs</code></td>
+              <td>375px</td>
+              <td>スマートフォン（小）</td>
+            </tr>
+            <tr>
+              <td><code>sm</code></td>
+              <td>640px</td>
+              <td>スマートフォン（大）</td>
+            </tr>
+            <tr>
+              <td><code>md</code></td>
+              <td>768px</td>
+              <td>タブレット</td>
+            </tr>
+            <tr>
+              <td><code>lg</code></td>
+              <td>1024px</td>
+              <td>デスクトップ（主要）</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- 3. UI改善 -->
+      <div class="section" id="ui">
+        <h2>3. UI改善</h2>
+
+        <h3>Dialog化</h3>
+        <p>ブラウザ標準の<code>alert()</code>と<code>confirm()</code>をMaterial-UIのDialogに置き換えました。</p>
+
+        <div class="term-box">
+          <div class="term-title">💡 用語解説: Dialog（ダイアログ）</div>
+          <div class="term-content">
+            ダイアログは、ユーザーに情報を伝えたり、確認を求めたりするために表示される小さなウィンドウです。ブラウザ標準のalert()よりも見た目が美しく、改行やボタンのカスタマイズが可能です。
+          </div>
+        </div>
+
+        <div class="term-box">
+          <div class="term-title">💡 用語解説: Material-UI</div>
+          <div class="term-content">
+            Material-UIは、Googleが開発したデザインシステム「Material Design」に基づいたReact用のUIコンポーネント集です。ボタン、ダイアログ、テーブルなどの部品が既に用意されていて、美しいデザインを簡単に実装できます。
+          </div>
+        </div>
+
+        <div class="success-box">
+          <div class="success-title">✅ Dialog化のメリット</div>
+          <ul style="margin-top: 10px; padding-left: 20px;">
+            <li>画面中央に表示され、見やすい</li>
+            <li>改行（\n）が正しく表示される</li>
+            <li>デザインがシステム全体で統一される</li>
+            <li>モバイルでも見やすい</li>
+          </ul>
+        </div>
+
+        <h4>Dialog化した箇所</h4>
+        <ul style="padding-left: 20px; margin-top: 10px;">
+          <li>メールアドレス入力エラー</li>
+          <li>招待成功/失敗メッセージ</li>
+          <li>ロール変更確認</li>
+          <li>ロール変更完了メッセージ（変更前後のロールを表示）</li>
+          <li>削除完了メッセージ（論理削除の説明含む）</li>
+          <li>最終管理者保護メッセージ</li>
+        </ul>
+
+        <div class="term-box">
+          <div class="term-title">💡 用語解説: 論理削除</div>
+          <div class="term-content">
+            論理削除とは、データベースからデータを完全に消す（物理削除）のではなく、「削除済み」というフラグを立てるだけの削除方法です。データは残っているので、過去の処理履歴などを保持でき、必要なら復元も可能です。
+          </div>
+        </div>
+
+        <h3>フォント階層</h3>
+        <p>全ページで統一されたフォントサイズの階層を設定しました。</p>
+
+        <div class="flow">
+<span class="flow-step">システムタイトル「月次処理自動化システム」（最大）</span>
+<span class="flow-arrow">  ↓</span>
+<span class="flow-step">ページタイトル「ユーザー管理」「ログイン」など（中）</span>
+<span class="flow-arrow">  ↓</span>
+<span class="flow-step">ボタンテキスト・本文（小）</span>
+        </div>
+
+        <table>
+          <thead>
+            <tr>
+              <th>要素</th>
+              <th>モバイル</th>
+              <th>タブレット</th>
+              <th>デスクトップ</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>システムタイトル</td>
+              <td>20px</td>
+              <td>24px</td>
+              <td>30px</td>
+            </tr>
+            <tr>
+              <td>ページタイトル</td>
+              <td>18px</td>
+              <td>20px</td>
+              <td>24px</td>
+            </tr>
+            <tr>
+              <td>ボタンテキスト</td>
+              <td>14px</td>
+              <td>16px</td>
+              <td>16px</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- 4. 保護機能 -->
+      <div class="section" id="protection">
+        <h2>4. 保護機能</h2>
+
+        <h3>最終管理者保護</h3>
+        <p>管理者が1人しかいない場合、システムが機能しなくなることを防ぐための保護機能を実装しました。</p>
+
+        <div class="warning-box">
+          <div class="warning-title">⚠️ 最終管理者の保護</div>
+          <div>
+            管理者が1人のみの場合、以下の操作がブロックされます：
+            <ul style="margin-top: 10px; padding-left: 20px;">
+              <li>❌ 削除ブロック</li>
+              <li>❌ 一般ユーザーへの降格ブロック</li>
+            </ul>
+            <p style="margin-top: 10px;"><strong>理由:</strong> 管理者が誰もいなくなると、ユーザー管理や取引先設定ができなくなり、システムが機能しなくなります。</p>
+            <p style="margin-top: 5px;"><strong>メッセージ:</strong> 「他のユーザーを管理者に昇格してから実行してください」</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- 5. Phase 7での修正予定 -->
+      <div class="section" id="phase7">
+        <h2>5. Phase 7での修正予定</h2>
+
+        <h3>招待機能の修正</h3>
+
+        <div class="warning-box">
+          <div class="warning-title">⚠️ 現在の動作（モック実装）</div>
+          <div>
+            <strong>「新規ユーザーを招待」ボタンクリック → 即座にユーザー作成</strong>
+            <p style="margin-top: 10px;">現在のモック実装では、招待ボタンを押すと即座にユーザーが作成され、ユーザー一覧に表示されます。これは本来の仕様とは異なります。</p>
+          </div>
+        </div>
+
+        <div class="term-box">
+          <div class="term-title">💡 用語解説: API（Application Programming Interface）</div>
+          <div class="term-content">
+            APIは、アプリケーション同士が情報をやり取りするための仕組みです。例えば、フロントエンド（画面）がバックエンド（サーバー）に「ユーザー一覧を取得して」とお願いする時にAPIを使います。Phase 7では、モックをSupabaseの本番APIに置き換えます。
+          </div>
+        </div>
+
+        <div class="success-box">
+          <div class="success-title">✅ Phase 7での正しい動作</div>
+          <div class="flow" style="margin-top: 15px;">
+<span class="flow-step">1. 「新規ユーザーを招待」ボタンクリック</span>
+<span class="flow-arrow">  ↓</span>
+<span class="flow-step">2. 招待メール送信のみ（ユーザーは未作成）</span>
+<span class="flow-arrow">  ↓</span>
+<span class="flow-step">3. ユーザー一覧には表示されない</span>
+<span class="flow-arrow">  ↓</span>
+<span class="flow-step">4. 招待メール内のリンククリック</span>
+<span class="flow-arrow">  ↓</span>
+<span class="flow-step">5. P-001b（招待受諾ページ）でパスワード設定</span>
+<span class="flow-arrow">  ↓</span>
+<span class="flow-step">6. パスワード設定完了 → 初めてユーザー作成</span>
+<span class="flow-arrow">  ↓</span>
+<span class="flow-step">7. ユーザー一覧に表示される</span>
+          </div>
+        </div>
+
+        <div class="term-box">
+          <div class="term-title">💡 用語解説: フロントエンド / バックエンド</div>
+          <div class="term-content">
+            <strong>フロントエンド:</strong> ユーザーが見る画面（ブラウザ）の部分。ボタンやフォームなど、目に見える部分を作ります。<br><br>
+            <strong>バックエンド:</strong> サーバー側の処理。データベースへの保存や、複雑な計算など、裏側で動く部分です。ユーザーからは見えません。
+          </div>
+        </div>
+
+        <h4>修正ファイル</h4>
+        <ul style="padding-left: 20px; margin-top: 10px;">
+          <li><code>frontend/src/services/mock/usersService.ts</code> - モックをSupabase API呼び出しに置き換え</li>
+          <li><code>backend/src/controllers/usersController.ts</code> - 招待API実装（Phase 7で作成）</li>
+        </ul>
+      </div>
+
+      <!-- 6. 実装ファイル一覧 -->
+      <div class="section" id="files">
+        <h2>6. 実装ファイル一覧</h2>
+
+        <h3>レイアウト</h3>
+        <ul style="padding-left: 20px;">
+          <li><code>frontend/src/components/layouts/AuthenticatedLayout.tsx</code><br>
+            <span style="color: #666; font-size: 0.9rem;">→ 認証済みレイアウト（ヘッダー・サイドバー・ハンバーガーメニュー）</span>
+          </li>
+          <li><code>frontend/src/components/layouts/PublicLayout.tsx</code><br>
+            <span style="color: #666; font-size: 0.9rem;">→ 公開レイアウト（認証ページ用）</span>
+          </li>
+        </ul>
+
+        <h3>ページ</h3>
+        <ul style="padding-left: 20px;">
+          <li><code>frontend/src/pages/users/UsersPage.tsx</code><br>
+            <span style="color: #666; font-size: 0.9rem;">→ P-004メインページ（ユーザー管理）</span>
+          </li>
+          <li><code>frontend/src/pages/auth/LoginPage.tsx</code><br>
+            <span style="color: #666; font-size: 0.9rem;">→ P-001a（ログインページ）</span>
+          </li>
+          <li><code>frontend/src/pages/auth/AcceptInvitationPage.tsx</code><br>
+            <span style="color: #666; font-size: 0.9rem;">→ P-001b（招待受諾・パスワード設定ページ）</span>
+          </li>
+          <li><code>frontend/src/pages/auth/ResetPasswordPage.tsx</code><br>
+            <span style="color: #666; font-size: 0.9rem;">→ P-001c（パスワードリセットページ）</span>
+          </li>
+        </ul>
+
+        <h3>サービス</h3>
+        <ul style="padding-left: 20px;">
+          <li><code>frontend/src/services/mock/usersService.ts</code><br>
+            <span style="color: #666; font-size: 0.9rem;">→ ユーザー管理モックサービス（Phase 7で本番APIに置き換え）</span>
+          </li>
+        </ul>
+
+        <h3>型定義</h3>
+        <ul style="padding-left: 20px;">
+          <li><code>frontend/src/types/index.ts</code><br>
+            <span style="color: #666; font-size: 0.9rem;">→ User型、UserRole型などの定義</span>
+          </li>
+        </ul>
+
+        <div class="term-box">
+          <div class="term-title">💡 用語解説: TypeScript / 型定義</div>
+          <div class="term-content">
+            TypeScriptは、JavaScriptに「型」の概念を追加したプログラミング言語です。型定義により、変数やデータの種類（文字列、数値、真偽値など）を明確にすることで、バグを減らし、コードの安全性を高めます。
+          </div>
+        </div>
+
+        <h3>状態管理</h3>
+        <ul style="padding-left: 20px;">
+          <li><code>frontend/src/stores/auth.ts</code><br>
+            <span style="color: #666; font-size: 0.9rem;">→ 認証状態管理（Zustand）</span>
+          </li>
+        </ul>
+
+        <div class="term-box">
+          <div class="term-title">💡 用語解説: Zustand（状態管理）</div>
+          <div class="term-content">
+            Zustandは、Reactアプリケーションで「状態」を管理するためのライブラリです。状態とは、ログイン中のユーザー情報など、アプリ全体で共有したいデータのことです。Zustandを使うと、複数のページで同じデータを簡単に共有できます。
+          </div>
+        </div>
+      </div>
+
+      <!-- 7. ビルド確認 -->
+      <div class="section" id="build">
+        <h2>7. ビルド確認</h2>
+
+        <h3>実行コマンド</h3>
+        <div class="code-block">npm run build</div>
+
+        <div class="success-box">
+          <div class="success-title">✅ ビルド成功（11.73秒）</div>
+          <ul style="margin-top: 10px; padding-left: 20px;">
+            <li><strong>TypeScriptコンパイル:</strong> 成功（型エラーなし）</li>
+            <li><strong>Viteビルド:</strong> 成功</li>
+            <li><strong>モジュール数:</strong> 13,428モジュールをトランスフォーム</li>
+          </ul>
+        </div>
+
+        <div class="term-box">
+          <div class="term-title">💡 用語解説: ビルド</div>
+          <div class="term-content">
+            ビルドとは、開発中のソースコードを、本番環境で動作する形式に変換する処理です。TypeScriptをJavaScriptに変換したり、複数のファイルを1つにまとめたり、コードを圧縮したりします。ビルドが成功すれば、型エラーや構文エラーがないことが確認できます。
+          </div>
+        </div>
+
+        <h4>出力ファイル</h4>
+        <table>
+          <thead>
+            <tr>
+              <th>ファイル</th>
+              <th>サイズ</th>
+              <th>Gzip圧縮後</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>index.html</code></td>
+              <td>0.48 kB</td>
+              <td>0.34 kB</td>
+            </tr>
+            <tr>
+              <td><code>CSS</code></td>
+              <td>11.66 kB</td>
+              <td>3.23 kB</td>
+            </tr>
+            <tr>
+              <td><code>JavaScript</code></td>
+              <td>645.62 kB</td>
+              <td>194.20 kB</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="warning-box">
+          <div class="warning-title">⚠️ 警告: チャンクサイズ</div>
+          <div>
+            <p>一部のチャンクが500 KBを超えています。</p>
+            <ul style="margin-top: 10px; padding-left: 20px;">
+              <li><strong>原因:</strong> Material-UIなどの大きなライブラリが含まれている</li>
+              <li><strong>対応:</strong> Phase 10（デプロイメント）でコード分割・最適化を実施</li>
+              <li><strong>現状:</strong> 動作に問題なし</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="term-box">
+          <div class="term-title">💡 用語解説: チャンク / コード分割</div>
+          <div class="term-content">
+            <strong>チャンク:</strong> ビルド時に生成されるJavaScriptファイルのまとまりです。<br><br>
+            <strong>コード分割:</strong> 1つの大きなファイルを複数の小さなファイルに分割する技術です。必要な部分だけを読み込むことで、初期読み込み時間を短縮できます。Phase 10で実装予定です。
+          </div>
+        </div>
+      </div>
+
+      <!-- 8. Git情報 -->
+      <div class="section" id="git">
+        <h2>8. Git情報</h2>
+
+        <div class="term-box">
+          <div class="term-title">💡 用語解説: Git / GitHub</div>
+          <div class="term-content">
+            <strong>Git:</strong> ソースコードの変更履歴を管理するツール。いつ・誰が・何を変更したかを記録します。<br><br>
+            <strong>GitHub:</strong> Gitを使ったプロジェクトをインターネット上で共有・管理できるサービス。チームでの開発に便利です。
+          </div>
+        </div>
+
+        <table>
+          <thead>
+            <tr>
+              <th>項目</th>
+              <th>内容</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>コミットID</strong></td>
+              <td><code>d37124a</code></td>
+            </tr>
+            <tr>
+              <td><strong>ブランチ</strong></td>
+              <td><code>main</code></td>
+            </tr>
+            <tr>
+              <td><strong>プッシュ</strong></td>
+              <td><span class="badge badge-success">✅ 完了</span></td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3>コミットメッセージ</h3>
+        <div class="code-block">
+[Phase 4] P-004: レスポンシブ対応とUI品質向上
+
+- レスポンシブ対応（デスクトップ/タブレット/モバイル）
+- ハンバーガーメニュー実装
+- alert/confirm → Material-UI Dialog化
+- フォントサイズ階層の統一
+- Phase 7での修正予定を記録
+        </div>
+      </div>
+
+      <!-- 9. 次のステップ -->
+      <div class="section" id="next">
+        <h2>9. 次のステップ</h2>
+        <p>Phase 4を完了させるため、残りのページを実装します。</p>
+
+        <h3>残りのページ</h3>
+        <div class="card">
+          <div class="card-title">📄 P-005: 取引先設定ページ</div>
+          <ul>
+            <li><span class="badge badge-info">管理者専用</span> <span class="badge badge-warning">シンプル</span></li>
+            <li>取引先一覧表示</li>
+            <li>テンプレートExcelの確認・ダウンロード・更新</li>
+          </ul>
+        </div>
+
+        <div class="card">
+          <div class="card-title">📊 P-003: 処理履歴・ダウンロードページ</div>
+          <ul>
+            <li><span class="badge badge-info">全ユーザー</span> <span class="badge badge-warning">データ表示メイン</span></li>
+            <li>処理履歴一覧表示</li>
+            <li>フィルター機能</li>
+            <li>ファイル再ダウンロード</li>
+          </ul>
+        </div>
+
+        <div class="card">
+          <div class="card-title">🚀 P-002: PDF処理実行ページ</div>
+          <ul>
+            <li><span class="badge badge-info">全ユーザー</span> <span class="badge badge-warning">最も複雑</span></li>
+            <li>PDFアップロード（ドロップゾーン）</li>
+            <li>取引先自動判別</li>
+            <li>処理実行（プログレスバー）</li>
+            <li>ファイルダウンロード</li>
+          </ul>
+        </div>
+
+        <div class="success-box">
+          <div class="success-title">✅ 推奨順序</div>
+          <p style="margin-top: 10px;">簡単なページから順に実装することで、スムーズに進められます。</p>
+          <div class="flow" style="margin-top: 15px;">
+<span class="flow-step">P-005（取引先設定）</span>
+<span class="flow-arrow">  ↓</span>
+<span class="flow-step">P-003（処理履歴）</span>
+<span class="flow-arrow">  ↓</span>
+<span class="flow-step">P-002（PDF処理実行）</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 10. 技術的な学び -->
+      <div class="section" id="learning">
+        <h2>10. 技術的な学び</h2>
+
+        <h3>レスポンシブデザインのブレークポイント</h3>
+        <p>画面サイズによってレイアウトを切り替えるための基準となる幅を設定しました。</p>
+
+        <table>
+          <thead>
+            <tr>
+              <th>名称</th>
+              <th>画面幅</th>
+              <th>用途</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>xs</code></td>
+              <td>375px</td>
+              <td>スマートフォン（小）</td>
+            </tr>
+            <tr>
+              <td><code>sm</code></td>
+              <td>640px</td>
+              <td>スマートフォン（大）</td>
+            </tr>
+            <tr>
+              <td><code>md</code></td>
+              <td>768px</td>
+              <td>タブレット</td>
+            </tr>
+            <tr>
+              <td><code>lg</code></td>
+              <td>1024px</td>
+              <td>デスクトップ（主要ブレークポイント）</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3>Tailwind CSS vs Material-UI</h3>
+        <p>このプロジェクトでは、2つのCSSフレームワークを併用しています。</p>
+
+        <div class="term-box">
+          <div class="term-title">💡 用語解説: CSSフレームワーク</div>
+          <div class="term-content">
+            CSSフレームワークは、Webサイトのデザインを簡単に作るための部品集です。自分でゼロからスタイルを書かなくても、用意されたクラスや部品を組み合わせることで、美しいデザインを実現できます。
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">🎨 Tailwind CSS</div>
+          <strong>用途:</strong> レイアウト、ヘッダー、基本的なスタイリング<br>
+          <strong>特徴:</strong> クラス名を組み合わせて自由にデザインできる
+          <div class="code-block" style="margin-top: 10px;">
+&lt;div className="flex items-center gap-4 px-6"&gt;
+  &lt;h1 className="text-3xl font-semibold"&gt;タイトル&lt;/h1&gt;
+&lt;/div&gt;
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">🧩 Material-UI</div>
+          <strong>用途:</strong> フォーム、ダイアログ、テーブル、ボタン<br>
+          <strong>特徴:</strong> 完成された部品（コンポーネント）をそのまま使える
+          <div class="code-block" style="margin-top: 10px;">
+&lt;Dialog open={alertOpen} onClose={handleClose}&gt;
+  &lt;DialogTitle&gt;確認&lt;/DialogTitle&gt;
+  &lt;DialogContent&gt;メッセージ&lt;/DialogContent&gt;
+  &lt;DialogActions&gt;
+    &lt;Button onClick={handleClose}&gt;OK&lt;/Button&gt;
+  &lt;/DialogActions&gt;
+&lt;/Dialog&gt;
+          </div>
+        </div>
+
+        <div class="success-box">
+          <div class="success-title">✅ 併用のメリット</div>
+          <p style="margin-top: 10px;">両方を併用することで、柔軟性（Tailwind）と高品質な部品（Material-UI）の良いとこ取りができます。</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- フッター -->
+    <div class="footer">
+      <p><strong>作成者:</strong> Claude Code | <strong>日付:</strong> 2025-10-14</p>
+      <p style="margin-top: 10px;">🤖 Generated with <a href="https://claude.com/claude-code" style="color: #a3d3ff;">Claude Code</a></p>
+    </div>
+  </div>
+</body>
+</html>

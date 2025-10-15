@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>P-004: ユーザー管理</title>
+
+    <!-- Material UI CDN -->
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: #f5f5f5;
+            color: #212121;
+        }
+
+        /* Container */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 24px;
+        }
+
+        /* Header */
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+
+        .page-title {
+            font-size: 24px;
+            font-weight: 500;
+            color: #212121;
+        }
+
+        /* Button */
+        .btn-primary {
+            background-color: #1976d2;
+            color: white;
+            border: none;
+            padding: 10px 24px;
+            border-radius: 4px;
+            font-size: 14px;
+            font-weight: 500;
+            text-transform: uppercase;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: background-color 0.3s;
+        }
+
+        .btn-primary:hover {
+            background-color: #1565c0;
+        }
+
+        .btn-text {
+            background: none;
+            border: none;
+            color: #1976d2;
+            padding: 8px 12px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            text-transform: uppercase;
+            transition: background-color 0.3s;
+        }
+
+        .btn-text:hover {
+            background-color: rgba(25, 118, 210, 0.04);
+        }
+
+        .btn-text.delete {
+            color: #d32f2f;
+        }
+
+        .btn-text.delete:hover {
+            background-color: rgba(211, 47, 47, 0.04);
+        }
+
+        /* Card */
+        .card {
+            background: white;
+            border-radius: 4px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        /* Table */
+        .table-container {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        thead {
+            background-color: #fafafa;
+        }
+
+        th {
+            text-align: left;
+            padding: 16px;
+            font-weight: 500;
+            color: #616161;
+            font-size: 14px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        td {
+            padding: 16px;
+            border-bottom: 1px solid #e0e0e0;
+            font-size: 14px;
+        }
+
+        tbody tr:hover {
+            background-color: #fafafa;
+        }
+
+        /* Badge */
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .badge.admin {
+            background-color: #e3f2fd;
+            color: #1976d2;
+        }
+
+        .badge.user {
+            background-color: #f5f5f5;
+            color: #616161;
+        }
+
+        /* Select */
+        select {
+            padding: 8px 12px;
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+            font-size: 14px;
+            font-family: 'Roboto', sans-serif;
+            background-color: white;
+            cursor: pointer;
+            transition: border-color 0.3s;
+        }
+
+        select:hover {
+            border-color: #bdbdbd;
+        }
+
+        select:focus {
+            outline: none;
+            border-color: #1976d2;
+        }
+
+        select:disabled {
+            background-color: #f5f5f5;
+            color: #9e9e9e;
+            cursor: not-allowed;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal {
+            background: white;
+            border-radius: 4px;
+            padding: 24px;
+            max-width: 500px;
+            width: 90%;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+        }
+
+        .modal-header {
+            font-size: 20px;
+            font-weight: 500;
+            margin-bottom: 16px;
+        }
+
+        .modal-content {
+            margin-bottom: 24px;
+        }
+
+        .modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+        }
+
+        /* Form */
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        label {
+            display: block;
+            font-size: 14px;
+            font-weight: 500;
+            color: #616161;
+            margin-bottom: 8px;
+        }
+
+        input[type="email"] {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+            font-size: 14px;
+            font-family: 'Roboto', sans-serif;
+            transition: border-color 0.3s;
+        }
+
+        input[type="email"]:hover {
+            border-color: #bdbdbd;
+        }
+
+        input[type="email"]:focus {
+            outline: none;
+            border-color: #1976d2;
+        }
+
+        /* Warning Text */
+        .warning-text {
+            color: #f57c00;
+            font-size: 14px;
+            margin-top: 8px;
+        }
+
+        /* Alert Message */
+        .alert {
+            padding: 12px 16px;
+            border-radius: 4px;
+            margin-bottom: 16px;
+        }
+
+        .alert.warning {
+            background-color: #fff3e0;
+            color: #e65100;
+            border-left: 4px solid #f57c00;
+        }
+
+        /* Material Icons */
+        .material-icons {
+            font-size: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Page Header -->
+        <div class="page-header">
+            <h1 class="page-title">ユーザー管理</h1>
+            <button class="btn-primary" onclick="openInviteModal()">
+                <span class="material-icons">person_add</span>
+                新規ユーザーを招待
+            </button>
+        </div>
+
+        <!-- Users Table -->
+        <div class="card">
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>メールアドレス</th>
+                            <th>ロール</th>
+                            <th>登録日</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!--
+                            シナリオ: 管理者2人、一般ユーザー1人
+
+                            要件v1.5: 最終管理者（管理者が1人のみの場合）の削除/降格ブロック
+                            - 管理者が2人以上いる場合: 全員編集可能（ログイン中のユーザーも含む）
+                            - 管理者が1人のみの場合: その1人だけ削除/降格がブロックされる
+                        -->
+
+                        <!-- Admin User 1 (Current User - Logged in as admin@example.com) -->
+                        <tr>
+                            <td>admin@example.com</td>
+                            <td>
+                                <select onchange="changeRole(this, 'admin@example.com')">
+                                    <option value="admin" selected>管理者</option>
+                                    <option value="user">一般ユーザー</option>
+                                </select>
+                            </td>
+                            <td>2025-10-01</td>
+                            <td>
+                                <button class="btn-text delete" onclick="openDeleteModal('admin@example.com')">削除</button>
+                            </td>
+                        </tr>
+
+                        <!-- Admin User 2 -->
+                        <tr>
+                            <td>admin2@example.com</td>
+                            <td>
+                                <select onchange="changeRole(this, 'admin2@example.com')">
+                                    <option value="admin" selected>管理者</option>
+                                    <option value="user">一般ユーザー</option>
+                                </select>
+                            </td>
+                            <td>2025-10-05</td>
+                            <td>
+                                <button class="btn-text delete" onclick="openDeleteModal('admin2@example.com')">削除</button>
+                            </td>
+                        </tr>
+
+                        <!-- Regular User -->
+                        <tr>
+                            <td>user@example.com</td>
+                            <td>
+                                <select onchange="changeRole(this, 'user@example.com')">
+                                    <option value="admin">管理者</option>
+                                    <option value="user" selected>一般ユーザー</option>
+                                </select>
+                            </td>
+                            <td>2025-10-10</td>
+                            <td>
+                                <button class="btn-text delete" onclick="openDeleteModal('user@example.com')">削除</button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Invite User Modal -->
+    <div class="modal-overlay" id="inviteModal">
+        <div class="modal">
+            <div class="modal-header">新規ユーザーを招待</div>
+            <div class="modal-content">
+                <form id="inviteForm">
+                    <div class="form-group">
+                        <label for="inviteEmail">メールアドレス</label>
+                        <input type="email" id="inviteEmail" placeholder="user@example.com" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="inviteRole">ロール</label>
+                        <select id="inviteRole">
+                            <option value="user">一般ユーザー</option>
+                            <option value="admin">管理者</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-actions">
+                <button class="btn-text" onclick="closeInviteModal()">キャンセル</button>
+                <button class="btn-primary" onclick="inviteUser()">招待メールを送信</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Confirmation Modal -->
+    <div class="modal-overlay" id="deleteModal">
+        <div class="modal">
+            <div class="modal-header">ユーザーの削除</div>
+            <div class="modal-content">
+                <p>以下のユーザーを削除してもよろしいですか？</p>
+                <p style="font-weight: 500; margin-top: 12px;" id="deleteUserEmail"></p>
+                <div class="alert warning" style="margin-top: 16px;">
+                    この操作は取り消せません
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button class="btn-text" onclick="closeDeleteModal()">キャンセル</button>
+                <button class="btn-primary" style="background-color: #d32f2f;" onclick="deleteUser()">削除</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentDeleteEmail = '';
+
+        // Mock user data (for demonstration)
+        const users = [
+            { email: 'admin@example.com', role: 'admin' },
+            { email: 'admin2@example.com', role: 'admin' },
+            { email: 'user@example.com', role: 'user' }
+        ];
+
+        // Helper: Count admins
+        function countAdmins() {
+            return users.filter(u => u.role === 'admin').length;
+        }
+
+        // Helper: Get user by email
+        function getUser(email) {
+            return users.find(u => u.email === email);
+        }
+
+        // Invite Modal Functions
+        function openInviteModal() {
+            document.getElementById('inviteModal').classList.add('active');
+        }
+
+        function closeInviteModal() {
+            document.getElementById('inviteModal').classList.remove('active');
+            document.getElementById('inviteForm').reset();
+        }
+
+        function inviteUser() {
+            const email = document.getElementById('inviteEmail').value;
+            const role = document.getElementById('inviteRole').value;
+
+            if (email) {
+                alert(`招待メールを送信しました: ${email} (${role === 'admin' ? '管理者' : '一般ユーザー'})`);
+                closeInviteModal();
+            }
+        }
+
+        // Delete Modal Functions
+        function openDeleteModal(email) {
+            const user = getUser(email);
+
+            // 最終管理者チェック（v1.5仕様）
+            if (user && user.role === 'admin' && countAdmins() === 1) {
+                alert('最終管理者のため削除できません。\n\n他のユーザーを管理者に昇格してから削除してください。');
+                return;
+            }
+
+            currentDeleteEmail = email;
+            document.getElementById('deleteUserEmail').textContent = email;
+            document.getElementById('deleteModal').classList.add('active');
+        }
+
+        function closeDeleteModal() {
+            document.getElementById('deleteModal').classList.remove('active');
+            currentDeleteEmail = '';
+        }
+
+        function deleteUser() {
+            if (currentDeleteEmail) {
+                // 実際の実装では論理削除 (is_deleted = true)
+                alert(`ユーザーを削除しました: ${currentDeleteEmail}\n\n※ 論理削除のため、処理履歴には引き続き表示されます。`);
+
+                // Mock: Remove from array
+                const index = users.findIndex(u => u.email === currentDeleteEmail);
+                if (index !== -1) {
+                    users.splice(index, 1);
+                }
+
+                closeDeleteModal();
+            }
+        }
+
+        // Role Change Functions
+        function changeRole(select, email) {
+            const newRole = select.value;
+            const oldRole = select.value === 'admin' ? 'user' : 'admin';
+            const roleName = newRole === 'admin' ? '管理者' : '一般ユーザー';
+            const user = getUser(email);
+
+            // 最終管理者チェック（v1.5仕様）
+            // 管理者→一般ユーザーに降格しようとしている & 管理者が1人のみの場合
+            if (user && oldRole === 'admin' && newRole === 'user' && countAdmins() === 1) {
+                alert('最終管理者のため降格できません。\n\n他のユーザーを管理者に昇格してから変更してください。');
+                select.value = oldRole; // Revert
+                return;
+            }
+
+            if (confirm(`${email} のロールを「${roleName}」に変更しますか？`)) {
+                alert(`ロールを変更しました: ${email} → ${roleName}`);
+                // Mock: Update role
+                if (user) {
+                    user.role = newRole;
+                }
+            } else {
+                // Reset to previous value
+                select.value = oldRole;
+            }
+        }
+
+        // Close modal on overlay click
+        document.querySelectorAll('.modal-overlay').forEach(overlay => {
+            overlay.addEventListener('click', function(e) {
+                if (e.target === overlay) {
+                    overlay.classList.remove('active');
+                }
+            });
+        });
+    </script>
+</body>
+</html>

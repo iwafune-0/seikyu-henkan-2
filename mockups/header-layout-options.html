@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ヘッダーレイアウト案 - モバイル版</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #f5f5f5;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 375px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      margin-bottom: 30px;
+    }
+
+    .option-title {
+      background: #1976d2;
+      color: white;
+      padding: 15px 20px;
+      font-size: 18px;
+      font-weight: bold;
+    }
+
+    .header {
+      border-bottom: 1px solid #e0e0e0;
+      background: white;
+    }
+
+    /* 共通スタイル */
+    .menu-icon {
+      width: 24px;
+      height: 24px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-around;
+      cursor: pointer;
+    }
+
+    .menu-icon span {
+      display: block;
+      height: 2px;
+      background: #333;
+      border-radius: 2px;
+    }
+
+    .user-icon {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: #bdbdbd;
+      display: inline-block;
+      margin-right: 8px;
+    }
+
+    .logout-btn {
+      background: #f44336;
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 4px;
+      font-size: 14px;
+      cursor: pointer;
+    }
+
+    .logout-icon-only {
+      background: transparent;
+      color: #f44336;
+      border: 1px solid #f44336;
+      border-radius: 4px;
+      padding: 8px;
+      cursor: pointer;
+    }
+
+    /* 案A: 1行レイアウト（コンパクト） */
+    .header-a {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      height: 56px;
+    }
+
+    .header-a .left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .header-a .title {
+      font-size: 14px;
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .header-a .right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* 案B: 2行レイアウト（情報表示） */
+    .header-b {
+      padding: 12px 16px;
+    }
+
+    .header-b .row1 {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+
+    .header-b .row1 .left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .header-b .title {
+      font-size: 16px;
+      font-weight: 600;
+    }
+
+    .header-b .row2 {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-left: 36px; /* メニューアイコン分のインデント */
+    }
+
+    .header-b .user-info {
+      font-size: 12px;
+      color: #666;
+    }
+
+    .header-b .email {
+      font-weight: 500;
+      color: #333;
+      margin-bottom: 2px;
+    }
+
+    /* 案C: 2行レイアウト（ログアウト強調） */
+    .header-c {
+      padding: 12px 16px;
+    }
+
+    .header-c .row1 {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+
+    .header-c .row1 .left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex: 1;
+    }
+
+    .header-c .title {
+      font-size: 16px;
+      font-weight: 600;
+    }
+
+    .header-c .row2 {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      padding: 8px;
+      background: #f5f5f5;
+      border-radius: 4px;
+    }
+
+    .header-c .user-info {
+      font-size: 12px;
+      display: flex;
+      align-items: center;
+    }
+
+    .header-c .email {
+      font-weight: 500;
+      color: #333;
+      margin-right: 8px;
+    }
+
+    .header-c .role {
+      color: #666;
+      margin-right: 8px;
+    }
+
+    /* サンプルコンテンツ */
+    .sample-content {
+      padding: 20px;
+      color: #666;
+      text-align: center;
+    }
+
+    .description {
+      background: #fff3cd;
+      padding: 15px;
+      margin-bottom: 20px;
+      border-left: 4px solid #ffc107;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    .pros-cons {
+      text-align: left;
+      margin-top: 10px;
+      font-size: 13px;
+    }
+
+    .pros-cons div {
+      margin-bottom: 8px;
+    }
+
+    .pros {
+      color: #2e7d32;
+    }
+
+    .cons {
+      color: #c62828;
+    }
+  </style>
+</head>
+<body>
+  <h1 style="text-align: center; margin-bottom: 30px; color: #333;">モバイルヘッダー レイアウト案（375px幅）</h1>
+
+  <!-- 案A -->
+  <div class="container">
+    <div class="option-title">案A: 1行レイアウト（最小限）</div>
+    <div class="header header-a">
+      <div class="left">
+        <div class="menu-icon">
+          <span></span>
+          <span></span>
+          <span></span>
+        </div>
+        <div class="title">月次処理</div>
+      </div>
+      <div class="right">
+        <button class="logout-icon-only">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+            <polyline points="16 17 21 12 16 7"></polyline>
+            <line x1="21" y1="12" x2="9" y2="12"></line>
+          </svg>
+        </button>
+      </div>
+    </div>
+    <div class="sample-content">（ページコンテンツ）</div>
+    <div class="description">
+      <strong>特徴：</strong>
+      <div class="pros-cons">
+        <div class="pros">✓ 最もコンパクト（高さ56px）</div>
+        <div class="pros">✓ シンプルで迷わない</div>
+        <div class="cons">✗ メールアドレスとロールが非表示</div>
+        <div class="cons">✗ ログアウトアイコンのみでわかりにくい可能性</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 案B -->
+  <div class="container">
+    <div class="option-title">案B: 2行レイアウト（情報表示）</div>
+    <div class="header header-b">
+      <div class="row1">
+        <div class="left">
+          <div class="menu-icon">
+            <span></span>
+            <span></span>
+            <span></span>
+          </div>
+          <div class="title">月次処理自動化</div>
+        </div>
+      </div>
+      <div class="row2">
+        <div class="user-info">
+          <div class="email">user@example.com</div>
+          <div>一般ユーザー</div>
+        </div>
+        <button class="logout-btn">ログアウト</button>
+      </div>
+    </div>
+    <div class="sample-content">（ページコンテンツ）</div>
+    <div class="description">
+      <strong>特徴：</strong>
+      <div class="pros-cons">
+        <div class="pros">✓ 全情報が表示される</div>
+        <div class="pros">✓ ログアウトボタンがわかりやすい</div>
+        <div class="cons">✗ 高さが増える（約80px）</div>
+        <div class="cons">✗ 2行目がやや窮屈</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 案C -->
+  <div class="container">
+    <div class="option-title">案C: 2行レイアウト（バランス型）</div>
+    <div class="header header-c">
+      <div class="row1">
+        <div class="left">
+          <div class="menu-icon">
+            <span></span>
+            <span></span>
+            <span></span>
+          </div>
+          <div class="title">月次処理自動化システム</div>
+        </div>
+      </div>
+      <div class="row2">
+        <div class="user-info">
+          <span class="email">user@example.com</span>
+          <span class="role">一般ユーザー</span>
+        </div>
+        <button class="logout-btn">ログアウト</button>
+      </div>
+    </div>
+    <div class="sample-content">（ページコンテンツ）</div>
+    <div class="description">
+      <strong>特徴：</strong>
+      <div class="pros-cons">
+        <div class="pros">✓ 全情報が表示される</div>
+        <div class="pros">✓ 2行目が見やすい（背景色で区別）</div>
+        <div class="pros">✓ 情報が整理されている</div>
+        <div class="cons">✗ 高さが増える（約88px）</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 案D -->
+  <div class="container">
+    <div class="option-title">案D: 2行レイアウト（ログアウト強調・中央配置）</div>
+    <div class="header" style="padding: 12px 16px;">
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <div class="menu-icon">
+            <span></span>
+            <span></span>
+            <span></span>
+          </div>
+          <div style="font-size: 16px; font-weight: 600;">月次処理自動化システム</div>
+        </div>
+        <button class="logout-btn">ログアウト</button>
+      </div>
+      <div style="text-align: center; font-size: 12px; color: #666; background: #f5f5f5; padding: 6px; border-radius: 4px;">
+        <span style="font-weight: 500; color: #333;">user@example.com</span>
+        <span style="margin: 0 8px;">|</span>
+        <span>一般ユーザー</span>
+      </div>
+    </div>
+    <div class="sample-content">（ページコンテンツ）</div>
+    <div class="description">
+      <strong>特徴：</strong>
+      <div class="pros-cons">
+        <div class="pros">✓ ログアウトが最も押しやすい位置</div>
+        <div class="pros">✓ 情報が中央で見やすい</div>
+        <div class="pros">✓ 視覚的に整理されている</div>
+        <div class="cons">✗ 高さが増える（約88px）</div>
+      </div>
+    </div>
+  </div>
+
+  <div style="text-align: center; margin-top: 40px; padding: 20px; background: white; border-radius: 8px;">
+    <h2 style="margin-bottom: 15px;">どの案が良いですか？</h2>
+    <p style="color: #666; line-height: 1.6;">
+      案A: 最小限<br>
+      案B: 情報表示（2行目左寄せ）<br>
+      案C: バランス型（2行目に背景色）<br>
+      案D: ログアウト強調・中央配置<br>
+      <br>
+      または、これらを組み合わせた別案でも構いません。
+    </p>
+  </div>
+</body>
+</html>
