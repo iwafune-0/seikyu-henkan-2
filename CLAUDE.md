@@ -288,6 +288,120 @@ app.use((err, req, res, next) => {
 })
 ```
 
+### 4.4 通知UI設計（統一ルール）
+
+**確立日**: 2025-10-15（P-004, P-005で確立）
+**適用範囲**: 全ページ（P-001〜P-005）
+
+#### 通知の種類と表示方法
+
+| 通知の種類 | UI方式 | 自動消去 | 配置 | 用途例 |
+|-----------|--------|----------|------|--------|
+| **成功通知** | Snackbar | 3秒 | 画面下部中央 | 「保存しました」「削除しました」「送信しました」 |
+| **軽微なエラー** | Snackbar | 3秒 | 画面下部中央 | 「入力してください」「形式が不正です」 |
+| **重要な警告** | Dialog | 手動 | 画面中央 | 「最終管理者のため削除できません」 |
+| **確認** | Dialog | 手動 | 画面中央 | 「削除してもよろしいですか？」 |
+| **致命的エラー** | Dialog | 手動 | 画面中央 | 「サーバーエラーが発生しました」 |
+
+#### 判断基準
+
+**Snackbarを使う場合**:
+- ✅ 操作の成功を知らせる（自動で消えてOK）
+- ✅ 入力エラーなど、軽微な問題（再入力で解決可能）
+- ✅ ユーザーの操作を妨げたくない場合
+
+**Dialogを使う場合**:
+- ✅ 重要な警告（システムの整合性に関わる）
+- ✅ 確認が必要な操作（削除、権限変更など）
+- ✅ 致命的エラー（操作を続行できない）
+- ✅ ユーザーに必ず読んでほしい内容
+
+#### 実装例
+
+```typescript
+// Snackbar state
+const [snackbar, setSnackbar] = useState({
+  open: false,
+  message: '',
+  severity: 'success' as 'success' | 'error',
+})
+
+// Snackbar表示関数
+const showSnackbar = (message: string, severity: 'success' | 'error' = 'success') => {
+  setSnackbar({ open: true, message, severity })
+}
+
+// Snackbar閉じる
+const handleCloseSnackbar = () => {
+  setSnackbar((prev) => ({ ...prev, open: false }))
+}
+
+// Dialog state（重要な警告用）
+const [alertOpen, setAlertOpen] = useState(false)
+const [alertMessage, setAlertMessage] = useState('')
+
+// Dialog表示関数
+const showAlert = (message: string) => {
+  setAlertMessage(message)
+  setAlertOpen(true)
+}
+
+// 使用例
+showSnackbar('保存しました', 'success')          // 成功通知
+showSnackbar('入力してください', 'error')          // 軽微なエラー
+showAlert('最終管理者のため削除できません')         // 重要な警告
+```
+
+#### JSX実装例
+
+```tsx
+{/* Snackbar（成功通知・軽微なエラー用） */}
+<Snackbar
+  open={snackbar.open}
+  autoHideDuration={3000}
+  onClose={handleCloseSnackbar}
+  anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+>
+  <Alert
+    onClose={handleCloseSnackbar}
+    severity={snackbar.severity}
+    sx={{ width: '100%' }}
+  >
+    {snackbar.message}
+  </Alert>
+</Snackbar>
+
+{/* Dialog（重要な警告用） */}
+<Dialog open={alertOpen} onClose={() => setAlertOpen(false)} maxWidth="sm" fullWidth>
+  <DialogTitle>確認</DialogTitle>
+  <DialogContent>
+    <Typography sx={{ whiteSpace: 'pre-line' }}>{alertMessage}</Typography>
+  </DialogContent>
+  <DialogActions>
+    <Button onClick={() => setAlertOpen(false)} variant="contained">
+      OK
+    </Button>
+  </DialogActions>
+</Dialog>
+```
+
+#### メリット
+
+- **操作フローがスムーズ**: 成功通知が自動で消えるため、ユーザーが毎回閉じる必要がない
+- **重要度が視覚的に明確**: 重要な警告だけがDialogで表示され、注意を引く
+- **全ページで一貫したUX**: すべてのページで同じルールを適用することで、ユーザーが学習しやすい
+
+#### 適用済みページ
+
+- ✅ P-004: ユーザー管理ページ（招待、削除、ロール変更）
+- ✅ P-005: 取引先設定ページ（テンプレート更新、有効化/無効化）
+
+#### 今後適用するページ
+
+- ⏳ P-003: 処理履歴・ダウンロードページ
+- ⏳ P-002: PDF処理実行ページ
+- ⏳ P-001a/b/c: 認証ページ（必要に応じて）
+
 ---
 
 ## 5. テストポリシー
@@ -420,5 +534,11 @@ AWS_LAMBDA_FUNCTION_NAME=xxx
 ---
 
 **作成日**: 2025-10-07
-**バージョン**: 1.0
-**Phase 1（要件定義）完了**
+**最終更新**: 2025-10-15
+**バージョン**: 1.1
+**Phase 4（ページ実装）進行中**
+
+### 変更履歴
+
+- **v1.1** (2025-10-15): 4.4 通知UI設計（統一ルール）を追加
+- **v1.0** (2025-10-07): 初版作成（Phase 1完了時）
