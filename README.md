@@ -130,6 +130,8 @@ seikyu-henkan-2/
 │   │   │   ├── history/     # 処理履歴 (P-003)
 │   │   │   ├── users/       # ユーザー管理 (P-004)
 │   │   │   └── companies/   # 取引先設定 (P-005)
+│   │   ├── services/        # サービス層
+│   │   │   └── mock/        # モックサービス (Phase 5以前)
 │   │   ├── stores/          # Zustand状態管理
 │   │   ├── types/           # TypeScript型定義
 │   │   ├── lib/             # ライブラリ設定
@@ -158,11 +160,18 @@ seikyu-henkan-2/
 │   ├── phase1_summary.md    # Phase 1完了報告
 │   ├── phase2_summary.md    # Phase 2完了報告
 │   ├── phase3_summary.md    # Phase 3完了報告
-│   └── phase4_summary.md    # Phase 4完了報告
+│   ├── phase4_summary.md    # Phase 4-A完了報告 (P-001)
+│   ├── phase4_b_summary.md  # Phase 4-B完了報告 (ログイン状態保持)
+│   ├── phase4_p004_summary.md # Phase 4-P004完了報告 (P-004)
+│   └── phase4_p005_summary.md # Phase 4-P005完了報告 (P-005)
 │
 ├── source/                  # サンプルPDF・Excel
 │   ├── オフビートワークス/
 │   └── ネクストビッツ/
+│
+├── mockups/                 # HTMLモックアップ (Phase 4)
+│   ├── UsersPage.html       # P-004モックアップ
+│   └── CompanySettingsPage.html # P-005モックアップ
 │
 ├── CLAUDE.md                # 開発ルール
 └── README.md                # このファイル
