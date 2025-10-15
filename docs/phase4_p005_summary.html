@@ -1,0 +1,932 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Phase 4: P-005（取引先設定ページ）実装完了報告</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      line-height: 1.7;
+      color: #333;
+      background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 1000px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+      overflow: hidden;
+    }
+
+    .header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 40px;
+      text-align: center;
+    }
+
+    .header h1 {
+      font-size: 2rem;
+      margin-bottom: 10px;
+    }
+
+    .header .meta {
+      font-size: 0.95rem;
+      opacity: 0.95;
+    }
+
+    .content {
+      padding: 40px;
+    }
+
+    .section {
+      margin-bottom: 50px;
+    }
+
+    .section h2 {
+      font-size: 1.6rem;
+      color: #667eea;
+      margin-bottom: 20px;
+      padding-bottom: 10px;
+      border-bottom: 3px solid #667eea;
+    }
+
+    .section h3 {
+      font-size: 1.3rem;
+      color: #764ba2;
+      margin-top: 30px;
+      margin-bottom: 15px;
+    }
+
+    .section h4 {
+      font-size: 1.1rem;
+      color: #555;
+      margin-top: 20px;
+      margin-bottom: 10px;
+    }
+
+    /* 用語解説ボックス */
+    .term-box {
+      background: #f0f4ff;
+      border-left: 4px solid #667eea;
+      padding: 15px 20px;
+      margin: 20px 0;
+      border-radius: 6px;
+    }
+
+    .term-box .term-title {
+      font-weight: bold;
+      color: #667eea;
+      margin-bottom: 8px;
+      font-size: 1rem;
+    }
+
+    .term-box .term-content {
+      color: #555;
+      font-size: 0.95rem;
+    }
+
+    /* 注意ボックス */
+    .warning-box {
+      background: #fff3cd;
+      border-left: 4px solid #ffc107;
+      padding: 15px 20px;
+      margin: 20px 0;
+      border-radius: 6px;
+    }
+
+    .warning-box .warning-title {
+      font-weight: bold;
+      color: #856404;
+      margin-bottom: 8px;
+      font-size: 1rem;
+    }
+
+    /* 成功ボックス */
+    .success-box {
+      background: #d4edda;
+      border-left: 4px solid #28a745;
+      padding: 15px 20px;
+      margin: 20px 0;
+      border-radius: 6px;
+    }
+
+    .success-box .success-title {
+      font-weight: bold;
+      color: #155724;
+      margin-bottom: 8px;
+      font-size: 1rem;
+    }
+
+    /* チェックリスト */
+    .checklist {
+      list-style: none;
+      padding-left: 0;
+    }
+
+    .checklist li {
+      padding: 10px 0;
+      padding-left: 35px;
+      position: relative;
+    }
+
+    .checklist li:before {
+      content: "✓";
+      position: absolute;
+      left: 0;
+      top: 8px;
+      width: 24px;
+      height: 24px;
+      background: #28a745;
+      color: white;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      font-size: 0.9rem;
+    }
+
+    /* コードブロック */
+    .code-block {
+      background: #2d3748;
+      color: #e2e8f0;
+      padding: 20px;
+      border-radius: 8px;
+      margin: 20px 0;
+      overflow-x: auto;
+      font-family: "Consolas", "Monaco", monospace;
+      font-size: 0.9rem;
+      line-height: 1.6;
+    }
+
+    /* テーブル */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 20px 0;
+      background: white;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    table th {
+      background: #667eea;
+      color: white;
+      padding: 15px;
+      text-align: left;
+      font-weight: 600;
+    }
+
+    table td {
+      padding: 15px;
+      border-bottom: 1px solid #e2e8f0;
+    }
+
+    table tr:last-child td {
+      border-bottom: none;
+    }
+
+    table tr:hover {
+      background: #f7fafc;
+    }
+
+    /* バッジ */
+    .badge {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      margin-right: 5px;
+    }
+
+    .badge-success {
+      background: #d4edda;
+      color: #155724;
+    }
+
+    .badge-warning {
+      background: #fff3cd;
+      color: #856404;
+    }
+
+    .badge-info {
+      background: #d1ecf1;
+      color: #0c5460;
+    }
+
+    /* フロー図 */
+    .flow {
+      background: #f8f9fa;
+      padding: 25px;
+      border-radius: 8px;
+      margin: 20px 0;
+      font-family: monospace;
+      white-space: pre-line;
+      line-height: 2;
+      border: 2px solid #e2e8f0;
+    }
+
+    .flow-step {
+      padding: 8px 0;
+    }
+
+    .flow-arrow {
+      color: #667eea;
+      font-weight: bold;
+    }
+
+    /* カード */
+    .card {
+      background: #f8f9fa;
+      border: 2px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 20px;
+      margin: 15px 0;
+    }
+
+    .card-title {
+      font-weight: bold;
+      color: #764ba2;
+      margin-bottom: 10px;
+      font-size: 1.1rem;
+    }
+
+    /* 目次 */
+    .toc {
+      background: #f8f9fa;
+      border: 2px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 25px;
+      margin-bottom: 40px;
+    }
+
+    .toc h2 {
+      font-size: 1.3rem;
+      color: #333;
+      margin-bottom: 15px;
+      border: none;
+      padding: 0;
+    }
+
+    .toc ul {
+      list-style: none;
+      padding-left: 0;
+    }
+
+    .toc li {
+      padding: 8px 0;
+    }
+
+    .toc a {
+      color: #667eea;
+      text-decoration: none;
+      font-weight: 500;
+    }
+
+    .toc a:hover {
+      text-decoration: underline;
+    }
+
+    /* フッター */
+    .footer {
+      background: #2d3748;
+      color: white;
+      text-align: center;
+      padding: 30px;
+      font-size: 0.9rem;
+    }
+
+    /* レスポンシブ */
+    @media (max-width: 768px) {
+      body {
+        padding: 10px;
+      }
+
+      .header {
+        padding: 30px 20px;
+      }
+
+      .header h1 {
+        font-size: 1.5rem;
+      }
+
+      .content {
+        padding: 20px;
+      }
+
+      .section h2 {
+        font-size: 1.4rem;
+      }
+
+      .section h3 {
+        font-size: 1.2rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- ヘッダー -->
+    <div class="header">
+      <h1>🏢 Phase 4: P-005（取引先設定ページ）実装完了報告</h1>
+      <div class="meta">
+        <strong>日付:</strong> 2025-10-15 |
+        <strong>フェーズ:</strong> Phase 4（ページ実装） |
+        <strong>ステータス:</strong> <span class="badge badge-success">✅ 完成（モック）</span>
+      </div>
+    </div>
+
+    <!-- コンテンツ -->
+    <div class="content">
+      <!-- 目次 -->
+      <div class="toc">
+        <h2>📋 目次</h2>
+        <ul>
+          <li><a href="#overview">1. 実装概要</a></li>
+          <li><a href="#responsive">2. レスポンシブ対応</a></li>
+          <li><a href="#features">3. 機能詳細</a></li>
+          <li><a href="#ux">4. UI/UXの工夫</a></li>
+          <li><a href="#types">5. 型定義追加</a></li>
+          <li><a href="#files">6. 実装ファイル一覧</a></li>
+          <li><a href="#build">7. ビルド確認</a></li>
+          <li><a href="#phase7">8. Phase 7での修正予定</a></li>
+          <li><a href="#api">9. API仕様書</a></li>
+          <li><a href="#e2e">10. E2Eテスト仕様書</a></li>
+          <li><a href="#git">11. Git情報</a></li>
+          <li><a href="#next">12. 次のステップ</a></li>
+          <li><a href="#learning">13. 技術的な学び</a></li>
+        </ul>
+      </div>
+
+      <!-- 1. 実装概要 -->
+      <div class="section" id="overview">
+        <h2>1. 実装概要</h2>
+        <p>P-005（取引先設定ページ）のUI実装を完了しました。管理者専用のページで、取引先の基本情報編集・テンプレート管理・処理ルール確認・処理履歴確認を行えます。</p>
+
+        <h3>実装した機能</h3>
+        <ul class="checklist">
+          <li>レスポンシブ対応（デスクトップ/タブレット/モバイル）</li>
+          <li>取引先一覧表示（テーブル/カードレイアウト）</li>
+          <li>行クリックで取引先詳細モーダル</li>
+          <li>4タブ構成（基本情報・テンプレート・処理ルール・処理履歴）</li>
+          <li>基本情報編集（バリデーション付き）</li>
+          <li>テンプレートファイルアップロード/ダウンロード</li>
+          <li>処理ルール表示（読み取り専用）</li>
+          <li>処理履歴表示（最新3件、クリックでP-003へ遷移）</li>
+          <li>Snackbar通知</li>
+          <li>モックサービス実装</li>
+        </ul>
+      </div>
+
+      <!-- 2. レスポンシブ対応 -->
+      <div class="section" id="responsive">
+        <h2>2. レスポンシブ対応</h2>
+        <p>画面サイズに応じて、最適なレイアウトに自動的に切り替わります。</p>
+
+        <h3>デスクトップ（1024px以上）</h3>
+        <div class="card">
+          <div class="card-title">🖥️ デスクトップ表示</div>
+          <ul>
+            <li><strong>取引先一覧:</strong> テーブル表示</li>
+            <li><strong>モーダル:</strong> 600px固定高さ</li>
+            <li><strong>タブ:</strong> 通常サイズ（15px）</li>
+            <li><strong>ボタン:</strong> 横並び</li>
+          </ul>
+        </div>
+
+        <h3>タブレット・モバイル（1024px未満）</h3>
+        <div class="card">
+          <div class="card-title">📱 モバイル/タブレット表示</div>
+          <ul>
+            <li><strong>取引先一覧:</strong> カードレイアウト</li>
+            <li><strong>モーダル:</strong> 500px固定高さ、コンテンツ内スクロール</li>
+            <li><strong>タブ:</strong> 4分割、横スクロールなし（12px、flex: 1）</li>
+            <li><strong>ボタン:</strong> 縦並び、全幅表示</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- 3. 機能詳細 -->
+      <div class="section" id="features">
+        <h2>3. 機能詳細</h2>
+
+        <h3>3.1 取引先一覧</h3>
+
+        <h4>デスクトップ</h4>
+        <ul style="padding-left: 20px;">
+          <li>テーブル形式</li>
+          <li>列: 取引先名、表示名、状態、最終処理日</li>
+          <li>行クリックでモーダルを開く</li>
+          <li>ホバー効果あり</li>
+        </ul>
+
+        <h4>モバイル</h4>
+        <ul style="padding-left: 20px;">
+          <li>カード形式</li>
+          <li>カードヘッダー: 取引先名 + 状態チップ</li>
+          <li>カード内容: 表示名、最終処理日</li>
+          <li>カードタップでモーダルを開く</li>
+        </ul>
+
+        <h3>3.2 取引先詳細モーダル</h3>
+
+        <div class="card">
+          <div class="card-title">📝 タブ1: 基本情報</div>
+          <ul>
+            <li>取引先名（必須、バリデーション有り）</li>
+            <li>表示名（必須、バリデーション有り）</li>
+            <li>状態（有効/無効、スイッチ）</li>
+            <li>最終処理日（読み取り専用）</li>
+          </ul>
+        </div>
+
+        <div class="card">
+          <div class="card-title">📄 タブ2: テンプレート</div>
+          <ul>
+            <li>現在のファイル名表示</li>
+            <li>更新日時・更新者表示</li>
+            <li>ダウンロードボタン</li>
+            <li>ファイルアップロードエリア（ドラッグ&ドロップ風UI）</li>
+            <li>ファイル選択時に緑色に変化</li>
+          </ul>
+        </div>
+
+        <div class="card">
+          <div class="card-title">⚙️ タブ3: 処理ルール</div>
+          <ul>
+            <li>読み取り専用テキスト表示</li>
+            <li>取引先ごとに異なるルール
+              <ul style="margin-top: 5px;">
+                <li>ネクストビッツ: 詳細ルール</li>
+                <li>オフビットワークス: 簡略ルール</li>
+              </ul>
+            </li>
+            <li>MVP版注記: 「変更はコード修正が必要」</li>
+          </ul>
+        </div>
+
+        <div class="card">
+          <div class="card-title">📊 タブ4: 処理履歴</div>
+          <ul>
+            <li>最新3件をテーブル表示</li>
+            <li>列: 処理日、処理者、状態</li>
+            <li>行クリックでP-003へ遷移（実装済み）</li>
+            <li>注記: 「※ クリックするとP-003（処理履歴ページ）に遷移します」</li>
+          </ul>
+        </div>
+
+        <h3>3.3 バリデーション</h3>
+        <ul style="padding-left: 20px; margin-top: 10px;">
+          <li>取引先名・表示名が空欄の場合エラー表示</li>
+          <li>エラーメッセージ: TextField直下に赤色で表示</li>
+          <li>入力欄が赤枠で強調</li>
+          <li>エラーがある場合は保存不可</li>
+        </ul>
+
+        <h3>3.4 保存処理</h3>
+        <div class="flow">
+<span class="flow-step">1. バリデーションチェック</span>
+<span class="flow-arrow">  ↓</span>
+<span class="flow-step">2. 取引先情報更新</span>
+<span class="flow-arrow">  ↓</span>
+<span class="flow-step">3. テンプレートファイルアップロード（選択時のみ）</span>
+<span class="flow-arrow">  ↓</span>
+<span class="flow-step">4. 一覧データ再読み込み</span>
+<span class="flow-arrow">  ↓</span>
+<span class="flow-step">5. モーダルを閉じる</span>
+<span class="flow-arrow">  ↓</span>
+<span class="flow-step">6. Snackbar: 「取引先設定を保存しました」</span>
+        </div>
+      </div>
+
+      <!-- 4. UI/UXの工夫 -->
+      <div class="section" id="ux">
+        <h2>4. UI/UXの工夫</h2>
+
+        <h3>4.1 モーダルサイズ統一</h3>
+        <div class="warning-box">
+          <div class="warning-title">⚠️ 問題</div>
+          <div>タブ切替時にモーダルの高さが変動</div>
+        </div>
+
+        <div class="success-box">
+          <div class="success-title">✅ 解決</div>
+          <ul style="margin-top: 10px; padding-left: 20px;">
+            <li>デスクトップ: <code>min-height: 600px</code></li>
+            <li>モバイル: <code>min-height: 500px</code>、コンテンツエリアは固定高さ（350px）でスクロール</li>
+          </ul>
+        </div>
+
+        <h3>4.2 タブの横スクロール解消（モバイル）</h3>
+        <div class="warning-box">
+          <div class="warning-title">⚠️ 問題</div>
+          <div>4タブで横スクロールが発生</div>
+        </div>
+
+        <div class="success-box">
+          <div class="success-title">✅ 解決</div>
+          <ul style="margin-top: 10px; padding-left: 20px;">
+            <li>タブを均等分割（<code>flex: 1</code>）</li>
+            <li>フォントサイズ縮小（12px）</li>
+            <li>padding縮小（10px 8px）</li>
+          </ul>
+        </div>
+
+        <h3>4.3 スティッキーボタン</h3>
+        <ul style="padding-left: 20px; margin-top: 10px;">
+          <li>ボタンエリアを<code>position: sticky</code>で画面下部に固定</li>
+          <li>スクロール時も常に表示</li>
+          <li>モバイルでは縦並び、全幅表示</li>
+        </ul>
+
+        <h3>4.4 ファイルアップロードUI</h3>
+        <ul style="padding-left: 20px; margin-top: 10px;">
+          <li>ドラッグ&ドロップ風のデザイン</li>
+          <li>ファイル選択時に緑色に変化</li>
+          <li>ファイルアイコン + ファイル名表示</li>
+        </ul>
+      </div>
+
+      <!-- 5. 型定義追加 -->
+      <div class="section" id="types">
+        <h2>5. 型定義追加</h2>
+        <p><code>frontend/src/types/index.ts</code> に以下を追加：</p>
+
+        <div class="code-block">// 取引先関連型定義（P-005）
+export interface CompanyListResponse {
+  companies: Company[]
+  total: number
+}
+
+export interface UpdateCompanyRequest {
+  name?: string
+  display_name?: string
+  is_active?: boolean
+}
+
+export interface UpdateCompanyResponse {
+  success: boolean
+  company: Company
+}
+
+export interface UploadTemplateResponse {
+  success: boolean
+  filename: string
+  updated_at: string
+}</div>
+      </div>
+
+      <!-- 6. 実装ファイル一覧 -->
+      <div class="section" id="files">
+        <h2>6. 実装ファイル一覧</h2>
+
+        <h3>ページ</h3>
+        <ul style="padding-left: 20px;">
+          <li><code>frontend/src/pages/companies/CompaniesPage.tsx</code><br>
+            <span style="color: #666; font-size: 0.9rem;">→ P-005メインページ（652行）</span>
+          </li>
+        </ul>
+
+        <h3>モックサービス</h3>
+        <ul style="padding-left: 20px;">
+          <li><code>frontend/src/services/mock/companiesService.ts</code><br>
+            <span style="color: #666; font-size: 0.9rem;">→ 取引先管理モックサービス</span>
+          </li>
+        </ul>
+
+        <h3>型定義</h3>
+        <ul style="padding-left: 20px;">
+          <li><code>frontend/src/types/index.ts</code><br>
+            <span style="color: #666; font-size: 0.9rem;">→ P-005用の型定義追加</span>
+          </li>
+        </ul>
+
+        <h3>ドキュメント</h3>
+        <ul style="padding-left: 20px;">
+          <li><code>docs/api-specs/companies-api.md</code><br>
+            <span style="color: #666; font-size: 0.9rem;">→ API仕様書</span>
+          </li>
+          <li><code>docs/e2e-specs/companies-e2e.md</code><br>
+            <span style="color: #666; font-size: 0.9rem;">→ E2Eテスト仕様書（46テストケース）</span>
+          </li>
+        </ul>
+
+        <h3>モックアップ</h3>
+        <ul style="padding-left: 20px;">
+          <li><code>mockups/CompanySettingsPage.html</code><br>
+            <span style="color: #666; font-size: 0.9rem;">→ HTMLモックアップ</span>
+          </li>
+        </ul>
+      </div>
+
+      <!-- 7. ビルド確認 -->
+      <div class="section" id="build">
+        <h2>7. ビルド確認</h2>
+
+        <h3>実行コマンド</h3>
+        <div class="code-block">npx tsc --noEmit  # 型チェック成功
+npm run build     # ビルド成功</div>
+
+        <div class="success-box">
+          <div class="success-title">✅ ビルド成功（13.96秒）</div>
+          <ul style="margin-top: 10px; padding-left: 20px;">
+            <li><strong>TypeScriptコンパイル:</strong> 成功（型エラーなし）</li>
+            <li><strong>Viteビルド:</strong> 成功</li>
+            <li><strong>モジュール数:</strong> 13,429モジュールをトランスフォーム</li>
+          </ul>
+        </div>
+
+        <h4>出力ファイル</h4>
+        <table>
+          <thead>
+            <tr>
+              <th>ファイル</th>
+              <th>サイズ</th>
+              <th>Gzip圧縮後</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>index.html</code></td>
+              <td>0.48 kB</td>
+              <td>0.34 kB</td>
+            </tr>
+            <tr>
+              <td><code>CSS</code></td>
+              <td>11.69 kB</td>
+              <td>3.24 kB</td>
+            </tr>
+            <tr>
+              <td><code>JavaScript</code></td>
+              <td>699.95 kB</td>
+              <td>209.49 kB</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="warning-box">
+          <div class="warning-title">⚠️ 警告: チャンクサイズ</div>
+          <div>
+            <p>一部のチャンクが500 KBを超えています。</p>
+            <ul style="margin-top: 10px; padding-left: 20px;">
+              <li><strong>原因:</strong> Material-UIなどの大きなライブラリ</li>
+              <li><strong>対応:</strong> Phase 10（デプロイメント）でコード分割・最適化</li>
+              <li><strong>現状:</strong> 動作に問題なし</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- 8. Phase 7での修正予定 -->
+      <div class="section" id="phase7">
+        <h2>8. Phase 7での修正予定</h2>
+
+        <h3>モックサービスをSupabase APIに置き換え</h3>
+
+        <div class="warning-box">
+          <div class="warning-title">⚠️ 現状（モック実装）</div>
+          <ul style="margin-top: 10px; padding-left: 20px;">
+            <li><code>companiesService.ts</code>でメモリ内データ操作</li>
+            <li>ファイルアップロードはシミュレーション</li>
+          </ul>
+        </div>
+
+        <div class="success-box">
+          <div class="success-title">✅ Phase 7での修正</div>
+          <ol style="margin-top: 10px; padding-left: 20px;">
+            <li>Supabase Storageにテンプレートファイルを保存</li>
+            <li>Supabase PostgreSQLでcompaniesテーブルを操作</li>
+            <li>RLS設定（管理者のみアクセス可能）</li>
+            <li>ファイルアップロード・ダウンロードの実装</li>
+          </ol>
+        </div>
+
+        <h4>修正ファイル</h4>
+        <ul style="padding-left: 20px; margin-top: 10px;">
+          <li><code>frontend/src/services/mock/companiesService.ts</code> → Supabase API呼び出しに置き換え</li>
+          <li><code>backend/src/controllers/companiesController.ts</code> - 新規作成</li>
+          <li><code>backend/src/routes/companies.ts</code> - 新規作成</li>
+        </ul>
+      </div>
+
+      <!-- 9. API仕様書 -->
+      <div class="section" id="api">
+        <h2>9. API仕様書</h2>
+        <p><strong>ファイル:</strong> <code>docs/api-specs/companies-api.md</code></p>
+
+        <h3>主要API</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>エンドポイント</th>
+              <th>メソッド</th>
+              <th>説明</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>/api/companies</code></td>
+              <td>GET</td>
+              <td>取引先一覧取得</td>
+            </tr>
+            <tr>
+              <td><code>/api/companies/:id</code></td>
+              <td>GET</td>
+              <td>取引先詳細取得</td>
+            </tr>
+            <tr>
+              <td><code>/api/companies/:id</code></td>
+              <td>PUT</td>
+              <td>取引先情報更新</td>
+            </tr>
+            <tr>
+              <td><code>/api/companies/:id/template</code></td>
+              <td>POST</td>
+              <td>テンプレートアップロード</td>
+            </tr>
+            <tr>
+              <td><code>/api/companies/:id/template</code></td>
+              <td>GET</td>
+              <td>テンプレートダウンロード</td>
+            </tr>
+            <tr>
+              <td><code>/api/companies/:id/history</code></td>
+              <td>GET</td>
+              <td>処理履歴取得（P-003で実装）</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- 10. E2Eテスト仕様書 -->
+      <div class="section" id="e2e">
+        <h2>10. E2Eテスト仕様書</h2>
+        <p><strong>ファイル:</strong> <code>docs/e2e-specs/companies-e2e.md</code></p>
+
+        <h3>テストカテゴリ</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>カテゴリ</th>
+              <th>テストケース数</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>ページアクセステスト</td>
+              <td>3ケース</td>
+            </tr>
+            <tr>
+              <td>取引先一覧表示テスト - デスクトップ</td>
+              <td>4ケース</td>
+            </tr>
+            <tr>
+              <td>取引先一覧表示テスト - モバイル</td>
+              <td>3ケース</td>
+            </tr>
+            <tr>
+              <td>取引先詳細モーダル - 基本操作</td>
+              <td>4ケース</td>
+            </tr>
+            <tr>
+              <td>タブ1: 基本情報</td>
+              <td>7ケース</td>
+            </tr>
+            <tr>
+              <td>タブ2: テンプレート</td>
+              <td>5ケース</td>
+            </tr>
+            <tr>
+              <td>タブ3: 処理ルール</td>
+              <td>3ケース</td>
+            </tr>
+            <tr>
+              <td>タブ4: 処理履歴</td>
+              <td>4ケース</td>
+            </tr>
+            <tr>
+              <td>レスポンシブデザインテスト</td>
+              <td>4ケース</td>
+            </tr>
+            <tr>
+              <td>複数タブ切替テスト</td>
+              <td>4ケース</td>
+            </tr>
+            <tr>
+              <td>エラーハンドリングテスト</td>
+              <td>3ケース</td>
+            </tr>
+            <tr>
+              <td>同時保存テスト</td>
+              <td>2ケース</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="success-box">
+          <div class="success-title">📊 合計: 46テストケース（高優先度）</div>
+          <p style="margin-top: 10px;"><strong>実施予定:</strong> Phase 9（E2Eテスト）</p>
+        </div>
+      </div>
+
+      <!-- 11. Git情報 -->
+      <div class="section" id="git">
+        <h2>11. Git情報</h2>
+
+        <h3>コミット履歴</h3>
+        <div class="code-block">git add .
+git commit -m "[Phase 4] P-005: 取引先設定ページ実装完了
+
+- レスポンシブ対応（デスクトップ/タブレット/モバイル）
+- 取引先一覧表示（テーブル/カードレイアウト）
+- 4タブ構成の取引先詳細モーダル
+- 基本情報編集・テンプレート管理・処理ルール・処理履歴
+- 処理履歴クリックでP-003へ遷移機能追加
+- モックサービス実装
+- API仕様書・E2Eテスト仕様書作成
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+Co-Authored-By: Claude <noreply@anthropic.com>"
+git push</div>
+
+        <div class="success-box">
+          <div class="success-title">✅ コミット・プッシュ完了</div>
+          <p style="margin-top: 10px;">
+            <strong>コミットID:</strong> <code>26e8dc7</code><br>
+            <strong>ブランチ:</strong> <code>main</code>
+          </p>
+        </div>
+      </div>
+
+      <!-- 12. 次のステップ -->
+      <div class="section" id="next">
+        <h2>12. 次のステップ</h2>
+        <p>Phase 4の残りページ実装：</p>
+
+        <ol style="padding-left: 20px; margin-top: 10px;">
+          <li><strong>P-001:</strong> 認証ページ（3ページ） <span class="badge badge-success">✅ 完成</span></li>
+          <li><strong>P-004:</strong> ユーザー管理ページ <span class="badge badge-success">✅ 完成</span></li>
+          <li><strong>P-005:</strong> 取引先設定ページ <span class="badge badge-success">✅ 完成（本ページ）</span></li>
+          <li><strong>P-003:</strong> 処理履歴・ダウンロードページ（データ表示メイン、複雑度：中）</li>
+          <li><strong>P-002:</strong> PDF処理実行ページ（最も複雑、ファイルアップロード処理）</li>
+        </ol>
+
+        <div class="success-box">
+          <div class="success-title">✅ 推奨順序</div>
+          <p style="margin-top: 10px;">P-003 → P-002</p>
+        </div>
+
+        <p style="margin-top: 20px;">Phase 4完了後は <strong>Phase 5（環境構築）</strong> へ進みます。</p>
+      </div>
+
+      <!-- 13. 技術的な学び -->
+      <div class="section" id="learning">
+        <h2>13. 技術的な学び</h2>
+
+        <h3>レスポンシブ対応のベストプラクティス</h3>
+        <ol style="padding-left: 20px; margin-top: 10px;">
+          <li><strong>ブレークポイント:</strong> 1024px（lg）を主要ブレークポイントに設定</li>
+          <li><strong>テーブル vs カード:</strong> デスクトップはテーブル、モバイルはカードレイアウト</li>
+          <li><strong>モーダルサイズ:</strong> 固定高さ + スクロール可能コンテンツでUX向上</li>
+          <li><strong>タブ分割:</strong> モバイルでは<code>flex: 1</code>で均等分割</li>
+        </ol>
+
+        <h3>Material-UIとの統合</h3>
+        <ul style="padding-left: 20px; margin-top: 10px;">
+          <li><strong>Dialog:</strong> フルスクリーン対応、PaperPropsでカスタマイズ</li>
+          <li><strong>Tabs:</strong> sx propsでレスポンシブスタイル</li>
+          <li><strong>TextField:</strong> helperTextでバリデーションエラー表示</li>
+          <li><strong>Snackbar + Alert:</strong> 統一された通知UI</li>
+        </ul>
+
+        <h3>ファイルアップロードUI</h3>
+        <ul style="padding-left: 20px; margin-top: 10px;">
+          <li>input[type="file"]を非表示にし、カスタムUIでトリガー</li>
+          <li>ファイル選択時にUIを動的に変更</li>
+          <li>ファイル情報の視覚的フィードバック</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- フッター -->
+    <div class="footer">
+      <p><strong>作成者:</strong> Claude Code | <strong>日付:</strong> 2025-10-15</p>
+      <p style="margin-top: 10px;">🤖 Generated with <a href="https://claude.com/claude-code" style="color: #a3d3ff;">Claude Code</a></p>
+    </div>
+  </div>
+</body>
+</html>
