@@ -343,7 +343,7 @@
     <div class="header">
       <h1>📊 Phase 4: P-004（ユーザー管理ページ）実装完了報告</h1>
       <div class="meta">
-        <strong>日付:</strong> 2025-10-14 |
+        <strong>日付:</strong> 2025-10-14（初回）/ 2025-10-15（通知UI統一） |
         <strong>フェーズ:</strong> Phase 4（ページ実装） |
         <strong>ステータス:</strong> <span class="badge badge-success">✅ 完成（モック）</span>
       </div>
@@ -391,6 +391,7 @@
           <li>最終管理者保護機能</li>
           <li>alert/confirm → Material-UI Dialog化</li>
           <li>フォントサイズ階層の統一（全認証ページ含む）</li>
+          <li><strong>通知UIの統一ルール適用</strong>（2025-10-15追加、P-005と統一）</li>
         </ul>
 
         <div class="term-box">
@@ -591,6 +592,101 @@
             </tr>
           </tbody>
         </table>
+
+        <h3>通知UIの統一ルール（2025-10-15追加）</h3>
+        <p>P-005実装時に確立した統一ルールをP-004にも適用しました。</p>
+
+        <div class="term-box">
+          <div class="term-title">💡 用語解説: Snackbar（スナックバー）</div>
+          <div class="term-content">
+            Snackbarは、画面下部に一時的に表示される通知メッセージです。「保存しました」などの成功通知や軽微なエラーを表示し、数秒後に自動で消えます。ユーザーの操作を妨げないため、スムーズなUX（ユーザー体験）を提供できます。
+          </div>
+        </div>
+
+        <h4>統一ルール</h4>
+        <table>
+          <thead>
+            <tr>
+              <th>通知の種類</th>
+              <th>UI方式</th>
+              <th>自動消去</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>成功通知</strong></td>
+              <td>Snackbar</td>
+              <td>3秒</td>
+            </tr>
+            <tr>
+              <td><strong>軽微なエラー</strong></td>
+              <td>Snackbar</td>
+              <td>3秒</td>
+            </tr>
+            <tr>
+              <td><strong>重要な警告・確認</strong></td>
+              <td>Dialog</td>
+              <td>手動</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h4>変更内容</h4>
+        <table>
+          <thead>
+            <tr>
+              <th>通知</th>
+              <th>変更前</th>
+              <th>変更後</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>招待成功</td>
+              <td>Dialog</td>
+              <td><strong>Snackbar</strong> ✅</td>
+            </tr>
+            <tr>
+              <td>削除成功</td>
+              <td>Dialog</td>
+              <td><strong>Snackbar</strong> ✅</td>
+            </tr>
+            <tr>
+              <td>ロール変更成功</td>
+              <td>Dialog</td>
+              <td><strong>Snackbar</strong> ✅</td>
+            </tr>
+            <tr>
+              <td>メールアドレス未入力</td>
+              <td>Dialog</td>
+              <td><strong>Snackbar</strong> ✅</td>
+            </tr>
+            <tr>
+              <td>最終管理者保護エラー</td>
+              <td>Dialog</td>
+              <td><strong>Dialog</strong>（重要な警告のためそのまま）</td>
+            </tr>
+            <tr>
+              <td>削除確認</td>
+              <td>Dialog</td>
+              <td><strong>Dialog</strong>（確認のためそのまま）</td>
+            </tr>
+            <tr>
+              <td>ロール変更確認</td>
+              <td>Dialog</td>
+              <td><strong>Dialog</strong>（確認のためそのまま）</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="success-box">
+          <div class="success-title">✅ メリット</div>
+          <ul style="margin-top: 10px; padding-left: 20px;">
+            <li>成功通知が自動で消えて、操作フローがスムーズ</li>
+            <li>重要な警告・確認のみDialogで強調</li>
+            <li>P-005と完全に統一されたUX</li>
+          </ul>
+        </div>
       </div>
 
       <!-- 4. 保護機能 -->
