@@ -1,6 +1,13 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { LocalizationProvider } from '@mui/x-date-pickers'
+import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs'
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute'
 import { useAuthStore } from '@/stores/auth'
+import dayjs from 'dayjs'
+import 'dayjs/locale/ja'
+
+// dayjsのグローバルロケールを日本語に設定
+dayjs.locale('ja')
 
 // Auth pages
 import { LoginPage } from '@/pages/auth/LoginPage'
@@ -32,52 +39,54 @@ function RootRedirect() {
 
 function App() {
   return (
-    <BrowserRouter>
-      <Routes>
-        {/* Public routes */}
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/accept-invitation" element={<AcceptInvitationPage />} />
-        <Route path="/reset-password" element={<ResetPasswordPage />} />
+    <LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale="ja">
+      <BrowserRouter>
+        <Routes>
+          {/* Public routes */}
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/accept-invitation" element={<AcceptInvitationPage />} />
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
 
-        {/* Protected routes */}
-        <Route
-          path="/process"
-          element={
-            <ProtectedRoute>
-              <ProcessPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/history"
-          element={
-            <ProtectedRoute>
-              <HistoryPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/users"
-          element={
-            <ProtectedRoute adminOnly>
-              <UsersPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/companies"
-          element={
-            <ProtectedRoute adminOnly>
-              <CompaniesPage />
-            </ProtectedRoute>
-          }
-        />
+          {/* Protected routes */}
+          <Route
+            path="/process"
+            element={
+              <ProtectedRoute>
+                <ProcessPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/history"
+            element={
+              <ProtectedRoute>
+                <HistoryPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/users"
+            element={
+              <ProtectedRoute adminOnly>
+                <UsersPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/companies"
+            element={
+              <ProtectedRoute adminOnly>
+                <CompaniesPage />
+              </ProtectedRoute>
+            }
+          />
 
-        {/* Default redirect - check auth state first */}
-        <Route path="/" element={<RootRedirect />} />
-        <Route path="*" element={<RootRedirect />} />
-      </Routes>
-    </BrowserRouter>
+          {/* Default redirect - check auth state first */}
+          <Route path="/" element={<RootRedirect />} />
+          <Route path="*" element={<RootRedirect />} />
+        </Routes>
+      </BrowserRouter>
+    </LocalizationProvider>
   )
 }
 

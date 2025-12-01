@@ -1,0 +1,1278 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>処理履歴・ダウンロードページ - モックアップ</title>
+
+    <!-- Material Icons -->
+    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+
+    <!-- Roboto Font -->
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap">
+
+    <!-- Flatpickr CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: #f5f5f5;
+            padding: 24px;
+            overflow-x: hidden;
+            width: 100%;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 24px;
+            border-radius: 4px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        h1 {
+            font-size: 24px;
+            font-weight: 500;
+            margin-bottom: 24px;
+            color: #333;
+        }
+
+        /* フィルターエリア */
+        .filters {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+            padding: 16px;
+            background-color: #fafafa;
+            border-radius: 4px;
+        }
+
+        .date-range-input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        .date-range-input:focus {
+            outline: none;
+            border-color: #1976d2;
+        }
+
+        /* Flatpickrカスタムスタイル */
+
+        /* 元々の年入力を非表示 */
+        .flatpickr-current-month .numInputWrapper {
+            display: none !important;
+        }
+
+        /* 矢印ボタンを非表示 */
+        .flatpickr-calendar .flatpickr-prev-month,
+        .flatpickr-calendar .flatpickr-next-month {
+            display: none !important;
+        }
+
+        /* 年月ヘッダーエリアの高さを確保 */
+        .flatpickr-calendar .flatpickr-current-month {
+            padding: 12px 16px 50px 16px !important;
+            height: auto !important;
+            min-height: 80px !important;
+            display: flex !important;
+            justify-content: center !important;
+            align-items: flex-start !important;
+            gap: 12px !important;
+            position: relative !important;
+            overflow: visible !important;
+        }
+
+        /* カレンダー本体 */
+        .flatpickr-calendar .flatpickr-months {
+            position: relative !important;
+        }
+
+        .flatpickr-calendar .flatpickr-innerContainer {
+            position: relative !important;
+        }
+
+        /* 年・月のドロップダウンスタイル統一 */
+        .flatpickr-year-dropdown,
+        .flatpickr-monthDropdown-months {
+            /* ネイティブスタイルを除去 */
+            appearance: none !important;
+            -webkit-appearance: none !important;
+            -moz-appearance: none !important;
+
+            /* レイアウト */
+            display: inline-block !important;
+            padding: 10px 34px 10px 14px !important;
+            margin: 0 6px 20px 6px !important;
+            width: auto !important;
+            min-width: 100px !important;
+            height: 40px !important;
+            box-sizing: border-box !important;
+
+            /* ボーダーと背景 */
+            border: 1px solid #ddd !important;
+            border-radius: 6px !important;
+            background-color: #fff !important;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'%3E%3Cpath fill='%23666' d='M5 7L1 3h8z'/%3E%3C/svg%3E") !important;
+            background-repeat: no-repeat !important;
+            background-position: right 12px center !important;
+            background-size: 10px !important;
+
+            /* テキストスタイル */
+            font-family: 'Roboto', sans-serif !important;
+            font-size: 14px !important;
+            font-weight: 500 !important;
+            color: #333 !important;
+            line-height: 20px !important;
+            vertical-align: middle !important;
+
+            /* インタラクション */
+            cursor: pointer !important;
+            transition: all 0.15s ease !important;
+        }
+
+        .flatpickr-year-dropdown:hover,
+        .flatpickr-monthDropdown-months:hover {
+            border-color: #999 !important;
+            background-color: #f8f8f8 !important;
+        }
+
+        .flatpickr-year-dropdown:focus,
+        .flatpickr-monthDropdown-months:focus {
+            outline: none !important;
+            border-color: #1976d2 !important;
+            background-color: #fff !important;
+            box-shadow: 0 0 0 3px rgba(25, 118, 210, 0.1) !important;
+        }
+
+        .filter-field {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .filter-field label {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 4px;
+        }
+
+        .filter-field select,
+        .filter-field input {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .filter-field select {
+            cursor: pointer;
+        }
+
+        .filter-field select:focus,
+        .filter-field input:focus {
+            outline: none;
+            border-color: #1976d2;
+        }
+
+        /* テーブル */
+        .table-container {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        thead {
+            background-color: #f5f5f5;
+        }
+
+        th {
+            padding: 12px;
+            text-align: left;
+            font-size: 14px;
+            font-weight: 500;
+            color: #666;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        td {
+            padding: 12px;
+            font-size: 14px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        tbody tr {
+            cursor: pointer;
+        }
+
+        tbody tr:hover {
+            background-color: #fafafa;
+        }
+
+        tbody tr.error-row {
+            cursor: pointer;
+        }
+
+        /* 状態チップ */
+        .status-chip {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 16px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .status-success {
+            background-color: #e8f5e9;
+            color: #2e7d32;
+        }
+
+        .status-error {
+            background-color: #ffebee;
+            color: #c62828;
+            cursor: pointer;
+        }
+
+        .status-error:hover {
+            background-color: #ffcdd2;
+        }
+
+        /* 削除済みユーザー・無効な取引先 */
+        .deleted-user,
+        .inactive-company,
+        .history-card-value.deleted-user,
+        .history-card-company.inactive-company {
+            color: #9e9e9e !important;
+            font-style: italic;
+        }
+
+        /* ダウンロードボタン */
+        .download-buttons {
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn-download {
+            padding: 6px 12px;
+            background-color: #1976d2;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .btn-download:hover {
+            background-color: #1565c0;
+        }
+
+        .btn-download .material-icons {
+            font-size: 16px;
+        }
+
+        /* モーダル */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.open {
+            display: flex;
+        }
+
+        .modal-content {
+            background-color: white;
+            padding: 24px;
+            border-radius: 4px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .modal-header h2 {
+            font-size: 20px;
+            font-weight: 500;
+            margin: 0;
+        }
+
+        .btn-close {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 4px;
+        }
+
+        .btn-close .material-icons {
+            font-size: 24px;
+            color: #666;
+        }
+
+        /* エラーアイコンヘッダー */
+        .error-icon-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 16px;
+            background-color: #ffebee;
+            border-radius: 4px;
+            margin-bottom: 24px;
+        }
+
+        .error-icon-header .material-icons {
+            font-size: 48px;
+            color: #c62828;
+        }
+
+        .error-title {
+            flex: 1;
+        }
+
+        .error-title h3 {
+            font-size: 18px;
+            font-weight: 500;
+            color: #c62828;
+            margin: 0 0 4px 0;
+        }
+
+        .error-title p {
+            font-size: 14px;
+            color: #666;
+            margin: 0;
+        }
+
+        /* エラー詳細セクション */
+        .error-section {
+            margin-bottom: 20px;
+        }
+
+        .error-section-title {
+            font-size: 14px;
+            font-weight: 500;
+            color: #333;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .error-section-title .material-icons {
+            font-size: 18px;
+            color: #666;
+        }
+
+        .error-info-grid {
+            display: grid;
+            grid-template-columns: 120px 1fr;
+            gap: 8px;
+            padding: 12px;
+            background-color: #fafafa;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .error-info-label {
+            color: #666;
+            font-weight: 500;
+        }
+
+        .error-info-value {
+            color: #333;
+        }
+
+        .error-code-block {
+            padding: 12px;
+            background-color: #f5f5f5;
+            border-left: 3px solid #c62828;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            color: #333;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        .btn-modal-close {
+            padding: 8px 24px;
+            background-color: #1976d2;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            width: 100%;
+        }
+
+        .btn-modal-close:hover {
+            background-color: #1565c0;
+        }
+
+        /* ファイルリスト */
+        .file-list-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 12px;
+            margin-bottom: 8px;
+            background-color: #fafafa;
+            border-radius: 4px;
+            transition: background-color 0.2s;
+        }
+
+        .file-list-item:hover {
+            background-color: #f0f0f0;
+        }
+
+        .file-list-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .file-name {
+            font-size: 14px;
+            color: #333;
+            flex: 1;
+        }
+
+        .btn-download-small {
+            padding: 6px 16px;
+            background-color: #1976d2;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            white-space: nowrap;
+        }
+
+        .btn-download-small:hover {
+            background-color: #1565c0;
+        }
+
+        .btn-download-small .material-icons {
+            font-size: 16px;
+        }
+
+        /* まとめてDLボタン */
+        .btn-download-zip {
+            padding: 8px 16px;
+            background-color: #1976d2;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 13px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            white-space: nowrap;
+        }
+
+        .btn-download-zip:hover {
+            background-color: #1565c0;
+        }
+
+        .btn-download-zip .material-icons {
+            font-size: 18px;
+        }
+
+        /* 使用ファイルリスト */
+        .used-file-item {
+            padding: 8px 12px;
+            margin-bottom: 6px;
+            background-color: #f9f9f9;
+            border-radius: 4px;
+            font-size: 14px;
+            color: #666;
+        }
+
+        .used-file-item:last-child {
+            margin-bottom: 0;
+        }
+
+        /* カードレイアウト（モバイル用） */
+        .history-cards {
+            display: none;
+        }
+
+        .history-card {
+            background: white;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            cursor: pointer;
+            transition: box-shadow 0.2s;
+        }
+
+        .history-card:hover {
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        }
+
+        .history-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .history-card-company {
+            font-size: 16px;
+            font-weight: 500;
+            color: #333;
+        }
+
+        .history-card-body {
+            display: grid;
+            grid-template-columns: 80px 1fr;
+            gap: 8px;
+            font-size: 14px;
+            margin-bottom: 12px;
+        }
+
+        .history-card-label {
+            color: #666;
+        }
+
+        .history-card-value {
+            color: #333;
+        }
+
+        .history-card-footer {
+            display: flex;
+            justify-content: flex-end;
+        }
+
+        /* レスポンシブ */
+        @media (max-width: 1023px) {
+            body {
+                padding: 12px;
+                overflow-x: hidden;
+            }
+
+            .container {
+                padding: 12px;
+                width: 100%;
+            }
+
+            h1 {
+                font-size: 20px;
+            }
+
+            .filters {
+                grid-template-columns: 1fr;
+                gap: 12px;
+                padding: 12px;
+            }
+
+            /* テーブルを非表示 */
+            .table-container {
+                display: none;
+            }
+
+            /* カードを表示 */
+            .history-cards {
+                display: block;
+            }
+
+            .download-buttons {
+                flex-direction: column;
+            }
+
+            /* モーダルコンテンツのサイズ調整 */
+            .modal-content {
+                width: 95%;
+                max-width: none;
+                padding: 16px;
+            }
+
+            /* ボタンのテキスト調整 */
+            .btn-download-zip {
+                font-size: 12px;
+                padding: 6px 12px;
+            }
+
+            .btn-download-zip .material-icons {
+                font-size: 16px;
+            }
+
+            /* Flatpickrカレンダーの幅調整 */
+            .flatpickr-calendar {
+                max-width: 100% !important;
+            }
+        }
+
+        @media (min-width: 1024px) {
+            /* デスクトップではテーブル表示 */
+            .table-container {
+                display: block;
+            }
+
+            .history-cards {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>処理履歴・ダウンロード</h1>
+
+        <!-- フィルターエリア -->
+        <div class="filters">
+            <div class="filter-field">
+                <label>取引先</label>
+                <select id="companyFilter" onchange="applyFilters()">
+                    <option value="">すべて</option>
+                    <option value="ネクストビッツ">ネクストビッツ</option>
+                    <option value="オフビートワークス">オフビートワークス</option>
+                    <option value="旧取引先A（無効）" class="inactive-company">旧取引先A（無効）</option>
+                </select>
+            </div>
+
+            <div class="filter-field">
+                <label>期間</label>
+                <input type="text" id="dateRange" class="date-range-input" placeholder="日付範囲を選択" readonly>
+            </div>
+
+            <div class="filter-field">
+                <label>処理者</label>
+                <select id="userFilter" onchange="applyFilters()">
+                    <option value="">すべて</option>
+                    <option value="admin@example.com">admin@example.com</option>
+                    <option value="user@example.com">user@example.com</option>
+                    <option value="old-user@example.com（削除済み）" class="deleted-user">old-user@example.com（削除済み）</option>
+                </select>
+            </div>
+
+            <div class="filter-field">
+                <label>状態</label>
+                <select id="statusFilter" onchange="applyFilters()">
+                    <option value="">すべて</option>
+                    <option value="success">成功</option>
+                    <option value="error">エラー</option>
+                </select>
+            </div>
+
+            <div class="filter-field">
+                <label>並び順</label>
+                <select id="sortOrder" onchange="applySorting()">
+                    <option value="desc">最新順</option>
+                    <option value="asc">古い順</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- 処理履歴テーブル -->
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>取引先名</th>
+                        <th>処理日</th>
+                        <th>処理者</th>
+                        <th>状態</th>
+                        <th>ファイル</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- 成功ケース1 -->
+                    <tr data-company="ネクストビッツ" data-date="2025-10-15" data-user="admin@example.com" data-status="success" onclick="showDetailModal(this)">
+                        <td>ネクストビッツ</td>
+                        <td>2025-10-15</td>
+                        <td>admin@example.com</td>
+                        <td><span class="status-chip status-success">成功</span></td>
+                        <td onclick="event.stopPropagation()">
+                            <button class="btn-download-zip" onclick="downloadZip(event)">
+                                <span class="material-icons">folder_zip</span>
+                                一括DL
+                            </button>
+                        </td>
+                    </tr>
+
+                    <!-- 成功ケース2 -->
+                    <tr data-company="オフビートワークス" data-date="2025-10-14" data-user="user@example.com" data-status="success" onclick="showDetailModal(this)">
+                        <td>オフビートワークス</td>
+                        <td>2025-10-14</td>
+                        <td>user@example.com</td>
+                        <td><span class="status-chip status-success">成功</span></td>
+                        <td onclick="event.stopPropagation()">
+                            <button class="btn-download-zip" onclick="downloadZip(event)">
+                                <span class="material-icons">folder_zip</span>
+                                一括DL
+                            </button>
+                        </td>
+                    </tr>
+
+                    <!-- エラーケース -->
+                    <tr data-company="ネクストビッツ" data-date="2025-10-13" data-user="old-user@example.com（削除済み）" data-status="error" class="error-row" onclick="showErrorModal(event)">
+                        <td>ネクストビッツ</td>
+                        <td>2025-10-13</td>
+                        <td class="deleted-user">old-user@example.com（削除済み）</td>
+                        <td><span class="status-chip status-error">エラー</span></td>
+                        <td>-</td>
+                    </tr>
+
+                    <!-- 成功ケース3 -->
+                    <tr data-company="ネクストビッツ" data-date="2025-10-12" data-user="admin@example.com" data-status="success" onclick="showDetailModal(this)">
+                        <td>ネクストビッツ</td>
+                        <td>2025-10-12</td>
+                        <td>admin@example.com</td>
+                        <td><span class="status-chip status-success">成功</span></td>
+                        <td onclick="event.stopPropagation()">
+                            <button class="btn-download-zip" onclick="downloadZip(event)">
+                                <span class="material-icons">folder_zip</span>
+                                一括DL
+                            </button>
+                        </td>
+                    </tr>
+
+                    <!-- 無効な取引先ケース -->
+                    <tr data-company="旧取引先A（無効）" data-date="2025-10-11" data-user="admin@example.com" data-status="success" onclick="showDetailModal(this)">
+                        <td class="inactive-company">旧取引先A（無効）</td>
+                        <td>2025-10-11</td>
+                        <td>admin@example.com</td>
+                        <td><span class="status-chip status-success">成功</span></td>
+                        <td onclick="event.stopPropagation()">
+                            <button class="btn-download-zip" onclick="downloadZip(event)">
+                                <span class="material-icons">folder_zip</span>
+                                一括DL
+                            </button>
+                        </td>
+                    </tr>
+
+                    <!-- 成功ケース4 -->
+                    <tr data-company="オフビートワークス" data-date="2025-10-10" data-user="old-user@example.com（削除済み）" data-status="success" onclick="showDetailModal(this)">
+                        <td>オフビートワークス</td>
+                        <td>2025-10-10</td>
+                        <td class="deleted-user">old-user@example.com（削除済み）</td>
+                        <td><span class="status-chip status-success">成功</span></td>
+                        <td onclick="event.stopPropagation()">
+                            <button class="btn-download-zip" onclick="downloadZip(event)">
+                                <span class="material-icons">folder_zip</span>
+                                一括DL
+                            </button>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- 処理履歴カード（モバイル用） -->
+        <div class="history-cards">
+            <!-- 成功ケース1 -->
+            <div class="history-card" data-company="ネクストビッツ" data-date="2025-10-15" data-user="admin@example.com" data-status="success" onclick="showDetailModal(this)">
+                <div class="history-card-header">
+                    <div class="history-card-company">ネクストビッツ</div>
+                    <span class="status-chip status-success">成功</span>
+                </div>
+                <div class="history-card-body">
+                    <div class="history-card-label">処理日:</div>
+                    <div class="history-card-value">2025-10-15</div>
+                    <div class="history-card-label">処理者:</div>
+                    <div class="history-card-value">admin@example.com</div>
+                </div>
+                <div class="history-card-footer" onclick="event.stopPropagation()">
+                    <button class="btn-download-zip" onclick="downloadZip(event)">
+                        <span class="material-icons">folder_zip</span>
+                        一括DL
+                    </button>
+                </div>
+            </div>
+
+            <!-- 成功ケース2 -->
+            <div class="history-card" data-company="オフビートワークス" data-date="2025-10-14" data-user="user@example.com" data-status="success" onclick="showDetailModal(this)">
+                <div class="history-card-header">
+                    <div class="history-card-company">オフビートワークス</div>
+                    <span class="status-chip status-success">成功</span>
+                </div>
+                <div class="history-card-body">
+                    <div class="history-card-label">処理日:</div>
+                    <div class="history-card-value">2025-10-14</div>
+                    <div class="history-card-label">処理者:</div>
+                    <div class="history-card-value">user@example.com</div>
+                </div>
+                <div class="history-card-footer" onclick="event.stopPropagation()">
+                    <button class="btn-download-zip" onclick="downloadZip(event)">
+                        <span class="material-icons">folder_zip</span>
+                        一括DL
+                    </button>
+                </div>
+            </div>
+
+            <!-- エラーケース -->
+            <div class="history-card" data-company="ネクストビッツ" data-date="2025-10-13" data-user="old-user@example.com（削除済み）" data-status="error" onclick="showErrorModal(event)">
+                <div class="history-card-header">
+                    <div class="history-card-company">ネクストビッツ</div>
+                    <span class="status-chip status-error">エラー</span>
+                </div>
+                <div class="history-card-body">
+                    <div class="history-card-label">処理日:</div>
+                    <div class="history-card-value">2025-10-13</div>
+                    <div class="history-card-label">処理者:</div>
+                    <div class="history-card-value deleted-user">old-user@example.com（削除済み）</div>
+                </div>
+            </div>
+
+            <!-- 成功ケース3 -->
+            <div class="history-card" data-company="ネクストビッツ" data-date="2025-10-12" data-user="admin@example.com" data-status="success" onclick="showDetailModal(this)">
+                <div class="history-card-header">
+                    <div class="history-card-company">ネクストビッツ</div>
+                    <span class="status-chip status-success">成功</span>
+                </div>
+                <div class="history-card-body">
+                    <div class="history-card-label">処理日:</div>
+                    <div class="history-card-value">2025-10-12</div>
+                    <div class="history-card-label">処理者:</div>
+                    <div class="history-card-value">admin@example.com</div>
+                </div>
+                <div class="history-card-footer" onclick="event.stopPropagation()">
+                    <button class="btn-download-zip" onclick="downloadZip(event)">
+                        <span class="material-icons">folder_zip</span>
+                        一括DL
+                    </button>
+                </div>
+            </div>
+
+            <!-- 無効な取引先ケース -->
+            <div class="history-card" data-company="旧取引先A（無効）" data-date="2025-10-11" data-user="admin@example.com" data-status="success" onclick="showDetailModal(this)">
+                <div class="history-card-header">
+                    <div class="history-card-company inactive-company">旧取引先A（無効）</div>
+                    <span class="status-chip status-success">成功</span>
+                </div>
+                <div class="history-card-body">
+                    <div class="history-card-label">処理日:</div>
+                    <div class="history-card-value">2025-10-11</div>
+                    <div class="history-card-label">処理者:</div>
+                    <div class="history-card-value">admin@example.com</div>
+                </div>
+                <div class="history-card-footer" onclick="event.stopPropagation()">
+                    <button class="btn-download-zip" onclick="downloadZip(event)">
+                        <span class="material-icons">folder_zip</span>
+                        一括DL
+                    </button>
+                </div>
+            </div>
+
+            <!-- 成功ケース4 -->
+            <div class="history-card" data-company="オフビートワークス" data-date="2025-10-10" data-user="old-user@example.com（削除済み）" data-status="success" onclick="showDetailModal(this)">
+                <div class="history-card-header">
+                    <div class="history-card-company">オフビートワークス</div>
+                    <span class="status-chip status-success">成功</span>
+                </div>
+                <div class="history-card-body">
+                    <div class="history-card-label">処理日:</div>
+                    <div class="history-card-value">2025-10-10</div>
+                    <div class="history-card-label">処理者:</div>
+                    <div class="history-card-value deleted-user">old-user@example.com（削除済み）</div>
+                </div>
+                <div class="history-card-footer" onclick="event.stopPropagation()">
+                    <button class="btn-download-zip" onclick="downloadZip(event)">
+                        <span class="material-icons">folder_zip</span>
+                        一括DL
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 処理詳細モーダル -->
+    <div class="modal" id="detailModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>処理詳細</h2>
+                <button class="btn-close" onclick="closeDetailModal()">
+                    <span class="material-icons">close</span>
+                </button>
+            </div>
+
+            <div style="margin-bottom: 24px;">
+                <div style="display: grid; grid-template-columns: 100px 1fr; gap: 12px; margin-bottom: 8px;">
+                    <div style="color: #666; font-size: 14px;">処理日:</div>
+                    <div id="detail-date" style="font-size: 14px;">2025-10-15</div>
+                </div>
+                <div style="display: grid; grid-template-columns: 100px 1fr; gap: 12px; margin-bottom: 8px;">
+                    <div style="color: #666; font-size: 14px;">取引先:</div>
+                    <div id="detail-company" style="font-size: 14px;">ネクストビッツ</div>
+                </div>
+                <div style="display: grid; grid-template-columns: 100px 1fr; gap: 12px; margin-bottom: 8px;">
+                    <div style="color: #666; font-size: 14px;">処理者:</div>
+                    <div id="detail-user" style="font-size: 14px;">admin@example.com</div>
+                </div>
+            </div>
+
+            <div style="margin-bottom: 24px;">
+                <h3 style="font-size: 16px; font-weight: 500; margin-bottom: 12px;">使用したファイル</h3>
+                <div>
+                    <div class="used-file-item">見積書_ネクストビッツ_202510.pdf</div>
+                    <div class="used-file-item">請求書_ネクストビッツ_202510.pdf</div>
+                    <div class="used-file-item">注文請書_ネクストビッツ_202510.pdf</div>
+                    <div class="used-file-item">納品書_ネクストビッツ_202510.pdf</div>
+                </div>
+            </div>
+
+            <div>
+                <h3 style="font-size: 16px; font-weight: 500; margin-bottom: 12px;">生成されたファイル</h3>
+                <div>
+                    <div class="file-list-item">
+                        <span class="file-name">注文書_ネクストビッツ_202510.xlsx</span>
+                        <button class="btn-download-small" onclick="downloadFile('excel', event)">
+                            <span class="material-icons">download</span>
+                            DL
+                        </button>
+                    </div>
+                    <div class="file-list-item">
+                        <span class="file-name">注文書_ネクストビッツ_202510.pdf</span>
+                        <button class="btn-download-small" onclick="downloadFile('order', event)">
+                            <span class="material-icons">download</span>
+                            DL
+                        </button>
+                    </div>
+                    <div class="file-list-item">
+                        <span class="file-name">検収書_ネクストビッツ_202510.pdf</span>
+                        <button class="btn-download-small" onclick="downloadFile('inspection', event)">
+                            <span class="material-icons">download</span>
+                            DL
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- エラー詳細モーダル -->
+    <div class="modal" id="errorModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>エラー詳細</h2>
+                <button class="btn-close" onclick="closeErrorModal()">
+                    <span class="material-icons">close</span>
+                </button>
+            </div>
+
+            <!-- エラーアイコンヘッダー -->
+            <div class="error-icon-header">
+                <span class="material-icons">error</span>
+                <div class="error-title">
+                    <h3>処理エラーが発生しました</h3>
+                    <p>PDF解析処理中に問題が発生しました</p>
+                </div>
+            </div>
+
+            <!-- 処理情報セクション -->
+            <div class="error-section">
+                <div class="error-section-title">
+                    <span class="material-icons">info</span>
+                    処理情報
+                </div>
+                <div class="error-info-grid">
+                    <div class="error-info-label">処理日:</div>
+                    <div class="error-info-value">2025-10-13</div>
+                    <div class="error-info-label">取引先:</div>
+                    <div class="error-info-value">ネクストビッツ</div>
+                    <div class="error-info-label">処理者:</div>
+                    <div class="error-info-value">old-user@example.com（削除済み）</div>
+                </div>
+            </div>
+
+            <!-- エラーメッセージセクション -->
+            <div class="error-section">
+                <div class="error-section-title">
+                    <span class="material-icons">warning</span>
+                    エラーメッセージ
+                </div>
+                <div class="error-code-block">PDFの解析に失敗しました。フォーマットが正しくない可能性があります。</div>
+            </div>
+
+            <!-- 技術的詳細セクション -->
+            <div class="error-section">
+                <div class="error-section-title">
+                    <span class="material-icons">code</span>
+                    技術的詳細
+                </div>
+                <div class="error-code-block">ファイル: 見積書.pdf
+エラーコード: PDF_PARSE_ERROR
+行番号: 125
+詳細: 必須フィールド「請求金額」が見つかりませんでした。
+
+スタックトレース:
+  at PDFParser.parseField (pdf_parser.py:125)
+  at PDFParser.extractInvoiceAmount (pdf_parser.py:89)
+  at ProcessController.execute (process.py:45)</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Flatpickr JS -->
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/ja.js"></script>
+
+    <script>
+        // 日付範囲ピッカー初期化
+        const dateRangePicker = flatpickr("#dateRange", {
+            mode: "range",
+            dateFormat: "Y-m-d",
+            defaultDate: ["2025-01-01", "2025-10-16"],
+            locale: {
+                ...flatpickr.l10ns.ja,
+                firstDayOfWeek: 0 // 日曜始まり
+            },
+            showMonths: 1,
+            // 月選択をドロップダウンに
+            monthSelectorType: "dropdown",
+            onChange: function(selectedDates) {
+                if (selectedDates.length === 2) {
+                    applyFilters();
+                }
+            },
+            onReady: function(selectedDates, dateStr, instance) {
+                // 年のセレクトボックスを追加
+                const calendarContainer = instance.calendarContainer;
+                const monthDropdown = calendarContainer.querySelector('.flatpickr-monthDropdown-months');
+
+                if (monthDropdown && !calendarContainer.querySelector('.flatpickr-year-dropdown')) {
+                    const currentYear = instance.currentYear;
+                    const yearSelect = document.createElement('select');
+                    yearSelect.className = 'flatpickr-year-dropdown';
+
+                    // 2020年から2030年まで
+                    for (let year = 2020; year <= 2030; year++) {
+                        const option = document.createElement('option');
+                        option.value = year;
+                        option.textContent = year + '年';
+                        if (year === currentYear) {
+                            option.selected = true;
+                        }
+                        yearSelect.appendChild(option);
+                    }
+
+                    yearSelect.addEventListener('change', function() {
+                        instance.changeYear(parseInt(this.value));
+                    });
+
+                    // 年セレクトを月セレクトの前に挿入
+                    monthDropdown.parentNode.insertBefore(yearSelect, monthDropdown);
+                }
+            },
+            onMonthChange: function(selectedDates, dateStr, instance) {
+                // 年セレクトの値を同期
+                const yearSelect = instance.calendarContainer.querySelector('.flatpickr-year-dropdown');
+                if (yearSelect) {
+                    yearSelect.value = instance.currentYear;
+                }
+            }
+        });
+
+        // 処理詳細モーダル表示
+        function showDetailModal(row) {
+            const company = row.getAttribute('data-company');
+            const date = row.getAttribute('data-date');
+            const user = row.getAttribute('data-user');
+
+            document.getElementById('detail-date').textContent = date;
+            document.getElementById('detail-company').textContent = company;
+            document.getElementById('detail-user').textContent = user;
+
+            document.getElementById('detailModal').classList.add('open');
+        }
+
+        // 処理詳細モーダル閉じる
+        function closeDetailModal() {
+            document.getElementById('detailModal').classList.remove('open');
+        }
+
+        // モーダル外クリックで閉じる
+        document.getElementById('detailModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeDetailModal();
+            }
+        });
+
+        // 並び替え機能
+        function applySorting() {
+            const tbody = document.querySelector('tbody');
+            const rows = Array.from(tbody.querySelectorAll('tr'));
+            const sortOrder = document.getElementById('sortOrder').value;
+
+            rows.sort((a, b) => {
+                const dateA = a.getAttribute('data-date');
+                const dateB = b.getAttribute('data-date');
+
+                if (sortOrder === 'desc') {
+                    return dateB.localeCompare(dateA); // 最新順
+                } else {
+                    return dateA.localeCompare(dateB); // 古い順
+                }
+            });
+
+            // 並び替えた行を再配置
+            rows.forEach(row => tbody.appendChild(row));
+        }
+
+        // フィルタリング機能
+        function applyFilters() {
+            const companyFilter = document.getElementById('companyFilter').value;
+            const userFilter = document.getElementById('userFilter').value;
+            const statusFilter = document.getElementById('statusFilter').value;
+
+            // 日付範囲ピッカーから取得
+            const selectedDates = dateRangePicker.selectedDates;
+            let startDate = '';
+            let endDate = '';
+
+            if (selectedDates.length === 2) {
+                startDate = selectedDates[0].toISOString().split('T')[0];
+                endDate = selectedDates[1].toISOString().split('T')[0];
+            }
+
+            // テーブル行のフィルタリング
+            const rows = document.querySelectorAll('tbody tr');
+            rows.forEach(row => {
+                const company = row.getAttribute('data-company');
+                const date = row.getAttribute('data-date');
+                const user = row.getAttribute('data-user');
+                const status = row.getAttribute('data-status');
+
+                let show = true;
+
+                // 取引先フィルター
+                if (companyFilter && company !== companyFilter) {
+                    show = false;
+                }
+
+                // 日付範囲フィルター
+                if (startDate && date < startDate) {
+                    show = false;
+                }
+                if (endDate && date > endDate) {
+                    show = false;
+                }
+
+                // 処理者フィルター
+                if (userFilter && user !== userFilter) {
+                    show = false;
+                }
+
+                // 状態フィルター
+                if (statusFilter && status !== statusFilter) {
+                    show = false;
+                }
+
+                // 表示/非表示を切り替え
+                row.style.display = show ? '' : 'none';
+            });
+
+            // カードのフィルタリング
+            const cards = document.querySelectorAll('.history-card');
+            cards.forEach(card => {
+                const company = card.getAttribute('data-company');
+                const date = card.getAttribute('data-date');
+                const user = card.getAttribute('data-user');
+                const status = card.getAttribute('data-status');
+
+                let show = true;
+
+                // 取引先フィルター
+                if (companyFilter && company !== companyFilter) {
+                    show = false;
+                }
+
+                // 日付範囲フィルター
+                if (startDate && date < startDate) {
+                    show = false;
+                }
+                if (endDate && date > endDate) {
+                    show = false;
+                }
+
+                // 処理者フィルター
+                if (userFilter && user !== userFilter) {
+                    show = false;
+                }
+
+                // 状態フィルター
+                if (statusFilter && status !== statusFilter) {
+                    show = false;
+                }
+
+                // 表示/非表示を切り替え
+                card.style.display = show ? '' : 'none';
+            });
+        }
+
+        // エラーモーダル表示
+        function showErrorModal(event) {
+            event.stopPropagation(); // 行クリックイベントを止める
+            document.getElementById('errorModal').classList.add('open');
+        }
+
+        // エラーモーダル閉じる
+        function closeErrorModal() {
+            document.getElementById('errorModal').classList.remove('open');
+        }
+
+        // モーダル外クリックで閉じる
+        document.getElementById('errorModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeErrorModal();
+            }
+        });
+
+        // まとめてダウンロード（モックなのでアラート表示）
+        function downloadZip(event) {
+            event.stopPropagation(); // 行クリックイベントを止める
+            alert('全てのファイルをZIPでダウンロードします');
+        }
+
+        // 個別ダウンロード（モックなのでアラート表示）
+        function downloadFile(type, event) {
+            if (event) {
+                event.stopPropagation(); // イベント伝播を止める
+            }
+            const typeMap = {
+                'excel': 'Excelファイル',
+                'order': '注文書PDF',
+                'inspection': '検収書PDF'
+            };
+            alert(typeMap[type] + 'をダウンロードします');
+        }
+    </script>
+</body>
+</html>

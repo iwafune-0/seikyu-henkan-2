@@ -26,7 +26,7 @@ import {
   useMediaQuery,
   useTheme,
 } from '@mui/material'
-import { CloudUpload, Description } from '@mui/icons-material'
+import { CloudUpload, Description, Download as DownloadIcon } from '@mui/icons-material'
 import { AuthenticatedLayout } from '@/components/layouts/AuthenticatedLayout'
 import type { Company } from '@/types'
 import {
@@ -414,17 +414,27 @@ export function CompaniesPage() {
                 <Typography variant="body2" color="text.secondary" gutterBottom>
                   現在のファイル
                 </Typography>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <Typography variant="body1">
-                    {selectedCompany?.template_filename || 'なし'}
-                  </Typography>
-                  {selectedCompany?.template_filename && (
-                    <Button
-                      size="small"
-                      onClick={handleDownloadTemplate}
-                    >
-                      ダウンロード
-                    </Button>
+                <Box
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 0.5,
+                    cursor: selectedCompany?.template_filename ? 'pointer' : 'default',
+                    '&:hover': selectedCompany?.template_filename ? {
+                      opacity: 0.7,
+                    } : {},
+                  }}
+                  onClick={selectedCompany?.template_filename ? handleDownloadTemplate : undefined}
+                >
+                  {selectedCompany?.template_filename ? (
+                    <>
+                      <DownloadIcon sx={{ fontSize: 18, color: 'primary.main' }} />
+                      <Typography variant="body1">
+                        {selectedCompany.template_filename}
+                      </Typography>
+                    </>
+                  ) : (
+                    <Typography variant="body1">なし</Typography>
                   )}
                 </Box>
               </Box>

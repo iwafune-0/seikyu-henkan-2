@@ -50,6 +50,13 @@ export const API_PATHS = {
   PROCESS_PDF: '/api/process/pdf',
   PROCESS_HISTORY: '/api/process/history',
   DOWNLOAD_FILE: (fileId: string) => `/api/process/download/${fileId}`,
+
+  // 処理履歴関連（P-003）
+  HISTORY: {
+    LIST: '/api/history',
+    DOWNLOAD_FILE: (historyId: string, fileType: string) => `/api/history/${historyId}/download/${fileType}`,
+    DOWNLOAD_ZIP: (historyId: string) => `/api/history/${historyId}/download-zip`,
+  },
 } as const
 
 // ========================================
@@ -175,7 +182,9 @@ export type ProcessStatus = 'success' | 'error' | 'processing'
 export interface ProcessedFile {
   id: string
   user_id: string
+  user_email?: string // 表示用（JOINで取得）
   company_id: string
+  company_name?: string // 表示用（JOINで取得）
   process_date: string
   excel_file?: string
   excel_filename?: string
@@ -186,6 +195,17 @@ export interface ProcessedFile {
   processing_time?: number
   status: ProcessStatus
   error_message?: string
+  error_code?: string // エラーコード（エラー発生時）
+  error_detail?: string // エラー詳細（エラー発生時）
+  error_stacktrace?: string // スタックトレース（エラー発生時）
+  input_pdf_1?: string // 入力PDF1（BYTEA型、Base64エンコード）
+  input_pdf_1_filename?: string
+  input_pdf_2?: string // 入力PDF2
+  input_pdf_2_filename?: string
+  input_pdf_3?: string // 入力PDF3
+  input_pdf_3_filename?: string
+  input_pdf_4?: string // 入力PDF4
+  input_pdf_4_filename?: string
   created_at: string
 }
 
@@ -215,4 +235,29 @@ export interface ProcessLog {
   error_message?: string
   error_detail?: string
   created_at: string
+}
+
+// ========================================
+// 処理履歴関連型定義（P-003）
+// ========================================
+export interface HistoryFilters {
+  company_id?: string
+  user_id?: string
+  status?: 'success' | 'error' | ''
+  date_from?: string // YYYY-MM-DD
+  date_to?: string // YYYY-MM-DD
+  sort_order?: 'desc' | 'asc'
+}
+
+export interface HistoryListResponse {
+  history: ProcessedFile[]
+  total: number
+}
+
+export type DownloadFileType = 'excel' | 'order_pdf' | 'inspection_pdf' | 'input_pdf_1' | 'input_pdf_2' | 'input_pdf_3' | 'input_pdf_4'
+
+export interface DownloadFileResponse {
+  success: boolean
+  filename: string
+  data: Blob
 }
