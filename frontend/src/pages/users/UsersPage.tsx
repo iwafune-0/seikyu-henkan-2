@@ -41,9 +41,11 @@ import {
 import { PersonAdd as PersonAddIcon } from '@mui/icons-material'
 import { AuthenticatedLayout } from '@/components/layouts/AuthenticatedLayout'
 import { UsersService } from '@/services/mock/usersService'
+import { useAuthStore } from '@/stores/auth'
 import type { User, UserRole } from '@/types'
 
 export function UsersPage() {
+  const { user: currentUser, setUser } = useAuthStore()
   const [users, setUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -198,6 +200,12 @@ export function UsersPage() {
   const handleRoleChange = async (user: User, newRole: UserRole) => {
     if (user.role === newRole) return
 
+    // 自分自身のロール変更は禁止
+    if (currentUser && currentUser.id === user.id) {
+      showAlert('自分自身のロールは変更できません。\n\n他の管理者に依頼してください。')
+      return
+    }
+
     // 最終管理者チェック
     const adminCount = users.filter((u) => u.role === 'admin' && !u.is_deleted).length
     if (user.role === 'admin' && newRole === 'user' && adminCount === 1) {
@@ -216,6 +224,15 @@ export function UsersPage() {
     try {
       await UsersService.updateUserRole(user.id, { role: newRole })
       showSnackbar(`ロールを変更しました: ${user.email} (${oldRoleName} → ${newRoleName})`, 'success')
+
+      // ログイン中のユーザーのロールが変更された場合、認証ストアも更新
+      if (currentUser && currentUser.id === user.id) {
+        setUser({
+          ...currentUser,
+          role: newRole,
+        })
+      }
+
       await fetchUsers()
     } catch (err) {
       showSnackbar(err instanceof Error ? err.message : 'ロール変更に失敗しました', 'error')

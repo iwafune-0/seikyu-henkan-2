@@ -8,11 +8,16 @@ import type {
 /**
  * モック処理履歴データ
  * Phase 7でSupabase APIに置き換え
+ *
+ * user_id/user_emailはusersServiceのモックユーザーと一致させる:
+ * - mock-admin-id: admin@example.com
+ * - mock-admin2-id: admin2@example.com
+ * - mock-user-id: user@example.com
  */
 let mockHistory: ProcessedFile[] = [
   {
     id: '1',
-    user_id: 'user1',
+    user_id: 'mock-admin-id',
     user_email: 'admin@example.com',
     company_id: '1',
     company_name: 'ネクストビッツ',
@@ -37,7 +42,7 @@ let mockHistory: ProcessedFile[] = [
   },
   {
     id: '2',
-    user_id: 'user1',
+    user_id: 'mock-admin-id',
     user_email: 'admin@example.com',
     company_id: '2',
     company_name: 'オフビートワークス',
@@ -62,7 +67,7 @@ let mockHistory: ProcessedFile[] = [
   },
   {
     id: '3',
-    user_id: 'user2',
+    user_id: 'mock-user-id',
     user_email: 'user@example.com',
     company_id: '1',
     company_name: 'ネクストビッツ',
@@ -80,8 +85,8 @@ let mockHistory: ProcessedFile[] = [
   },
   {
     id: '4',
-    user_id: 'user3',
-    user_email: 'deleted@example.com (削除済み)',
+    user_id: 'mock-admin2-id',
+    user_email: 'admin2@example.com',
     company_id: '2',
     company_name: 'オフビートワークス',
     process_date: '2025-10-12',
@@ -105,25 +110,7 @@ let mockHistory: ProcessedFile[] = [
   },
   {
     id: '5',
-    user_id: 'user1',
-    user_email: 'admin@example.com',
-    company_id: '3',
-    company_name: 'テスト商事（無効）',
-    process_date: '2025-10-11',
-    processing_time: 15.8,
-    status: 'error',
-    error_message: 'データベース接続エラー',
-    error_code: 'DB_CONNECTION_ERROR',
-    error_detail: 'データベースへの接続に失敗しました。ネットワークを確認してください。',
-    error_stacktrace: `Error: Database connection failed
-    at connect (database.py:89)
-    at save_results (storage.py:34)
-    at main (main.py:78)`,
-    created_at: '2025-10-11T09:00:00Z',
-  },
-  {
-    id: '6',
-    user_id: 'user2',
+    user_id: 'mock-user-id',
     user_email: 'user@example.com',
     company_id: '1',
     company_name: 'ネクストビッツ',

@@ -67,8 +67,15 @@ export const UsersService = {
    * @MOCK_TO_API: POST {API_PATHS.USERS.INVITE}
    */
   async inviteUser(request: InviteUserRequest): Promise<InviteUserResponse> {
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
       setTimeout(() => {
+        // 既存ユーザーチェック（アクティブなユーザーのみ）
+        const existingUser = users.find((u) => u.email === request.email && !u.is_deleted)
+        if (existingUser) {
+          reject(new Error('このメールアドレスは既に登録されています'))
+          return
+        }
+
         // モック: 新しいユーザーを追加
         const newUser: User = {
           id: `mock-${Date.now()}`,
@@ -167,5 +174,19 @@ export const UsersService = {
    */
   resetMockData(): void {
     users = [...mockUsers]
+  },
+
+  /**
+   * メールアドレスでユーザーを取得（ログイン時の参照用）
+   */
+  getUserByEmail(email: string): User | undefined {
+    return users.find((u) => u.email === email && !u.is_deleted)
+  },
+
+  /**
+   * 全ユーザー取得（削除済み含む、処理履歴表示用）
+   */
+  getAllUsersIncludingDeleted(): User[] {
+    return [...users]
   },
 }

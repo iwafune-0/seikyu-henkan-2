@@ -49,7 +49,9 @@ import {
 } from '@mui/icons-material'
 import { AuthenticatedLayout } from '@/components/layouts/AuthenticatedLayout'
 import { fetchHistory, downloadFile, downloadZip } from '@/services/mock/historyService'
-import type { ProcessedFile, DownloadFileType } from '@/types'
+import { fetchCompanies } from '@/services/mock/companiesService'
+import { UsersService } from '@/services/mock/usersService'
+import type { ProcessedFile, DownloadFileType, Company, User } from '@/types'
 
 interface TabPanelProps {
   children?: React.ReactNode
@@ -236,43 +238,77 @@ export function HistoryPage() {
     }
   }
 
-  // ユーザーのスタイル（削除済みの場合グレー表示）
-  const getUserStyle = (email?: string) => {
-    if (email?.includes('削除済み')) {
-      return { color: '#9e9e9e', fontStyle: 'italic' }
-    }
-    return {}
+  // 取引先一覧（companiesServiceから取得）とユーザー一覧（usersServiceから取得）
+  const [companies, setCompanies] = useState<Company[]>([])
+  const [allUsers, setAllUsers] = useState<User[]>([])
+  const [allHistory, setAllHistory] = useState<ProcessedFile[]>([])
+
+  // 取引先が無効かどうかを判定
+  const isCompanyInactive = (companyName?: string) => {
+    if (!companyName) return false
+    const company = companies.find((c) => c.name === companyName)
+    return company ? !company.is_active : false
   }
 
   // 取引先のスタイル（無効の場合グレー表示）
   const getCompanyStyle = (name?: string) => {
-    if (name?.includes('無効')) {
+    if (isCompanyInactive(name)) {
       return { color: '#9e9e9e', fontStyle: 'italic' }
     }
     return {}
   }
 
-  // 取引先一覧とユーザー一覧を全データから生成
-  const [allHistory, setAllHistory] = useState<ProcessedFile[]>([])
+  // 取引先名の表示（無効の場合は「（無効）」を付与）
+  const getCompanyDisplayName = (name?: string) => {
+    if (!name) return ''
+    return isCompanyInactive(name) ? `${name}（無効）` : name
+  }
 
-  // 初回読み込み時に全データを取得
+  // ユーザーが削除済みかどうかを判定
+  const isUserDeleted = (email?: string) => {
+    if (!email) return false
+    const user = allUsers.find((u) => u.email === email)
+    return user ? user.is_deleted : false
+  }
+
+  // ユーザーのスタイル（削除済みの場合グレー表示）
+  const getUserStyle = (email?: string) => {
+    if (isUserDeleted(email)) {
+      return { color: '#9e9e9e', fontStyle: 'italic' }
+    }
+    return {}
+  }
+
+  // ユーザー名の表示（削除済みの場合は「（削除済み）」を付与）
+  const getUserDisplayName = (email?: string) => {
+    if (!email) return ''
+    return isUserDeleted(email) ? `${email}（削除済み）` : email
+  }
+
+  // 初回読み込み時に取引先・ユーザー・履歴データを取得
   useEffect(() => {
-    const loadAllData = async () => {
+    const loadInitialData = async () => {
       try {
-        const response = await fetchHistory()
-        setAllHistory(response.history)
+        // 取引先マスタから取得（companiesServiceと連携）
+        const companiesResponse = await fetchCompanies()
+        setCompanies(companiesResponse.companies)
+
+        // ユーザーマスタから取得（削除済み含む、usersServiceと連携）
+        const usersData = UsersService.getAllUsersIncludingDeleted()
+        setAllUsers(usersData)
+
+        // 履歴データ取得
+        const historyResponse = await fetchHistory()
+        setAllHistory(historyResponse.history)
       } catch (err) {
-        console.error('Failed to load all history:', err)
+        console.error('Failed to load initial data:', err)
       }
     }
-    loadAllData()
+    loadInitialData()
   }, [])
 
-  // 取引先一覧（フィルター用）- 全データから生成
-  const companies = Array.from(new Set(allHistory.map((h) => h.company_name))).filter(Boolean)
-
-  // ユーザー一覧（フィルター用）- 全データから生成
-  const users = Array.from(new Set(allHistory.map((h) => h.user_email))).filter(Boolean)
+  // ユーザー一覧（フィルター用）- usersServiceから取得（削除済み含む）
+  // フィルターは全ユーザーを表示し、削除済みには「（削除済み）」を付与
 
   return (
     <AuthenticatedLayout>
@@ -319,9 +355,10 @@ export function HistoryPage() {
                 notched
               >
                 <MenuItem value="">すべて</MenuItem>
-                {companies.map((company, index) => (
-                  <MenuItem key={index} value={company}>
-                    {company}
+                {companies.map((company) => (
+                  <MenuItem key={company.id} value={company.name}>
+                    {company.name}
+                    {!company.is_active && ' （無効）'}
                   </MenuItem>
                 ))}
               </Select>
@@ -340,9 +377,10 @@ export function HistoryPage() {
                 notched
               >
                 <MenuItem value="">すべて</MenuItem>
-                {users.map((user, index) => (
-                  <MenuItem key={index} value={user}>
-                    {user}
+                {allUsers.map((user) => (
+                  <MenuItem key={user.id} value={user.email}>
+                    {user.email}
+                    {user.is_deleted && '（削除済み）'}
                   </MenuItem>
                 ))}
               </Select>
@@ -483,11 +521,11 @@ export function HistoryPage() {
                       sx={{ cursor: 'pointer' }}
                     >
                       <TableCell sx={getCompanyStyle(record.company_name)}>
-                        {record.company_name}
+                        {getCompanyDisplayName(record.company_name)}
                       </TableCell>
                       <TableCell>{record.process_date}</TableCell>
                       <TableCell sx={getUserStyle(record.user_email)}>
-                        {record.user_email}
+                        {getUserDisplayName(record.user_email)}
                       </TableCell>
                       <TableCell>{renderStatusChip(record.status)}</TableCell>
                       <TableCell>
@@ -551,7 +589,7 @@ export function HistoryPage() {
                     }}
                   >
                     <Typography variant="body1" sx={{ fontWeight: 600, ...getCompanyStyle(record.company_name) }}>
-                      {record.company_name}
+                      {getCompanyDisplayName(record.company_name)}
                     </Typography>
                     {renderStatusChip(record.status)}
                   </Box>
@@ -568,7 +606,7 @@ export function HistoryPage() {
                       処理者:
                     </Typography>
                     <Typography variant="body2" sx={getUserStyle(record.user_email)}>
-                      {record.user_email}
+                      {getUserDisplayName(record.user_email)}
                     </Typography>
                   </Box>
 
@@ -600,7 +638,7 @@ export function HistoryPage() {
           fullWidth
         >
           <DialogTitle>
-            処理詳細 - {selectedRecord?.company_name}
+            処理詳細 - {getCompanyDisplayName(selectedRecord?.company_name)}
           </DialogTitle>
           <DialogContent sx={{ pt: 2, px: 3, pb: 3 }}>
             {selectedRecord && (
@@ -612,7 +650,7 @@ export function HistoryPage() {
                       取引先
                     </Typography>
                     <Typography variant="body1" sx={getCompanyStyle(selectedRecord.company_name)}>
-                      {selectedRecord.company_name}
+                      {getCompanyDisplayName(selectedRecord.company_name)}
                     </Typography>
                   </Box>
 
@@ -628,7 +666,7 @@ export function HistoryPage() {
                       処理者
                     </Typography>
                     <Typography variant="body1" sx={getUserStyle(selectedRecord.user_email)}>
-                      {selectedRecord.user_email}
+                      {getUserDisplayName(selectedRecord.user_email)}
                     </Typography>
                   </Box>
                 </Box>
@@ -803,7 +841,7 @@ export function HistoryPage() {
           <DialogTitle>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <Typography variant="h6" color="error">
-                エラー詳細 - {errorDetail?.company_name} {errorDetail?.process_date}
+                エラー詳細 - {getCompanyDisplayName(errorDetail?.company_name)} {errorDetail?.process_date}
               </Typography>
               <IconButton onClick={handleCloseErrorModal} size="small">
                 <CloseIcon />

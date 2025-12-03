@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import {
   Box,
   Card,
@@ -11,7 +10,6 @@ import {
   TableRow,
   Chip,
   Dialog,
-  DialogTitle,
   DialogContent,
   DialogActions,
   Button,
@@ -64,7 +62,6 @@ function TabPanel(props: TabPanelProps) {
 export function CompaniesPage() {
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('lg'))
-  const navigate = useNavigate()
 
   const [companies, setCompanies] = useState<Company[]>([])
   const [loading, setLoading] = useState(true)
@@ -210,11 +207,6 @@ export function CompaniesPage() {
     setSnackbar((prev) => ({ ...prev, open: false }))
   }
 
-  const handleHistoryRowClick = (event: React.MouseEvent) => {
-    event.stopPropagation()
-    navigate('/history')
-  }
-
   if (loading) {
     return (
       <AuthenticatedLayout>
@@ -342,10 +334,7 @@ export function CompaniesPage() {
             },
           }}
         >
-          <DialogTitle>
-            取引先詳細 - {selectedCompany?.name}
-          </DialogTitle>
-          <DialogContent>
+          <DialogContent sx={{ pt: 2 }}>
             <Tabs
               value={tabValue}
               onChange={handleTabChange}
@@ -363,7 +352,6 @@ export function CompaniesPage() {
               <Tab label="基本情報" />
               <Tab label="テンプレート" />
               <Tab label="処理ルール" />
-              <Tab label="処理履歴" />
             </Tabs>
 
             {/* Tab 1: Basic Info */}
@@ -548,79 +536,6 @@ export function CompaniesPage() {
               </Box>
             </TabPanel>
 
-            {/* Tab 4: Process History */}
-            <TabPanel value={tabValue} index={3}>
-              <Typography variant="subtitle2" gutterBottom>
-                処理履歴（最新3件）
-              </Typography>
-              <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 1.5 }}>
-                ※ クリックするとP-003（処理履歴ページ）に遷移します
-              </Typography>
-              <Card>
-                <TableContainer>
-                  <Table size="small">
-                    <TableHead>
-                      <TableRow>
-                        <TableCell>処理日</TableCell>
-                        <TableCell>処理者</TableCell>
-                        <TableCell>状態</TableCell>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {selectedCompany?.id === '1' ? (
-                        <>
-                          <TableRow hover sx={{ cursor: 'pointer' }} onClick={handleHistoryRowClick}>
-                            <TableCell>2025-10-10</TableCell>
-                            <TableCell>admin@example.com</TableCell>
-                            <TableCell>
-                              <Chip label="成功" color="success" size="small" />
-                            </TableCell>
-                          </TableRow>
-                          <TableRow hover sx={{ cursor: 'pointer' }} onClick={handleHistoryRowClick}>
-                            <TableCell>2025-09-10</TableCell>
-                            <TableCell>user@example.com</TableCell>
-                            <TableCell>
-                              <Chip label="成功" color="success" size="small" />
-                            </TableCell>
-                          </TableRow>
-                          <TableRow hover sx={{ cursor: 'pointer' }} onClick={handleHistoryRowClick}>
-                            <TableCell>2025-08-10</TableCell>
-                            <TableCell>admin@example.com</TableCell>
-                            <TableCell>
-                              <Chip label="成功" color="success" size="small" />
-                            </TableCell>
-                          </TableRow>
-                        </>
-                      ) : (
-                        <>
-                          <TableRow hover sx={{ cursor: 'pointer' }} onClick={handleHistoryRowClick}>
-                            <TableCell>2025-10-08</TableCell>
-                            <TableCell>user@example.com</TableCell>
-                            <TableCell>
-                              <Chip label="成功" color="success" size="small" />
-                            </TableCell>
-                          </TableRow>
-                          <TableRow hover sx={{ cursor: 'pointer' }} onClick={handleHistoryRowClick}>
-                            <TableCell>2025-09-08</TableCell>
-                            <TableCell>admin@example.com</TableCell>
-                            <TableCell>
-                              <Chip label="成功" color="success" size="small" />
-                            </TableCell>
-                          </TableRow>
-                          <TableRow hover sx={{ cursor: 'pointer' }} onClick={handleHistoryRowClick}>
-                            <TableCell>2025-08-08</TableCell>
-                            <TableCell>user@example.com</TableCell>
-                            <TableCell>
-                              <Chip label="成功" color="success" size="small" />
-                            </TableCell>
-                          </TableRow>
-                        </>
-                      )}
-                    </TableBody>
-                  </Table>
-                </TableContainer>
-              </Card>
-            </TabPanel>
           </DialogContent>
           <DialogActions
             sx={{

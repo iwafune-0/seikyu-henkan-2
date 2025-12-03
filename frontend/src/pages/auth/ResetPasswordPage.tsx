@@ -192,7 +192,7 @@ export function ResetPasswordPage() {
                 <button
                   type="button"
                   onClick={() => navigate('/login')}
-                  className="text-sm text-muted-foreground hover:text-foreground"
+                  className="text-sm text-primary hover:underline"
                 >
                   ログインページに戻る
                 </button>

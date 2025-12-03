@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import type { User } from '@/types'
 import { supabase } from '@/lib/supabase'
+import { UsersService } from '@/services/mock/usersService'
 
 const AUTH_STORAGE_KEY = 'auth-storage'
 
@@ -62,6 +63,11 @@ export const useAuthStore = create<AuthState>()((set) => ({
       isAuthenticated: !!user,
       isLoading: false
     })
+    // ストレージにも保存（remember設定を維持）
+    if (user) {
+      const hasLocalStorage = localStorage.getItem(AUTH_STORAGE_KEY) !== null
+      saveAuthState({ user, isAuthenticated: true }, hasLocalStorage)
+    }
   },
 
   login: async (email: string, password: string, remember: boolean = false) => {
@@ -72,27 +78,6 @@ export const useAuthStore = create<AuthState>()((set) => ({
           console.log('Checking Supabase URL:', import.meta.env.VITE_SUPABASE_URL)
           if (import.meta.env.VITE_SUPABASE_URL === 'https://mock-project.supabase.co') {
             console.log('Using mock authentication')
-            // 開発用のモックユーザー
-            const mockUsers: Record<string, User> = {
-              'admin@example.com': {
-                id: 'mock-admin-id',
-                email: 'admin@example.com',
-                role: 'admin',
-                created_at: new Date().toISOString(),
-              },
-              'admin2@example.com': {
-                id: 'mock-admin2-id',
-                email: 'admin2@example.com',
-                role: 'admin',
-                created_at: new Date().toISOString(),
-              },
-              'user@example.com': {
-                id: 'mock-user-id',
-                email: 'user@example.com',
-                role: 'user',
-                created_at: new Date().toISOString(),
-              },
-            }
 
             // 簡単なパスワードチェック（開発用）
             if (password.length < 8) {
@@ -100,7 +85,8 @@ export const useAuthStore = create<AuthState>()((set) => ({
               throw new Error('パスワードは8文字以上で入力してください')
             }
 
-            const user = mockUsers[email]
+            // UsersServiceから最新のユーザー情報を取得（ロール変更を反映）
+            const user = UsersService.getUserByEmail(email)
             if (!user) {
               console.error('User not found:', email)
               throw new Error('ユーザーが見つかりません')
