@@ -45,6 +45,8 @@ export interface ProcessResult {
   excelFilename: string
   orderPdfFilename: string
   inspectionPdfFilename: string
+  companyName: string // ZIP用
+  yearMonth: string // ZIP用
 }
 
 // 取引先判別結果
@@ -64,11 +66,11 @@ const mockCompanies: Company[] = [
     name: 'ネクストビッツ',
     display_name: '株式会社ネクストビッツ',
     is_active: true,
-    last_processed_at: '2025-10-10',
-    template_excel: 'nextbits_template.xlsx',
-    template_filename: 'nextbits_template.xlsx',
-    template_updated_at: '2025-09-15T14:30:00Z',
-    template_updated_by: 'admin@example.com',
+    last_processed_at: undefined, // 初回処理なし
+    template_excel: undefined,
+    template_filename: undefined,
+    template_updated_at: undefined,
+    template_updated_by: undefined,
     created_at: '2025-01-01T00:00:00Z',
   },
   {
@@ -468,6 +470,23 @@ export function removeFromSlot(
 }
 
 /**
+ * Excelファイル名から取引先を判別
+ * ファイル名に取引先名（ネクストビッツ/オフ・ビート・ワークス）が含まれているか確認
+ */
+function detectCompanyFromExcelFilename(filename: string): 'nextbits' | 'offbeat' | null {
+  // ネクストビッツ: ファイル名に「ネクストビッツ」を含む
+  if (filename.includes('ネクストビッツ')) {
+    return 'nextbits'
+  }
+  // オフビートワークス: ファイル名に「オフ・ビート・ワークス」を含む
+  if (filename.includes('オフ・ビート・ワークス')) {
+    return 'offbeat'
+  }
+
+  return null
+}
+
+/**
  * Excelテンプレートアップロード（初回処理用）
  */
 export async function uploadExcelTemplate(
@@ -482,13 +501,42 @@ export async function uploadExcelTemplate(
     throw new Error('Excelファイル（.xlsx, .xls）のみアップロード可能です')
   }
 
-  // モック: 取引先のテンプレートを更新
+  // 取引先を取得
   const company = mockCompanies.find((c) => c.id === companyId)
-  if (company) {
-    company.template_excel = file.name
-    company.template_filename = file.name
-    company.template_updated_at = new Date().toISOString()
+  if (!company) {
+    throw new Error('取引先が見つかりません')
   }
+
+  // ファイル名から取引先を判別
+  const detectedCompany = detectCompanyFromExcelFilename(file.name)
+
+  // 期待する取引先を判定
+  const expectedCompany = company.name === 'ネクストビッツ' ? 'nextbits' : 'offbeat'
+  const expectedCompanyName = company.display_name
+
+  // 取引先が判別できない場合
+  if (detectedCompany === null) {
+    const keywordHint = company.name === 'ネクストビッツ' ? 'ネクストビッツ' : 'オフ・ビート・ワークス'
+    throw new Error(
+      `ファイル名に取引先名が含まれていません。\n` +
+      `「${expectedCompanyName}」のExcelファイルをアップロードしてください。\n` +
+      `（ファイル名に「${keywordHint}」を含める必要があります）`
+    )
+  }
+
+  // 取引先が一致しない場合
+  if (detectedCompany !== expectedCompany) {
+    const uploadedCompanyName = detectedCompany === 'nextbits' ? '株式会社ネクストビッツ' : '株式会社オフビートワークス'
+    throw new Error(
+      `選択したファイルは「${uploadedCompanyName}」のファイルです。\n` +
+      `「${expectedCompanyName}」のExcelファイルをアップロードしてください。`
+    )
+  }
+
+  // モック: 取引先のテンプレートを更新
+  company.template_excel = file.name
+  company.template_filename = file.name
+  company.template_updated_at = new Date().toISOString()
 
   return {
     success: true,
@@ -523,13 +571,23 @@ export async function executeProcess(
 
   // 取引先情報を取得
   const company = mockCompanies.find((c) => c.id === companyId)
-  const companyName = company?.name || '取引先'
-  const today = new Date().toISOString().slice(0, 10)
+
+  // 年月フォーマット（YYMM形式）
+  const now = new Date()
+  const yearMonth = `${String(now.getFullYear()).slice(-2)}${String(now.getMonth() + 1).padStart(2, '0')}`
+
+  // ファイル名生成
+  // Excel: テラ【株式会社〇〇御中】注文検収書_YYMM.xlsx
+  // 注文書PDF: 注文書_YYMM.pdf
+  // 検収書PDF: 検収書_YYMM.pdf
+  const displayName = company?.display_name || '取引先'
 
   return {
-    excelFilename: `${companyName}_${today}.xlsx`,
-    orderPdfFilename: `${companyName}_注文書_${today}.pdf`,
-    inspectionPdfFilename: `${companyName}_検収書_${today}.pdf`,
+    excelFilename: `テラ【${displayName}御中】注文検収書_${yearMonth}.xlsx`,
+    orderPdfFilename: `注文書_${yearMonth}.pdf`,
+    inspectionPdfFilename: `検収書_${yearMonth}.pdf`,
+    companyName: company?.name || '取引先',
+    yearMonth,
   }
 }
 
@@ -557,12 +615,13 @@ export async function downloadResultFile(
 
 /**
  * 処理結果をZIPでダウンロード（モック）
+ * ZIP名: 〇〇_YYMM.zip（例: オフビートワークス_2512.zip）
  */
 export async function downloadResultZip(result: ProcessResult): Promise<void> {
   // モック遅延
   await new Promise((resolve) => setTimeout(resolve, 500))
 
-  const zipFilename = result.excelFilename.replace('.xlsx', '.zip')
+  const zipFilename = `${result.companyName}_${result.yearMonth}.zip`
 
   console.log(`[Mock] Downloading ZIP: ${zipFilename}`)
 

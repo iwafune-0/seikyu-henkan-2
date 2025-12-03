@@ -27,7 +27,6 @@ import {
   ListItem,
   ListItemIcon,
   ListItemText,
-  Divider,
   IconButton,
   Tooltip,
   Dialog,
@@ -53,7 +52,6 @@ import {
   type DetectionResult,
   type PdfType,
   type PdfSlot,
-  ALL_PDF_TYPES,
   createEmptySlots,
   detectAndPreCheck,
   uploadSinglePdf,
@@ -263,31 +261,85 @@ export function ProcessPage() {
     [handleSlotUpload]
   )
 
+  // Excelアップロード状態
+  const [excelUploaded, setExcelUploaded] = useState(false)
+
+  // Excelファイル処理（選択またはドロップ時に即アップロード）
+  const handleExcelFile = useCallback(async (file: File) => {
+    if (!file.name.endsWith('.xlsx') && !file.name.endsWith('.xls')) {
+      showSnackbar('Excelファイルを選択してください', 'error')
+      return
+    }
+    if (!detectionResult?.company) return
+
+    setExcelFile(file)
+    try {
+      await uploadExcelTemplate(detectionResult.company.id, file)
+      setExcelUploaded(true)
+      setState('ready')
+    } catch (err) {
+      showAlert(err instanceof Error ? err.message : 'アップロードに失敗しました')
+      setExcelFile(null)
+      setExcelUploaded(false)
+      setState('excel_required')
+    }
+  }, [detectionResult])
+
+  // Excelファイル削除（アップロードし直し用）
+  const handleRemoveExcel = useCallback(() => {
+    setExcelFile(null)
+    setExcelUploaded(false)
+    setState('excel_required')
+    showSnackbar('Excelテンプレートを削除しました', 'success')
+  }, [])
+
   // Excelファイル選択
   const handleExcelSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
-      if (!file.name.endsWith('.xlsx') && !file.name.endsWith('.xls')) {
-        showSnackbar('Excelファイル（.xlsx, .xls）を選択してください', 'error')
-        return
-      }
-      setExcelFile(file)
+      handleExcelFile(file)
     }
     e.target.value = ''
+  }, [handleExcelFile])
+
+  // Excelドラッグ&ドロップ
+  const [isExcelDragging, setIsExcelDragging] = useState(false)
+  const excelDragCounterRef = useRef(0)
+
+  const handleExcelDragEnter = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    excelDragCounterRef.current++
+    if (excelDragCounterRef.current === 1) {
+      setIsExcelDragging(true)
+    }
   }, [])
 
-  // Excelアップロード実行
-  const handleExcelUpload = useCallback(async () => {
-    if (!excelFile || !detectionResult?.company) return
-
-    try {
-      await uploadExcelTemplate(detectionResult.company.id, excelFile)
-      showSnackbar('テンプレートをアップロードしました', 'success')
-      setState('ready')
-    } catch (err) {
-      showSnackbar(err instanceof Error ? err.message : 'アップロードに失敗しました', 'error')
+  const handleExcelDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    excelDragCounterRef.current--
+    if (excelDragCounterRef.current === 0) {
+      setIsExcelDragging(false)
     }
-  }, [excelFile, detectionResult])
+  }, [])
+
+  const handleExcelDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+  }, [])
+
+  const handleExcelDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    excelDragCounterRef.current = 0
+    setIsExcelDragging(false)
+
+    const file = e.dataTransfer.files[0]
+    if (file) {
+      handleExcelFile(file)
+    }
+  }, [handleExcelFile])
 
   // 処理実行
   const handleExecute = useCallback(async () => {
@@ -304,7 +356,6 @@ export function ProcessPage() {
       })
       setProcessResult(result)
       setState('completed')
-      showSnackbar('処理が完了しました', 'success')
     } catch (err) {
       setState('error')
       setErrorMessage(err instanceof Error ? err.message : '処理中にエラーが発生しました')
@@ -359,6 +410,7 @@ export function ProcessPage() {
     setProgressMessage('')
     setErrorMessage(null)
     setExcelFile(null)
+    setExcelUploaded(false)
   }, [])
 
   // スロットの色とアイコン
@@ -393,11 +445,16 @@ export function ProcessPage() {
           sx={{
             fontSize: { xs: '1.125rem', sm: '1.25rem', lg: '1.5rem' },
             fontWeight: 600,
-            mb: 3,
+            mb: state === 'initial' ? 1.5 : 3,
           }}
         >
           PDF処理実行
         </Typography>
+        {state === 'initial' && (
+          <Typography variant="body1" color="text.primary" sx={{ mb: 2.5 }}>
+            見積書・請求書・注文請書・納品書の4つのPDFをアップロードしてください
+          </Typography>
+        )}
 
         {/* エラー表示 */}
         {errorMessage && state === 'error' && (
@@ -488,23 +545,12 @@ export function ProcessPage() {
               <Typography variant="body2" color="text.secondary" gutterBottom>
                 または
               </Typography>
-              <Button variant="contained" startIcon={<CloudUploadIcon />}>
+              <Button variant="contained">
                 ファイルを選択
               </Button>
-              <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
-                見積書・請求書・注文請書・納品書の4つのPDFをアップロードしてください
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 2 }}>
+                .pdf形式
               </Typography>
-              <Box sx={{ mt: 2, display: 'flex', justifyContent: 'center', gap: 1, flexWrap: 'wrap' }}>
-                {ALL_PDF_TYPES.map((type) => (
-                  <Chip
-                    key={type}
-                    label={getPdfTypeLabel(type)}
-                    size="small"
-                    variant="outlined"
-                    color="default"
-                  />
-                ))}
-              </Box>
               <input
                 ref={pdfInputRef}
                 type="file"
@@ -537,12 +583,14 @@ export function ProcessPage() {
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
             {/* 取引先情報（判別できた場合） */}
             {detectionResult?.company && (
-              <Card sx={{ p: 3 }}>
-                <Typography variant="h6" sx={{ mb: 2 }}>取引先</Typography>
-                <Typography variant="h5" sx={{ fontWeight: 600 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Typography variant="h6" color="text.secondary" sx={{ fontWeight: 400 }}>
+                  取引先:
+                </Typography>
+                <Typography variant="h6">
                   {detectionResult.company.display_name}
                 </Typography>
-              </Card>
+              </Box>
             )}
 
             {/* PDFスロット管理（カード全体がドロップゾーン） */}
@@ -606,7 +654,6 @@ export function ProcessPage() {
                 <Button
                   variant="outlined"
                   size="small"
-                  startIcon={<CloudUploadIcon />}
                   onClick={() => pdfInputRef.current?.click()}
                 >
                   まとめて選択
@@ -706,7 +753,6 @@ export function ProcessPage() {
                         <Button
                           variant="outlined"
                           size="small"
-                          startIcon={<CloudUploadIcon />}
                           onClick={() => {
                             const input = slotInputRefs.current.get(slot.type)
                             input?.click()
@@ -734,60 +780,229 @@ export function ProcessPage() {
 
             {/* Excelアップロードカード（初回のみ） */}
             {state === 'excel_required' && (
-              <Card sx={{ p: 3 }}>
+              <Card
+                onDragEnter={handleExcelDragEnter}
+                onDragLeave={handleExcelDragLeave}
+                onDragOver={handleExcelDragOver}
+                onDrop={handleExcelDrop}
+                sx={{
+                  p: 3,
+                  position: 'relative',
+                  border: '2px solid',
+                  borderColor: isExcelDragging ? 'primary.main' : 'transparent',
+                  transition: 'border-color 0.2s ease-in-out',
+                }}
+              >
+                {/* ドラッグ時のオーバーレイ */}
+                {isExcelDragging && (
+                  <Box
+                    sx={{
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      backgroundColor: 'rgba(255, 255, 255, 0.85)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 1,
+                      zIndex: 10,
+                      borderRadius: 1,
+                      pointerEvents: 'none',
+                    }}
+                  >
+                    <CloudUploadIcon sx={{ fontSize: 48, color: 'text.secondary' }} />
+                    <Typography
+                      variant="h6"
+                      sx={{
+                        color: 'text.secondary',
+                        fontWeight: 500,
+                      }}
+                    >
+                      ここにドロップ
+                    </Typography>
+                  </Box>
+                )}
+
                 <Typography variant="h6" gutterBottom>
                   Excelテンプレートのアップロード
                 </Typography>
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                   この取引先は初回処理のため、Excelテンプレートが必要です。
                   <br />
-                  前月分のExcelファイルをアップロードしてください。
+                  前月分のExcelファイルをドラッグ&ドロップ、またはファイル選択でアップロードしてください。
                 </Typography>
 
-                <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap' }}>
-                  <Button
-                    variant="outlined"
-                    startIcon={<CloudUploadIcon />}
-                    onClick={() => excelInputRef.current?.click()}
-                  >
-                    Excelを選択
+                <Box
+                  sx={{
+                    p: 4,
+                    border: '2px dashed',
+                    borderColor: 'divider',
+                    borderRadius: 2,
+                    backgroundColor: 'background.default',
+                    textAlign: 'center',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease-in-out',
+                    '&:hover': {
+                      borderColor: 'primary.main',
+                      backgroundColor: 'action.hover',
+                    },
+                  }}
+                  onClick={() => excelInputRef.current?.click()}
+                >
+                  <CloudUploadIcon sx={{ fontSize: 64, color: 'primary.main', mb: 2 }} />
+                  <Typography variant="h6" gutterBottom>
+                    Excelファイルをドラッグ&ドロップ
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" gutterBottom>
+                    または
+                  </Typography>
+                  <Button variant="contained">
+                    ファイルを選択
                   </Button>
-                  {excelFile && (
-                    <>
-                      <Typography variant="body2">{excelFile.name}</Typography>
-                      <Button variant="contained" onClick={handleExcelUpload}>
-                        アップロード
-                      </Button>
-                    </>
-                  )}
-                  <input
-                    ref={excelInputRef}
-                    type="file"
-                    accept=".xlsx,.xls"
-                    hidden
-                    onChange={handleExcelSelect}
-                  />
+                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 2 }}>
+                    .xlsx, .xls形式
+                  </Typography>
                 </Box>
+
+                <input
+                  ref={excelInputRef}
+                  type="file"
+                  accept=".xlsx,.xls"
+                  hidden
+                  onChange={handleExcelSelect}
+                />
+              </Card>
+            )}
+
+            {/* Excelテンプレート表示（アップロード済み・ready状態） */}
+            {state === 'ready' && excelUploaded && excelFile && (
+              <Card
+                onDragEnter={handleExcelDragEnter}
+                onDragLeave={handleExcelDragLeave}
+                onDragOver={handleExcelDragOver}
+                onDrop={handleExcelDrop}
+                sx={{
+                  p: 3,
+                  position: 'relative',
+                  border: '2px solid',
+                  borderColor: isExcelDragging ? 'primary.main' : 'transparent',
+                  transition: 'border-color 0.2s ease-in-out',
+                }}
+              >
+                {/* ドラッグ時のオーバーレイ */}
+                {isExcelDragging && (
+                  <Box
+                    sx={{
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      backgroundColor: 'rgba(255, 255, 255, 0.85)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 1,
+                      zIndex: 10,
+                      borderRadius: 1,
+                      pointerEvents: 'none',
+                    }}
+                  >
+                    <CloudUploadIcon sx={{ fontSize: 48, color: 'text.secondary' }} />
+                    <Typography
+                      variant="h6"
+                      sx={{
+                        color: 'text.secondary',
+                        fontWeight: 500,
+                      }}
+                    >
+                      ここにドロップ
+                    </Typography>
+                  </Box>
+                )}
+
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2, flexWrap: 'wrap', gap: 1 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Typography variant="h6">Excelテンプレート</Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ ml: 1 }}>
+                      ドラッグ&ドロップで差し替え可能
+                    </Typography>
+                  </Box>
+                  <Chip label="OK" size="small" color="success" />
+                </Box>
+                <Paper
+                  variant="outlined"
+                  sx={{
+                    p: 2,
+                    borderColor: 'success.main',
+                    borderWidth: 2,
+                    backgroundColor: 'success.50',
+                  }}
+                >
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 1,
+                      backgroundColor: 'background.paper',
+                      p: 1,
+                      borderRadius: 1,
+                    }}
+                  >
+                    <CheckCircleIcon fontSize="small" color="success" />
+                    <InsertDriveFileIcon fontSize="small" color="action" />
+                    <Typography
+                      variant="body2"
+                      sx={{
+                        flex: 1,
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {excelFile.name}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary" sx={{ mr: 1 }}>
+                      {(excelFile.size / 1024).toFixed(1)} KB
+                    </Typography>
+                    <IconButton
+                      size="small"
+                      onClick={handleRemoveExcel}
+                      sx={{ color: 'error.main' }}
+                    >
+                      <CloseIcon fontSize="small" />
+                    </IconButton>
+                  </Box>
+                </Paper>
+                <input
+                  ref={excelInputRef}
+                  type="file"
+                  accept=".xlsx,.xls"
+                  hidden
+                  onChange={handleExcelSelect}
+                />
               </Card>
             )}
 
             {/* 処理実行ボタン */}
             {state === 'ready' && (
-              <Card sx={{ p: 3 }}>
-                <Box sx={{ textAlign: 'center' }}>
-                  <Alert severity="success" icon={<CheckCircleIcon />} sx={{ mb: 2 }}>
-                    全てのPDFが揃いました。処理を実行できます。
-                  </Alert>
-                  <Button
-                    variant="contained"
-                    size="large"
-                    onClick={handleExecute}
-                    sx={{ px: 6 }}
-                  >
-                    処理を実行
-                  </Button>
-                </Box>
-              </Card>
+              <Box sx={{ textAlign: 'center' }}>
+                <Alert severity="success" icon={<CheckCircleIcon />} sx={{ mb: 2 }}>
+                  すべてのファイルが揃いました。処理を実行できます。
+                </Alert>
+                <Button
+                  variant="contained"
+                  size="large"
+                  onClick={handleExecute}
+                  sx={{ px: 6 }}
+                >
+                  処理を実行
+                </Button>
+              </Box>
             )}
           </Box>
         )}
@@ -818,7 +1033,7 @@ export function ProcessPage() {
 
         {/* 処理完了 */}
         {state === 'completed' && processResult && (
-          <Card sx={{ p: 3 }}>
+          <Box>
             <Box sx={{ textAlign: 'center', mb: 3 }}>
               <CheckCircleIcon sx={{ fontSize: 64, color: 'success.main', mb: 2 }} />
               <Typography variant="h5" gutterBottom>
@@ -829,12 +1044,11 @@ export function ProcessPage() {
               </Typography>
             </Box>
 
-            <Divider sx={{ my: 3 }} />
-
-            {/* 生成されたファイル */}
-            <Typography variant="h6" gutterBottom>
-              生成されたファイル
-            </Typography>
+            <Card sx={{ p: 3 }}>
+              {/* 生成されたファイル */}
+              <Typography variant="h6" gutterBottom>
+                生成されたファイル
+              </Typography>
             <List>
               <ListItem
                 component="div"
@@ -910,7 +1124,8 @@ export function ProcessPage() {
                 新規処理を開始
               </Button>
             </Box>
-          </Card>
+            </Card>
+          </Box>
         )}
 
         {/* アラートダイアログ（重要な警告用） */}
