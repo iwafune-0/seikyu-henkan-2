@@ -33,6 +33,7 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
+  Fade,
 } from '@mui/material'
 import {
   CloudUpload as CloudUploadIcon,
@@ -1034,15 +1035,17 @@ export function ProcessPage() {
         {/* 処理完了 */}
         {state === 'completed' && processResult && (
           <Box>
-            <Box sx={{ textAlign: 'center', mb: 3 }}>
-              <CheckCircleIcon sx={{ fontSize: 64, color: 'success.main', mb: 2 }} />
-              <Typography variant="h5" gutterBottom>
-                処理が完了しました
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                {detectionResult?.company?.name} の処理が正常に完了しました
-              </Typography>
-            </Box>
+            <Fade in={true} timeout={600}>
+              <Box sx={{ textAlign: 'center', mb: 3 }}>
+                <CheckCircleIcon sx={{ fontSize: 64, color: 'success.main', mb: 2 }} />
+                <Typography variant="h5" gutterBottom>
+                  処理が完了しました
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {detectionResult?.company?.name} の処理が正常に完了しました
+                </Typography>
+              </Box>
+            </Fade>
 
             <Card sx={{ p: 3 }}>
               {/* 生成されたファイル */}
