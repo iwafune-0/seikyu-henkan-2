@@ -1,6 +1,7 @@
 # P-003: 処理履歴・ダウンロードページ - E2Eテスト仕様書
 
 **作成日**: 2025-10-17
+**最終更新**: 2025-12-04
 **フェーズ**: Phase 4（ページ実装）
 **実装予定**: Phase 9（E2Eテスト）
 
@@ -81,7 +82,6 @@ P-003（処理履歴・ダウンロードページ）のE2Eテスト仕様書で
   - 処理日
   - 処理者
   - 状態（成功/エラー）
-  - 処理時間
   - ZIP一括ダウンロードボタン（成功時のみ）
 
 ---
@@ -226,13 +226,13 @@ P-003（処理履歴・ダウンロードページ）のE2Eテスト仕様書で
 
 **期待結果**:
 - 処理詳細モーダルが表示される
-- 以下が表示される:
-  - 取引先名
-  - 処理日
-  - 処理者
-  - 処理時間
-  - 生成ファイル一覧（Excel、注文書PDF、検収書PDF）
-  - 使用したファイル一覧（入力PDF1〜4）
+- モーダルタイトル「処理詳細」が表示される（会社名は含まない）
+- 以下が横並びレイアウトで表示される:
+  - 取引先: {取引先名}
+  - 処理日: {処理日}
+  - 処理者: {処理者}
+- 生成ファイル一覧（Excel、注文書PDF、検収書PDF）
+- 使用したファイル一覧（入力PDF1〜4）
 - 各ファイルダウンロードボタンをクリックするとダウンロードが実行される
 - ×ボタンでモーダルが閉じる
 
@@ -255,10 +255,12 @@ P-003（処理履歴・ダウンロードページ）のE2Eテスト仕様書で
 
 **期待結果**:
 - エラー詳細モーダルが表示される
-- 以下が表示される:
-  - 取引先名
-  - 処理日
-  - 処理者
+- モーダルタイトル「処理詳細」が表示される（会社名は含まない）
+- 以下が横並びレイアウトで表示される:
+  - 取引先: {取引先名}
+  - 処理日: {処理日}
+  - 処理者: {処理者}
+- エラー情報が表示される:
   - エラーメッセージ
   - エラーコード
   - エラー詳細
@@ -427,13 +429,16 @@ test('E2E-P003-009: 処理詳細モーダル表示', async ({ page }) => {
   await page.click('table tr:has-text("成功")')
 
   // モーダルが表示される
-  await expect(page.locator('text=処理詳細')).toBeVisible()
+  await expect(page.locator('h2:has-text("処理詳細")')).toBeVisible()
+  await expect(page.locator('text=取引先')).toBeVisible()
+  await expect(page.locator('text=処理日')).toBeVisible()
+  await expect(page.locator('text=処理者')).toBeVisible()
   await expect(page.locator('text=生成ファイル')).toBeVisible()
   await expect(page.locator('text=使用したファイル')).toBeVisible()
 
   // ×ボタンでモーダルを閉じる
   await page.click('[aria-label="close"]')
-  await expect(page.locator('text=処理詳細')).not.toBeVisible()
+  await expect(page.locator('h2:has-text("処理詳細")')).not.toBeVisible()
 })
 ```
 

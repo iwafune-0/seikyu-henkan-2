@@ -12,7 +12,9 @@
  * - 処理完了後の即時ダウンロード
  */
 
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
+import { useNavigate, useLocation } from 'react-router-dom'
+import { useNavigationStore } from '@/stores/navigation'
 import {
   Box,
   Button,
@@ -32,6 +34,7 @@ import {
   Dialog,
   DialogTitle,
   DialogContent,
+  DialogContentText,
   DialogActions,
   Fade,
 } from '@mui/material'
@@ -88,6 +91,84 @@ export function ProcessPage() {
   // アラートダイアログ（重要な警告用）
   const [alertOpen, setAlertOpen] = useState(false)
   const [alertMessage, setAlertMessage] = useState('')
+
+  // 処理中かどうかを判定（離脱警告が必要な状態）
+  const isProcessing = state !== 'initial' && state !== 'completed' && state !== 'error'
+
+  // ナビゲーションブロック用の状態
+  const [showLeaveDialog, setShowLeaveDialog] = useState(false)
+  const [pendingNavigation, setPendingNavigation] = useState<string | null>(null)
+  const navigate = useNavigate()
+  const location = useLocation()
+  const setNavigationBlocked = useNavigationStore((s) => s.setBlocked)
+
+  // サイドメニューのナビゲーションブロック
+  useEffect(() => {
+    if (isProcessing) {
+      setNavigationBlocked(true, (to: string) => {
+        setShowLeaveDialog(true)
+        setPendingNavigation(to)
+      })
+    } else {
+      setNavigationBlocked(false)
+    }
+    return () => {
+      setNavigationBlocked(false)
+    }
+  }, [isProcessing, setNavigationBlocked])
+
+  // ブラウザ離脱時の警告（再読み込み、タブを閉じるなど）
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (isProcessing) {
+        e.preventDefault()
+        e.returnValue = ''
+      }
+    }
+
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload)
+    }
+  }, [isProcessing])
+
+  // ブラウザの戻る/進むボタン対応
+  useEffect(() => {
+    if (!isProcessing) return
+
+    // 履歴に現在のページを追加して戻るボタンを検知可能にする
+    window.history.pushState(null, '', location.pathname)
+
+    const handlePopState = () => {
+      // 戻るボタンが押されたら確認ダイアログを表示
+      setShowLeaveDialog(true)
+      setPendingNavigation('back')
+      // 履歴を元に戻す（ダイアログでキャンセルした場合のため）
+      window.history.pushState(null, '', location.pathname)
+    }
+
+    window.addEventListener('popstate', handlePopState)
+    return () => {
+      window.removeEventListener('popstate', handlePopState)
+    }
+  }, [isProcessing, location.pathname])
+
+  // ナビゲーション確認ダイアログのハンドラー
+  const handleLeaveCancel = () => {
+    setShowLeaveDialog(false)
+    setPendingNavigation(null)
+  }
+
+  const handleLeaveConfirm = () => {
+    setShowLeaveDialog(false)
+    if (pendingNavigation === 'back') {
+      // 戻る操作を実行
+      window.history.go(-2) // pushStateで追加した分を含めて2つ戻る
+    } else if (pendingNavigation) {
+      navigate(pendingNavigation)
+    }
+    setPendingNavigation(null)
+  }
 
   // ファイル入力ref
   const pdfInputRef = useRef<HTMLInputElement>(null)
@@ -446,6 +527,7 @@ export function ProcessPage() {
           sx={{
             fontSize: { xs: '1.125rem', sm: '1.25rem', lg: '1.5rem' },
             fontWeight: 600,
+            pt: { xs: 0.5, sm: 1 },
             mb: state === 'initial' ? 1.5 : 3,
           }}
         >
@@ -476,62 +558,22 @@ export function ProcessPage() {
 
         {/* 初期状態: PDFアップロードエリア */}
         {state === 'initial' && (
-          <Card
-            onDragEnter={handleDragEnter}
-            onDragLeave={handleDragLeave}
-            onDragOver={handleDragOver}
-            onDrop={handleDrop}
-            sx={{
-              p: 3,
-              position: 'relative',
-              border: '2px solid',
-              borderColor: isDragging ? 'primary.main' : 'transparent',
-              transition: 'border-color 0.2s ease-in-out',
-            }}
-          >
-            {/* ドラッグ時のオーバーレイ */}
-            {isDragging && (
-              <Box
-                sx={{
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  backgroundColor: 'rgba(255, 255, 255, 0.85)',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: 1,
-                  zIndex: 10,
-                  borderRadius: 1,
-                  pointerEvents: 'none',
-                }}
-              >
-                <CloudUploadIcon sx={{ fontSize: 48, color: 'text.secondary' }} />
-                <Typography
-                  variant="h6"
-                  sx={{
-                    color: 'text.secondary',
-                    fontWeight: 500,
-                  }}
-                >
-                  ここにドロップ
-                </Typography>
-              </Box>
-            )}
-
+          <Card sx={{ p: 3 }}>
             <Box
+              onDragEnter={handleDragEnter}
+              onDragLeave={handleDragLeave}
+              onDragOver={handleDragOver}
+              onDrop={handleDrop}
               sx={{
                 p: 4,
                 border: '2px dashed',
-                borderColor: 'divider',
+                borderColor: isDragging ? 'primary.main' : 'divider',
                 borderRadius: 2,
-                backgroundColor: 'background.default',
+                backgroundColor: isDragging ? 'action.hover' : 'background.default',
                 textAlign: 'center',
                 cursor: 'pointer',
                 transition: 'all 0.2s ease-in-out',
+                position: 'relative',
                 '&:hover': {
                   borderColor: 'primary.main',
                   backgroundColor: 'action.hover',
@@ -539,6 +581,38 @@ export function ProcessPage() {
               }}
               onClick={() => pdfInputRef.current?.click()}
             >
+              {/* ドラッグ時のオーバーレイ */}
+              {isDragging && (
+                <Box
+                  sx={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 1,
+                    zIndex: 10,
+                    borderRadius: 1,
+                    pointerEvents: 'none',
+                  }}
+                >
+                  <CloudUploadIcon sx={{ fontSize: 48, color: 'primary.main' }} />
+                  <Typography
+                    variant="h6"
+                    sx={{
+                      color: 'primary.main',
+                      fontWeight: 500,
+                    }}
+                  >
+                    ここにドロップ
+                  </Typography>
+                </Box>
+              )}
               <CloudUploadIcon sx={{ fontSize: 64, color: 'primary.main', mb: 2 }} />
               <Typography variant="h6" gutterBottom>
                 PDFファイルをドラッグ&ドロップ
@@ -584,11 +658,11 @@ export function ProcessPage() {
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
             {/* 取引先情報（判別できた場合） */}
             {detectionResult?.company && (
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <Typography variant="h6" color="text.secondary" sx={{ fontWeight: 400 }}>
+              <Box sx={{ display: { xs: 'block', sm: 'flex' }, alignItems: 'center', gap: 1 }}>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: { xs: 0.5, sm: 0 } }}>
                   取引先:
                 </Typography>
-                <Typography variant="h6">
+                <Typography variant="body1" sx={{ fontWeight: 500 }}>
                   {detectionResult.company.display_name}
                 </Typography>
               </Box>
@@ -644,7 +718,7 @@ export function ProcessPage() {
               {/* ヘッダー */}
               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2, flexWrap: 'wrap', gap: 1 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
-                  <Typography variant="h6">アップロードファイル</Typography>
+                  <Typography variant="h6" sx={{ fontSize: { xs: '1rem', sm: '1.125rem', lg: '1.25rem' } }}>アップロードファイル</Typography>
                   <Tooltip title="ファイル名に「見積」「請求」「請書」「納品」が含まれていると自動判別されます">
                     <HelpOutlineIcon fontSize="small" color="action" />
                   </Tooltip>
@@ -679,7 +753,7 @@ export function ProcessPage() {
                 )}
 
               {/* スロット一覧 */}
-              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2 }}>
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2, minWidth: 0 }}>
                 {pdfSlots.map((slot) => (
                   <Paper
                     key={slot.type}
@@ -690,6 +764,8 @@ export function ProcessPage() {
                       borderWidth: 2,
                       backgroundColor:
                         slot.status === 'uploaded' ? 'success.50' : 'warning.50',
+                      minWidth: 0,
+                      overflow: 'hidden',
                     }}
                   >
                     <Box
@@ -781,52 +857,7 @@ export function ProcessPage() {
 
             {/* Excelアップロードカード（初回のみ） */}
             {state === 'excel_required' && (
-              <Card
-                onDragEnter={handleExcelDragEnter}
-                onDragLeave={handleExcelDragLeave}
-                onDragOver={handleExcelDragOver}
-                onDrop={handleExcelDrop}
-                sx={{
-                  p: 3,
-                  position: 'relative',
-                  border: '2px solid',
-                  borderColor: isExcelDragging ? 'primary.main' : 'transparent',
-                  transition: 'border-color 0.2s ease-in-out',
-                }}
-              >
-                {/* ドラッグ時のオーバーレイ */}
-                {isExcelDragging && (
-                  <Box
-                    sx={{
-                      position: 'absolute',
-                      top: 0,
-                      left: 0,
-                      right: 0,
-                      bottom: 0,
-                      backgroundColor: 'rgba(255, 255, 255, 0.85)',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: 1,
-                      zIndex: 10,
-                      borderRadius: 1,
-                      pointerEvents: 'none',
-                    }}
-                  >
-                    <CloudUploadIcon sx={{ fontSize: 48, color: 'text.secondary' }} />
-                    <Typography
-                      variant="h6"
-                      sx={{
-                        color: 'text.secondary',
-                        fontWeight: 500,
-                      }}
-                    >
-                      ここにドロップ
-                    </Typography>
-                  </Box>
-                )}
-
+              <Card sx={{ p: 3 }}>
                 <Typography variant="h6" gutterBottom>
                   Excelテンプレートのアップロード
                 </Typography>
@@ -837,15 +868,20 @@ export function ProcessPage() {
                 </Typography>
 
                 <Box
+                  onDragEnter={handleExcelDragEnter}
+                  onDragLeave={handleExcelDragLeave}
+                  onDragOver={handleExcelDragOver}
+                  onDrop={handleExcelDrop}
                   sx={{
                     p: 4,
                     border: '2px dashed',
-                    borderColor: 'divider',
+                    borderColor: isExcelDragging ? 'primary.main' : 'divider',
                     borderRadius: 2,
-                    backgroundColor: 'background.default',
+                    backgroundColor: isExcelDragging ? 'action.hover' : 'background.default',
                     textAlign: 'center',
                     cursor: 'pointer',
                     transition: 'all 0.2s ease-in-out',
+                    position: 'relative',
                     '&:hover': {
                       borderColor: 'primary.main',
                       backgroundColor: 'action.hover',
@@ -853,6 +889,38 @@ export function ProcessPage() {
                   }}
                   onClick={() => excelInputRef.current?.click()}
                 >
+                  {/* ドラッグ時のオーバーレイ */}
+                  {isExcelDragging && (
+                    <Box
+                      sx={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: 1,
+                        zIndex: 10,
+                        borderRadius: 1,
+                        pointerEvents: 'none',
+                      }}
+                    >
+                      <CloudUploadIcon sx={{ fontSize: 48, color: 'primary.main' }} />
+                      <Typography
+                        variant="h6"
+                        sx={{
+                          color: 'primary.main',
+                          fontWeight: 500,
+                        }}
+                      >
+                        ここにドロップ
+                      </Typography>
+                    </Box>
+                  )}
                   <CloudUploadIcon sx={{ fontSize: 64, color: 'primary.main', mb: 2 }} />
                   <Typography variant="h6" gutterBottom>
                     Excelファイルをドラッグ&ドロップ
@@ -880,70 +948,57 @@ export function ProcessPage() {
 
             {/* Excelテンプレート表示（アップロード済み・ready状態） */}
             {state === 'ready' && excelUploaded && excelFile && (
-              <Card
-                onDragEnter={handleExcelDragEnter}
-                onDragLeave={handleExcelDragLeave}
-                onDragOver={handleExcelDragOver}
-                onDrop={handleExcelDrop}
-                sx={{
-                  p: 3,
-                  position: 'relative',
-                  border: '2px solid',
-                  borderColor: isExcelDragging ? 'primary.main' : 'transparent',
-                  transition: 'border-color 0.2s ease-in-out',
-                }}
-              >
-                {/* ドラッグ時のオーバーレイ */}
-                {isExcelDragging && (
-                  <Box
-                    sx={{
-                      position: 'absolute',
-                      top: 0,
-                      left: 0,
-                      right: 0,
-                      bottom: 0,
-                      backgroundColor: 'rgba(255, 255, 255, 0.85)',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: 1,
-                      zIndex: 10,
-                      borderRadius: 1,
-                      pointerEvents: 'none',
-                    }}
-                  >
-                    <CloudUploadIcon sx={{ fontSize: 48, color: 'text.secondary' }} />
-                    <Typography
-                      variant="h6"
-                      sx={{
-                        color: 'text.secondary',
-                        fontWeight: 500,
-                      }}
-                    >
-                      ここにドロップ
-                    </Typography>
-                  </Box>
-                )}
-
+              <Card sx={{ p: 3 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2, flexWrap: 'wrap', gap: 1 }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <Typography variant="h6">Excelテンプレート</Typography>
-                    <Typography variant="body2" color="text.secondary" sx={{ ml: 1 }}>
-                      ドラッグ&ドロップで差し替え可能
-                    </Typography>
-                  </Box>
+                  <Typography variant="h6">Excelテンプレート</Typography>
                   <Chip label="OK" size="small" color="success" />
                 </Box>
                 <Paper
+                  onDragEnter={handleExcelDragEnter}
+                  onDragLeave={handleExcelDragLeave}
+                  onDragOver={handleExcelDragOver}
+                  onDrop={handleExcelDrop}
                   variant="outlined"
                   sx={{
                     p: 2,
                     borderColor: 'success.main',
                     borderWidth: 2,
                     backgroundColor: 'success.50',
+                    position: 'relative',
                   }}
                 >
+                  {/* ドラッグ時のオーバーレイ */}
+                  {isExcelDragging && (
+                    <Box
+                      sx={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: 1,
+                        zIndex: 10,
+                        borderRadius: 1,
+                        pointerEvents: 'none',
+                      }}
+                    >
+                      <CloudUploadIcon sx={{ fontSize: 40, color: 'primary.main' }} />
+                      <Typography
+                        variant="body1"
+                        sx={{
+                          color: 'primary.main',
+                          fontWeight: 500,
+                        }}
+                      >
+                        ここにドロップ
+                      </Typography>
+                    </Box>
+                  )}
                   <Box
                     sx={{
                       display: 'flex',
@@ -978,6 +1033,9 @@ export function ProcessPage() {
                       <CloseIcon fontSize="small" />
                     </IconButton>
                   </Box>
+                  <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+                    ドラッグ&ドロップで差し替え可能
+                  </Typography>
                 </Paper>
                 <input
                   ref={excelInputRef}
@@ -992,8 +1050,11 @@ export function ProcessPage() {
             {/* 処理実行ボタン */}
             {state === 'ready' && (
               <Box sx={{ textAlign: 'center' }}>
-                <Alert severity="success" icon={<CheckCircleIcon />} sx={{ mb: 2 }}>
-                  すべてのファイルが揃いました。処理を実行できます。
+                <Alert severity="success" icon={<CheckCircleIcon />} sx={{ mb: 2, textAlign: 'left' }}>
+                  すべてのファイルが揃いました。
+                  <Box component="span" sx={{ display: { xs: 'block', sm: 'inline' } }}>
+                    処理を実行できます。
+                  </Box>
                 </Alert>
                 <Button
                   variant="contained"
@@ -1155,6 +1216,29 @@ export function ProcessPage() {
             {snackbar.message}
           </Alert>
         </Snackbar>
+
+        {/* ナビゲーションブロック用ダイアログ */}
+        <Dialog
+          open={showLeaveDialog}
+          onClose={handleLeaveCancel}
+        >
+          <DialogTitle>このページから移動しますか？</DialogTitle>
+          <DialogContent>
+            <DialogContentText>
+              処理中のデータが失われます。
+              <br />
+              本当に移動しますか？
+            </DialogContentText>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={handleLeaveCancel} variant="outlined" color="primary">
+              キャンセル
+            </Button>
+            <Button onClick={handleLeaveConfirm} variant="contained" color="primary">
+              このページから移動する
+            </Button>
+          </DialogActions>
+        </Dialog>
       </Box>
     </AuthenticatedLayout>
   )

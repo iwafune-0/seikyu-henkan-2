@@ -25,8 +25,8 @@ let mockCompanies: Company[] = [
   },
   {
     id: '2',
-    name: 'オフビートワークス',
-    display_name: '株式会社オフビートワークス 御中',
+    name: 'オフ・ビート・ワークス',
+    display_name: '株式会社オフ・ビート・ワークス 御中',
     is_active: true,
     last_processed_at: '2025-10-08',
     template_excel: 'offbeat_template.xlsx',

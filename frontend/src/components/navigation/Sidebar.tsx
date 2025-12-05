@@ -2,6 +2,7 @@ import { Link, useLocation } from 'react-router-dom'
 import { FileText, History, Users, Building2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/stores/auth'
+import { useNavigationStore } from '@/stores/navigation'
 
 interface NavItem {
   to: string
@@ -13,6 +14,14 @@ interface NavItem {
 export function Sidebar() {
   const location = useLocation()
   const { user } = useAuthStore()
+  const { isBlocked, onNavigationAttempt } = useNavigationStore()
+
+  const handleNavClick = (e: React.MouseEvent, to: string) => {
+    if (isBlocked && location.pathname !== to) {
+      e.preventDefault()
+      onNavigationAttempt?.(to)
+    }
+  }
 
   const navItems: NavItem[] = [
     {
@@ -51,6 +60,7 @@ export function Sidebar() {
           <Link
             key={item.to}
             to={item.to}
+            onClick={(e) => handleNavClick(e, item.to)}
             className={cn(
               'flex items-center gap-3 px-4 py-3 rounded-md transition-colors',
               isActive

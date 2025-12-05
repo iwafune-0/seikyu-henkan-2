@@ -36,6 +36,8 @@ import {
   Typography,
   Alert,
   Snackbar,
+  useMediaQuery,
+  useTheme,
   type SelectChangeEvent,
 } from '@mui/material'
 import { PersonAdd as PersonAddIcon } from '@mui/icons-material'
@@ -45,6 +47,8 @@ import { useAuthStore } from '@/stores/auth'
 import type { User, UserRole } from '@/types'
 
 export function UsersPage() {
+  const theme = useTheme()
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'))
   const { user: currentUser, setUser } = useAuthStore()
   const [users, setUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(false)
@@ -445,9 +449,15 @@ export function UsersPage() {
             <Typography sx={{ fontWeight: 'bold', mb: 2 }}>{deleteTarget?.email}</Typography>
             <Alert severity="error">この操作は取り消せません</Alert>
           </DialogContent>
-          <DialogActions>
-            <Button onClick={handleCloseDeleteModal}>キャンセル</Button>
-            <Button onClick={handleDeleteUser} color="error" variant="contained" disabled={loading}>
+          <DialogActions
+            sx={{
+              flexDirection: isMobile ? 'column-reverse' : 'row',
+              gap: isMobile ? 1 : 0,
+              '& > button': isMobile ? { width: '100%' } : {},
+            }}
+          >
+            <Button onClick={handleCloseDeleteModal} fullWidth={isMobile}>キャンセル</Button>
+            <Button onClick={handleDeleteUser} color="error" variant="contained" disabled={loading} fullWidth={isMobile}>
               削除
             </Button>
           </DialogActions>

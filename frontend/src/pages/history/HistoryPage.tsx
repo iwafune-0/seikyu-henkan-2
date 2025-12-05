@@ -320,6 +320,7 @@ export function HistoryPage() {
           sx={{
             fontSize: { xs: '1.125rem', sm: '1.25rem', lg: '1.5rem' },
             fontWeight: 600,
+            pt: { xs: 0.5, sm: 1 },
             mb: 3,
           }}
         >
@@ -638,15 +639,15 @@ export function HistoryPage() {
           fullWidth
         >
           <DialogTitle>
-            処理詳細 - {getCompanyDisplayName(selectedRecord?.company_name)}
+            処理詳細
           </DialogTitle>
           <DialogContent sx={{ pt: 2, px: 3, pb: 3 }}>
             {selectedRecord && (
               <Box>
                 {/* 処理情報 */}
                 <Box sx={{ mb: 2 }}>
-                  <Box sx={{ mb: 2 }}>
-                    <Typography variant="body2" color="text.secondary" gutterBottom>
+                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                    <Typography variant="body2" color="text.secondary" sx={{ width: 60, flexShrink: 0 }}>
                       取引先
                     </Typography>
                     <Typography variant="body1" sx={getCompanyStyle(selectedRecord.company_name)}>
@@ -654,15 +655,15 @@ export function HistoryPage() {
                     </Typography>
                   </Box>
 
-                  <Box sx={{ mb: 2 }}>
-                    <Typography variant="body2" color="text.secondary" gutterBottom>
+                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                    <Typography variant="body2" color="text.secondary" sx={{ width: 60, flexShrink: 0 }}>
                       処理日
                     </Typography>
                     <Typography variant="body1">{selectedRecord.process_date}</Typography>
                   </Box>
 
-                  <Box sx={{ mb: 2 }}>
-                    <Typography variant="body2" color="text.secondary" gutterBottom>
+                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                    <Typography variant="body2" color="text.secondary" sx={{ width: 60, flexShrink: 0 }}>
                       処理者
                     </Typography>
                     <Typography variant="body1" sx={getUserStyle(selectedRecord.user_email)}>

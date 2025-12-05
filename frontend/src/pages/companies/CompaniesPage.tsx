@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import {
   Box,
   Card,
@@ -10,6 +10,7 @@ import {
   TableRow,
   Chip,
   Dialog,
+  DialogTitle,
   DialogContent,
   DialogActions,
   Button,
@@ -23,8 +24,16 @@ import {
   Alert,
   useMediaQuery,
   useTheme,
+  Paper,
+  IconButton,
 } from '@mui/material'
-import { CloudUpload, Description, Download as DownloadIcon } from '@mui/icons-material'
+import {
+  CloudUpload,
+  Download as DownloadIcon,
+  CheckCircle as CheckCircleIcon,
+  InsertDriveFile as InsertDriveFileIcon,
+  Close as CloseIcon,
+} from '@mui/icons-material'
 import { AuthenticatedLayout } from '@/components/layouts/AuthenticatedLayout'
 import type { Company } from '@/types'
 import {
@@ -49,8 +58,6 @@ function TabPanel(props: TabPanelProps) {
       hidden={value !== index}
       id={`company-tabpanel-${index}`}
       style={{
-        height: '350px',
-        overflowY: 'auto',
         paddingTop: '16px',
       }}
     >
@@ -84,6 +91,12 @@ export function CompaniesPage() {
 
   // File upload state
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [templateUploaded, setTemplateUploaded] = useState(false)
+
+  // Drag & drop state
+  const [isTemplateDragging, setIsTemplateDragging] = useState(false)
+  const templateDragCounterRef = useRef(0)
+  const templateInputRef = useRef<HTMLInputElement>(null)
 
   // Snackbar state
   const [snackbar, setSnackbar] = useState({
@@ -120,6 +133,7 @@ export function CompaniesPage() {
     setErrors({ name: false, display_name: false })
     setTabValue(0)
     setSelectedFile(null)
+    setTemplateUploaded(false)
     setModalOpen(true)
   }
 
@@ -139,12 +153,77 @@ export function CompaniesPage() {
     }
   }
 
+  // テンプレートファイル処理
+  const handleTemplateFile = useCallback(async (file: File) => {
+    if (!file.name.endsWith('.xlsx') && !file.name.endsWith('.xls')) {
+      showSnackbar('Excelファイルを選択してください', 'error')
+      return
+    }
+    if (!selectedCompany) return
+
+    // ファイル名に取引先名が含まれているか検証
+    const companyNameLower = selectedCompany.name.toLowerCase()
+    const fileNameLower = file.name.toLowerCase()
+    if (!fileNameLower.includes(companyNameLower)) {
+      showSnackbar(`ファイル名に「${selectedCompany.name}」が含まれている必要があります`, 'error')
+      return
+    }
+
+    setSelectedFile(file)
+    setTemplateUploaded(true)
+  }, [selectedCompany])
+
+  // ファイル選択ハンドラー
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (file) {
-      setSelectedFile(file)
+      handleTemplateFile(file)
     }
+    event.target.value = ''
   }
+
+  // テンプレート削除
+  const handleRemoveTemplate = useCallback(() => {
+    setSelectedFile(null)
+    setTemplateUploaded(false)
+    showSnackbar('テンプレートを削除しました', 'success')
+  }, [])
+
+  // ドラッグ&ドロップハンドラー
+  const handleTemplateDragEnter = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    templateDragCounterRef.current++
+    if (templateDragCounterRef.current === 1) {
+      setIsTemplateDragging(true)
+    }
+  }, [])
+
+  const handleTemplateDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    templateDragCounterRef.current--
+    if (templateDragCounterRef.current === 0) {
+      setIsTemplateDragging(false)
+    }
+  }, [])
+
+  const handleTemplateDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+  }, [])
+
+  const handleTemplateDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    templateDragCounterRef.current = 0
+    setIsTemplateDragging(false)
+
+    const file = e.dataTransfer.files[0]
+    if (file) {
+      handleTemplateFile(file)
+    }
+  }, [handleTemplateFile])
 
   const handleDownloadTemplate = async () => {
     if (!selectedCompany) return
@@ -217,8 +296,17 @@ export function CompaniesPage() {
 
   return (
     <AuthenticatedLayout>
-      <Box sx={{ p: 3 }}>
-        <Typography variant="h5" sx={{ mb: 3, fontWeight: 500 }}>
+      <Box>
+        <Typography
+          variant="h4"
+          component="h1"
+          sx={{
+            fontSize: { xs: '1.125rem', sm: '1.25rem', lg: '1.5rem' },
+            fontWeight: 600,
+            pt: { xs: 0.5, sm: 1 },
+            mb: 3,
+          }}
+        >
           取引先設定
         </Typography>
 
@@ -334,6 +422,7 @@ export function CompaniesPage() {
             },
           }}
         >
+          <DialogTitle>取引先詳細</DialogTitle>
           <DialogContent sx={{ pt: 2 }}>
             <Tabs
               value={tabValue}
@@ -398,97 +487,205 @@ export function CompaniesPage() {
 
             {/* Tab 2: Template */}
             <TabPanel value={tabValue} index={1}>
-              <Box sx={{ mb: 2 }}>
-                <Typography variant="body2" color="text.secondary" gutterBottom>
-                  現在のファイル
+              {/* 現在のテンプレート情報 */}
+              <Box sx={{ mb: 3 }}>
+                <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 600 }}>
+                  現在のテンプレート
                 </Typography>
-                <Box
-                  sx={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 0.5,
-                    cursor: selectedCompany?.template_filename ? 'pointer' : 'default',
-                    '&:hover': selectedCompany?.template_filename ? {
-                      opacity: 0.7,
-                    } : {},
-                  }}
-                  onClick={selectedCompany?.template_filename ? handleDownloadTemplate : undefined}
-                >
-                  {selectedCompany?.template_filename ? (
-                    <>
-                      <DownloadIcon sx={{ fontSize: 18, color: 'primary.main' }} />
-                      <Typography variant="body1">
+                {selectedCompany?.template_filename ? (
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 1,
+                      p: 1.5,
+                      bgcolor: 'grey.50',
+                      borderRadius: 1,
+                      cursor: 'pointer',
+                      '&:hover': { bgcolor: 'grey.100' },
+                    }}
+                    onClick={handleDownloadTemplate}
+                  >
+                    <DownloadIcon sx={{ fontSize: 20, color: 'primary.main' }} />
+                    <Box sx={{ flex: 1 }}>
+                      <Typography variant="body2">
                         {selectedCompany.template_filename}
                       </Typography>
-                    </>
-                  ) : (
-                    <Typography variant="body1">なし</Typography>
-                  )}
-                </Box>
-              </Box>
-
-              <Box sx={{ mb: 2 }}>
-                <Typography variant="body2" color="text.secondary" gutterBottom>
-                  更新日時
-                </Typography>
-                <Typography variant="body1">
-                  {selectedCompany?.template_updated_at
-                    ? new Date(
-                        selectedCompany.template_updated_at
-                      ).toLocaleString('ja-JP')
-                    : '-'}
-                </Typography>
-              </Box>
-
-              <Box sx={{ mb: 2 }}>
-                <Typography variant="body2" color="text.secondary" gutterBottom>
-                  更新者
-                </Typography>
-                <Typography variant="body1">
-                  {selectedCompany?.template_updated_by || '-'}
-                </Typography>
-              </Box>
-
-              <Box>
-                <Typography variant="body2" color="text.secondary" gutterBottom>
-                  テンプレート更新
-                </Typography>
-                <Box
-                  sx={{
-                    border: '2px dashed #e0e0e0',
-                    borderRadius: 1,
-                    p: 3,
-                    textAlign: 'center',
-                    cursor: 'pointer',
-                    bgcolor: selectedFile ? '#e8f5e9' : 'transparent',
-                    borderColor: selectedFile ? '#2e7d32' : '#e0e0e0',
-                    '&:hover': {
-                      borderColor: '#1976d2',
-                    },
-                  }}
-                  onClick={() => document.getElementById('template-upload')?.click()}
-                >
-                  <input
-                    id="template-upload"
-                    type="file"
-                    accept=".xlsx"
-                    style={{ display: 'none' }}
-                    onChange={handleFileSelect}
-                  />
-                  {selectedFile ? (
-                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1 }}>
-                      <Description color="success" />
-                      <Typography variant="body2">{selectedFile.name}</Typography>
-                    </Box>
-                  ) : (
-                    <>
-                      <CloudUpload sx={{ fontSize: 32, color: '#9e9e9e' }} />
-                      <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                        クリックしてファイルを選択
+                      <Typography variant="caption" color="text.secondary">
+                        {selectedCompany.template_updated_at
+                          ? `${new Date(selectedCompany.template_updated_at).toLocaleString('ja-JP')} / ${selectedCompany.template_updated_by || '-'}`
+                          : '-'}
                       </Typography>
-                    </>
+                    </Box>
+                  </Box>
+                ) : (
+                  <Typography variant="body2" color="text.secondary">
+                    テンプレートが登録されていません
+                  </Typography>
+                )}
+              </Box>
+
+              {/* テンプレート更新エリア */}
+              <Box
+                onDragEnter={handleTemplateDragEnter}
+                onDragLeave={handleTemplateDragLeave}
+                onDragOver={handleTemplateDragOver}
+                onDrop={handleTemplateDrop}
+              >
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+                    テンプレート更新
+                  </Typography>
+                  {templateUploaded && selectedFile && (
+                    <Chip label="OK" size="small" color="success" />
                   )}
                 </Box>
+
+
+                {/* アップロード済みの場合 */}
+                {templateUploaded && selectedFile ? (
+                  <Paper
+                    variant="outlined"
+                    sx={{
+                      p: 2,
+                      borderColor: 'success.main',
+                      borderWidth: 2,
+                      backgroundColor: 'success.50',
+                      position: 'relative',
+                    }}
+                  >
+                    {/* ドラッグ時のオーバーレイ */}
+                    {isTemplateDragging && (
+                      <Box
+                        sx={{
+                          position: 'absolute',
+                          top: 0,
+                          left: 0,
+                          right: 0,
+                          bottom: 0,
+                          backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: 1,
+                          zIndex: 10,
+                          borderRadius: 1,
+                          pointerEvents: 'none',
+                        }}
+                      >
+                        <CloudUpload sx={{ fontSize: 40, color: 'primary.main' }} />
+                        <Typography variant="body1" sx={{ color: 'primary.main', fontWeight: 500 }}>
+                          ここにドロップ
+                        </Typography>
+                      </Box>
+                    )}
+                    <Box
+                      sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 1,
+                        backgroundColor: 'background.paper',
+                        p: 1,
+                        borderRadius: 1,
+                      }}
+                    >
+                      <CheckCircleIcon fontSize="small" color="success" />
+                      <InsertDriveFileIcon fontSize="small" color="action" />
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          flex: 1,
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {selectedFile.name}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary" sx={{ mr: 1 }}>
+                        {(selectedFile.size / 1024).toFixed(1)} KB
+                      </Typography>
+                      <IconButton
+                        size="small"
+                        onClick={handleRemoveTemplate}
+                        sx={{ color: 'error.main' }}
+                      >
+                        <CloseIcon fontSize="small" />
+                      </IconButton>
+                    </Box>
+                    <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+                      ドラッグ&ドロップで差し替え可能
+                    </Typography>
+                  </Paper>
+                ) : (
+                  /* 未アップロードの場合：ドロップゾーン */
+                  <Box
+                    sx={{
+                      p: 3,
+                      border: '2px dashed',
+                      borderColor: isTemplateDragging ? 'primary.main' : 'divider',
+                      borderRadius: 1,
+                      backgroundColor: isTemplateDragging ? 'action.hover' : 'background.default',
+                      textAlign: 'center',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease-in-out',
+                      position: 'relative',
+                      '&:hover': {
+                        borderColor: 'primary.main',
+                        backgroundColor: 'action.hover',
+                      },
+                    }}
+                    onClick={() => templateInputRef.current?.click()}
+                  >
+                    {/* ドラッグ時のオーバーレイ */}
+                    {isTemplateDragging && (
+                      <Box
+                        sx={{
+                          position: 'absolute',
+                          top: 0,
+                          left: 0,
+                          right: 0,
+                          bottom: 0,
+                          backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: 1,
+                          zIndex: 10,
+                          borderRadius: 1,
+                          pointerEvents: 'none',
+                        }}
+                      >
+                        <CloudUpload sx={{ fontSize: 40, color: 'primary.main' }} />
+                        <Typography variant="body1" sx={{ color: 'primary.main', fontWeight: 500 }}>
+                          ここにドロップ
+                        </Typography>
+                      </Box>
+                    )}
+                    <CloudUpload sx={{ fontSize: 40, color: 'text.secondary', mb: 1 }} />
+                    <Typography variant="body2" gutterBottom>
+                      Excelファイルをドラッグ&ドロップ
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" gutterBottom>
+                      または
+                    </Typography>
+                    <Button variant="outlined" size="small">
+                      ファイルを選択
+                    </Button>
+                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
+                      .xlsx, .xls形式 / ファイル名に「{selectedCompany?.name}」を含む
+                    </Typography>
+                  </Box>
+                )}
+                <input
+                  ref={templateInputRef}
+                  type="file"
+                  accept=".xlsx,.xls"
+                  hidden
+                  onChange={handleFileSelect}
+                />
               </Box>
             </TabPanel>
 
@@ -523,14 +720,14 @@ export function CompaniesPage() {
 明細の締め: 以下、余白
 
 ※ MVP版では読み取り専用。変更はコード修正が必要です。`
-                  : `※ オフビートワークス様の処理ルールはネクストビッツ様と異なります。
+                  : `※ オフ・ビート・ワークス様の処理ルールはネクストビッツ様と異なります。
 
 発行日: 前回+1ヶ月の1日
 発注金額: 請求書の合計金額
 件名: 見積書の件名
 数量: 見積書の数量
 単価: 見積書の単価
-宛名: 株式会社オフビートワークス 御中
+宛名: 株式会社オフ・ビート・ワークス 御中
 
 ※ MVP版では読み取り専用。変更はコード修正が必要です。`}
               </Box>
@@ -543,21 +740,15 @@ export function CompaniesPage() {
               bottom: 0,
               bgcolor: 'white',
               borderTop: '1px solid #e0e0e0',
-              flexDirection: isMobile ? 'column-reverse' : 'row',
-              gap: isMobile ? 1.5 : 1,
+              flexDirection: { xs: 'column-reverse', sm: 'row' },
+              gap: { xs: 1.5, sm: 1 },
+              '& > button': { width: { xs: '100%', sm: 'auto' } },
             }}
           >
-            <Button
-              onClick={handleCloseModal}
-              fullWidth={isMobile}
-            >
+            <Button onClick={handleCloseModal}>
               キャンセル
             </Button>
-            <Button
-              onClick={handleSave}
-              variant="contained"
-              fullWidth={isMobile}
-            >
+            <Button onClick={handleSave} variant="contained">
               保存
             </Button>
           </DialogActions>

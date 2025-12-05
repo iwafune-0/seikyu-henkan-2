@@ -75,8 +75,8 @@ const mockCompanies: Company[] = [
   },
   {
     id: '2',
-    name: 'オフビートワークス',
-    display_name: '株式会社オフビートワークス',
+    name: 'オフ・ビート・ワークス',
+    display_name: '株式会社オフ・ビート・ワークス',
     is_active: true,
     last_processed_at: undefined, // 初回処理なし
     template_excel: undefined,
@@ -122,7 +122,7 @@ export function detectPdfType(filename: string): PdfType | null {
  * - パターン: TRR-YY-MMM_XXX.pdf
  * - 判別条件: "TRR-" で始まる
  *
- * 【オフビートワークス様】
+ * 【オフ・ビート・ワークス様】
  * - パターン: NNNNNNN-XXX-offbeat-to-terra-YYYYMM.pdf
  * - 判別条件: "offbeat-to-terra" を含む
  *
@@ -133,7 +133,7 @@ export function detectCompanyFromFilename(filename: string): 'nextbits' | 'offbe
   if (filename.startsWith('TRR-')) {
     return 'nextbits'
   }
-  // オフビートワークス: "offbeat-to-terra" を含む
+  // オフ・ビート・ワークス: "offbeat-to-terra" を含む
   if (filename.includes('offbeat-to-terra')) {
     return 'offbeat'
   }
@@ -267,7 +267,7 @@ function runPreCheck(slots: PdfSlot[], company: Company | null): PreCheckResult 
   }
 
   // 警告（モック）
-  if (company?.name === 'オフビートワークス') {
+  if (company?.name === 'オフ・ビート・ワークス') {
     warnings.push('この取引先は初回処理です。Excelテンプレートのアップロードが必要です。')
   }
 
@@ -325,8 +325,8 @@ export async function detectAndPreCheck(
           if (newCompany && newCompany !== existingCompany) {
             throw new Error(
               `異なる取引先のファイルが混在しています。\n` +
-              `既存ファイルの取引先: ${existingCompany === 'nextbits' ? '株式会社ネクストビッツ' : '株式会社オフビートワークス'}\n` +
-              `追加しようとしているファイルの取引先: ${newCompany === 'nextbits' ? '株式会社ネクストビッツ' : '株式会社オフビートワークス'}`
+              `既存ファイルの取引先: ${existingCompany === 'nextbits' ? '株式会社ネクストビッツ' : '株式会社オフ・ビート・ワークス'}\n` +
+              `追加しようとしているファイルの取引先: ${newCompany === 'nextbits' ? '株式会社ネクストビッツ' : '株式会社オフ・ビート・ワークス'}`
             )
           }
         }
@@ -396,7 +396,7 @@ export async function uploadSinglePdf(
       `取引先を判別できないファイルです。\n` +
       `ファイル名は以下のいずれかの形式にしてください:\n` +
       `- ネクストビッツ様: TRR-YY-MMM_XXX.pdf\n` +
-      `- オフビートワークス様: XXX-offbeat-to-terra-YYYYMM.pdf`
+      `- オフ・ビート・ワークス様: XXX-offbeat-to-terra-YYYYMM.pdf`
     )
   }
 
@@ -410,8 +410,8 @@ export async function uploadSinglePdf(
     if (existingCompany && existingCompany !== newFileCompany) {
       throw new Error(
         `異なる取引先のファイルが混在しています。\n` +
-        `既存ファイルの取引先: ${existingCompany === 'nextbits' ? '株式会社ネクストビッツ' : '株式会社オフビートワークス'}\n` +
-        `追加しようとしているファイルの取引先: ${newFileCompany === 'nextbits' ? '株式会社ネクストビッツ' : '株式会社オフビートワークス'}`
+        `既存ファイルの取引先: ${existingCompany === 'nextbits' ? '株式会社ネクストビッツ' : '株式会社オフ・ビート・ワークス'}\n` +
+        `追加しようとしているファイルの取引先: ${newFileCompany === 'nextbits' ? '株式会社ネクストビッツ' : '株式会社オフ・ビート・ワークス'}`
       )
     }
   }
@@ -478,7 +478,7 @@ function detectCompanyFromExcelFilename(filename: string): 'nextbits' | 'offbeat
   if (filename.includes('ネクストビッツ')) {
     return 'nextbits'
   }
-  // オフビートワークス: ファイル名に「オフ・ビート・ワークス」を含む
+  // オフ・ビート・ワークス: ファイル名に「オフ・ビート・ワークス」を含む
   if (filename.includes('オフ・ビート・ワークス')) {
     return 'offbeat'
   }
@@ -526,7 +526,7 @@ export async function uploadExcelTemplate(
 
   // 取引先が一致しない場合
   if (detectedCompany !== expectedCompany) {
-    const uploadedCompanyName = detectedCompany === 'nextbits' ? '株式会社ネクストビッツ' : '株式会社オフビートワークス'
+    const uploadedCompanyName = detectedCompany === 'nextbits' ? '株式会社ネクストビッツ' : '株式会社オフ・ビート・ワークス'
     throw new Error(
       `選択したファイルは「${uploadedCompanyName}」のファイルです。\n` +
       `「${expectedCompanyName}」のExcelファイルをアップロードしてください。`
@@ -615,7 +615,7 @@ export async function downloadResultFile(
 
 /**
  * 処理結果をZIPでダウンロード（モック）
- * ZIP名: 〇〇_YYMM.zip（例: オフビートワークス_2512.zip）
+ * ZIP名: 〇〇_YYMM.zip（例: オフ・ビート・ワークス_2512.zip）
  */
 export async function downloadResultZip(result: ProcessResult): Promise<void> {
   // モック遅延

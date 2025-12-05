@@ -109,7 +109,7 @@ export function AuthenticatedLayout({ children }: AuthenticatedLayoutProps) {
         )}
 
         {/* Main Content */}
-        <main className="flex-1 p-4 md:p-6">
+        <main className="flex-1 p-4 md:p-6 overflow-x-hidden min-w-0">
           {children}
         </main>
       </div>
