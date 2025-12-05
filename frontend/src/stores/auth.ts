@@ -5,6 +5,19 @@ import { UsersService } from '@/services/mock/usersService'
 
 const AUTH_STORAGE_KEY = 'auth-storage'
 
+// Supabaseエラーメッセージを日本語に変換
+const translateAuthError = (message: string): string => {
+  const errorMap: Record<string, string> = {
+    'Invalid login credentials': 'メールアドレスまたはパスワードが正しくありません',
+    'Email not confirmed': 'メールアドレスが確認されていません',
+    'User not found': 'ユーザーが見つかりません',
+    'Invalid email or password': 'メールアドレスまたはパスワードが正しくありません',
+    'Too many requests': 'リクエストが多すぎます。しばらく待ってから再試行してください',
+    'Email rate limit exceeded': 'メール送信の制限に達しました。しばらく待ってから再試行してください',
+  }
+  return errorMap[message] || 'ログインに失敗しました。もう一度お試しください'
+}
+
 // ストレージヘルパー
 const saveAuthState = (state: { user: User | null; isAuthenticated: boolean }, remember: boolean) => {
   const data = JSON.stringify({ state: { user: state.user, isAuthenticated: state.isAuthenticated } })
@@ -114,14 +127,27 @@ export const useAuthStore = create<AuthState>()((set) => ({
             password,
           })
 
-          if (error) throw error
+          if (error) {
+            throw new Error(translateAuthError(error.message))
+          }
 
           if (data.user) {
+            // profilesテーブルからロール情報を取得
+            const { data: profile, error: profileError } = await supabase
+              .from('profiles')
+              .select('role')
+              .eq('id', data.user.id)
+              .single()
+
+            if (profileError) {
+              console.error('Profile fetch error:', profileError)
+            }
+
             // SupabaseのユーザーデータをアプリケーションのUser型に変換
             const user: User = {
               id: data.user.id,
               email: data.user.email || '',
-              role: (data.user.user_metadata?.role as 'admin' | 'user') || 'user',
+              role: (profile?.role as 'admin' | 'user') || 'user',
               created_at: data.user.created_at || new Date().toISOString(),
             }
             const authState = {
@@ -165,10 +191,21 @@ export const useAuthStore = create<AuthState>()((set) => ({
       const { data: { session } } = await supabase.auth.getSession()
 
       if (session?.user) {
+        // profilesテーブルからロール情報を取得
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', session.user.id)
+          .single()
+
+        if (profileError) {
+          console.error('Profile fetch error:', profileError)
+        }
+
         const user: User = {
           id: session.user.id,
           email: session.user.email || '',
-          role: (session.user.user_metadata?.role as 'admin' | 'user') || 'user',
+          role: (profile?.role as 'admin' | 'user') || 'user',
           created_at: session.user.created_at || new Date().toISOString(),
         }
         set({
