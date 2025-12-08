@@ -589,6 +589,8 @@ export async function executeProcess(
       estimate: estimateData,
       invoice: invoiceData,
       order_confirmation: orderConfirmationData,
+      // ネクストビッツの発行日取得用に見積書ファイル名を渡す
+      estimate_filename: estimateSlot.file.filename,
     }
 
     const excelResultJson = await runPythonScript('excel_editor.py', [
@@ -604,7 +606,7 @@ export async function executeProcess(
       throw new Error(`Excel編集エラー: ${excelResult.error}`)
     }
 
-    // 4. PDF生成（LibreOffice）
+    // 4. PDF生成（LibreOffice）- 注文書シートと検収書シートを個別にPDF変換
     const outputPdfDir = tmpDir
     const pdfResultJson = await runPythonScript('pdf_generator.py', [
       outputExcelPath,
@@ -619,16 +621,38 @@ export async function executeProcess(
 
     // 5. 生成ファイルを読み込み
     const excelBuffer = await fs.readFile(outputExcelPath)
-    const orderPdfBuffer = await fs.readFile(pdfResult.pdf_path)
-    // 注文書PDFと検収書PDFは同じファイル（MVPでは1つのPDFを2つとして扱う）
-    const inspectionPdfBuffer = orderPdfBuffer
+    const orderPdfBuffer = await fs.readFile(pdfResult.order_pdf_path)
+    const inspectionPdfBuffer = await fs.readFile(pdfResult.inspection_pdf_path)
 
     // 6. ファイル名生成（処理ルール確定版: 2025-12-08）
-    // YYMM形式（年下2桁 + 月2桁）
-    const now = new Date()
-    const yearMonth = `${String(now.getFullYear()).slice(-2)}${String(
-      now.getMonth() + 1
-    ).padStart(2, '0')}`
+    // YYMM形式（年下2桁 + 月2桁）- 見積書ファイル名から処理対象月を抽出
+    let yearMonth = ''
+
+    // ネクストビッツ: TRR-YY-MMM パターン（例: TRR-25-007 → 2507）
+    const nextbitsMatch = estimateSlot.file.filename.match(/TRR-(\d{2})-(\d{3})/)
+    if (nextbitsMatch) {
+      const year = nextbitsMatch[1]  // YY
+      const month = String(parseInt(nextbitsMatch[2], 10)).padStart(2, '0')  // MMM → MM（007 → 07）
+      yearMonth = `${year}${month}`
+    }
+
+    // オフ・ビート・ワークス: YYYYMM パターン（例: 1951020-見積-offbeat-to-terra-202507.pdf → 2507）
+    if (!yearMonth) {
+      const offbeatMatch = estimateSlot.file.filename.match(/(\d{4})(\d{2})\.pdf$/)
+      if (offbeatMatch) {
+        const year = offbeatMatch[1].slice(-2)  // YYYY → YY
+        const month = offbeatMatch[2]  // MM
+        yearMonth = `${year}${month}`
+      }
+    }
+
+    // フォールバック: 現在日付
+    if (!yearMonth) {
+      const now = new Date()
+      yearMonth = `${String(now.getFullYear()).slice(-2)}${String(
+        now.getMonth() + 1
+      ).padStart(2, '0')}`
+    }
 
     // 出力ファイル名フォーマット:
     // - Excel: テラ【株式会社{取引先名}御中】注文検収書_{YYMM}.xlsx
@@ -666,7 +690,8 @@ export async function executeProcess(
       fs.unlink(deliveryPath),
       fs.unlink(templatePath),
       fs.unlink(outputExcelPath),
-      fs.unlink(pdfResult.pdf_path),
+      fs.unlink(pdfResult.order_pdf_path),
+      fs.unlink(pdfResult.inspection_pdf_path),
     ]).catch((error) => {
       console.error('一時ファイル削除エラー:', error)
     })
