@@ -151,9 +151,10 @@ export async function downloadZipController(req: Request, res: Response): Promis
       return
     }
 
-    // ZIPファイル名の生成（最初のファイル名から会社名と日付を抽出）
-    const firstFilename = result.files[0].filename
-    const zipFilename = firstFilename.replace(/\.(xlsx|pdf)$/, '.zip')
+    // ZIPファイル名の生成: {取引先名}_{YYMM}.zip
+    const processDate = new Date(result.processDate)
+    const yearMonth = `${String(processDate.getFullYear()).slice(-2)}${String(processDate.getMonth() + 1).padStart(2, '0')}`
+    const zipFilename = `${result.companyName}_${yearMonth}.zip`
 
     // レスポンスヘッダー設定
     res.setHeader('Content-Type', 'application/zip')

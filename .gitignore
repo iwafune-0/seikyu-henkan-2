@@ -45,3 +45,7 @@ env/
 *.db
 *.sqlite
 *.sqlite3
+
+# Sample data (not for version control)
+データ/
+キャプチャ/

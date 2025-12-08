@@ -179,6 +179,8 @@ export async function getFilesForZip(
   historyId: string
 ): Promise<{
   status: string
+  companyName: string
+  processDate: string
   files: Array<{ buffer: Buffer; filename: string }>
 } | null> {
   const { data, error } = await supabase
@@ -190,15 +192,9 @@ export async function getFilesForZip(
       order_pdf_filename,
       inspection_pdf,
       inspection_pdf_filename,
-      input_pdf_1,
-      input_pdf_1_filename,
-      input_pdf_2,
-      input_pdf_2_filename,
-      input_pdf_3,
-      input_pdf_3_filename,
-      input_pdf_4,
-      input_pdf_4_filename,
-      status
+      status,
+      process_date,
+      companies:company_id(name)
     `)
     .eq('id', historyId)
     .single()
@@ -213,22 +209,23 @@ export async function getFilesForZip(
     throw new Error('ファイルの取得に失敗しました')
   }
 
+  // 取引先名と処理日を取得
+  const companies = data.companies as unknown as { name: string } | null
+  const companyName = companies?.name || ''
+  const processDate = data.process_date as string
+
   // ステータスがerrorの場合はダウンロード不可
   if (data.status === 'error') {
-    return { status: 'error', files: [] }
+    return { status: 'error', companyName, processDate, files: [] }
   }
 
   const files: Array<{ buffer: Buffer; filename: string }> = []
 
-  // 各ファイルを配列に追加
+  // 各ファイルを配列に追加（出力ファイル3つのみ）
   const fileTypes: Array<{ data: keyof typeof data; filename: keyof typeof data }> = [
     { data: 'excel_file', filename: 'excel_filename' },
     { data: 'order_pdf', filename: 'order_pdf_filename' },
     { data: 'inspection_pdf', filename: 'inspection_pdf_filename' },
-    { data: 'input_pdf_1', filename: 'input_pdf_1_filename' },
-    { data: 'input_pdf_2', filename: 'input_pdf_2_filename' },
-    { data: 'input_pdf_3', filename: 'input_pdf_3_filename' },
-    { data: 'input_pdf_4', filename: 'input_pdf_4_filename' },
   ]
 
   for (const fileType of fileTypes) {
@@ -243,5 +240,5 @@ export async function getFilesForZip(
     }
   }
 
-  return { status: 'success', files }
+  return { status: 'success', companyName, processDate, files }
 }
