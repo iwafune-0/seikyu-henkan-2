@@ -54,19 +54,19 @@ def edit_nextbits_excel(wb: openpyxl.Workbook, data: Dict[str, Any]) -> None:
     - シート: 注文書, 検収書
 
     注文書シート:
-    - AC2: 発行日（編集: 1ヶ月加算して当月1日）
+    - AC2: 発行日（編集: 見積書ファイル名から処理対象月を抽出し、当月1日を入力）
     - AC3: 注文番号（数式: 自動計算）
-    - R17: 数量（編集: 見積書から）
-    - T17: 単価（編集: 見積書から）
-    - W17: 金額（数式: 自動計算）
+    - R18: 数量（編集: 見積書から）
+    - T18: 単価（編集: 見積書から）
+    - W18: 金額（数式: 自動計算）
     - AA17: 摘要（数式: 自動計算）
 
     検収書シート:
     - AC4: 検収番号（数式: 自動計算）
     - AC5: 検収日（数式: 自動計算）
-    - R19: 数量（編集: 見積書から）
-    - T19: 単価（編集: 見積書から）
-    - W19: 金額（数式: 自動計算）
+    - R20: 数量（編集: 見積書から）
+    - T20: 単価（編集: 見積書から）
+    - W20: 金額（数式: 自動計算）
     - AA19: 摘要（数式: 自動計算）
     """
     ws_order = wb["注文書"]
@@ -79,32 +79,41 @@ def edit_nextbits_excel(wb: openpyxl.Workbook, data: Dict[str, Any]) -> None:
 
     # === 注文書シート編集 ===
 
-    # 発行日を取得して1ヶ月加算
-    previous_date = ws_order['AC2'].value
-    if previous_date and isinstance(previous_date, datetime):
-        # 1ヶ月加算して1日に設定
-        new_date = (previous_date + relativedelta(months=1)).replace(day=1)
-    else:
-        # 前回日付が取得できない場合は今月の1日
-        new_date = datetime.now().replace(day=1)
+    # 発行日: 見積書ファイル名から処理対象月を抽出（TRR-YY-MMM → 20YY年MM月1日）
+    # estimate_filenameはprocessServiceから渡される
+    estimate_filename = data.get('estimate_filename', '')
+    issue_date = None
+
+    if estimate_filename:
+        # ファイル名パターン: TRR-YY-MMM_お見積書.pdf（例: TRR-25-007 → 2025年7月1日）
+        import re
+        match = re.search(r'TRR-(\d{2})-(\d{3})', estimate_filename)
+        if match:
+            year = 2000 + int(match.group(1))  # YY → 20YY
+            month = int(match.group(2))  # MMM → MM（007 → 7）
+            issue_date = datetime(year, month, 1)
+
+    if not issue_date:
+        # ファイル名から取得できない場合は今月の1日
+        issue_date = datetime.now().replace(day=1)
 
     # 発行日を更新
-    ws_order['AC2'] = new_date
+    ws_order['AC2'] = issue_date
 
-    # 数量を更新
-    ws_order['R17'] = quantity
+    # 数量を更新（R18）
+    ws_order['R18'] = quantity
 
-    # 単価を更新
-    ws_order['T17'] = unit_price
+    # 単価を更新（T18）
+    ws_order['T18'] = unit_price
 
     # === 検収書シート編集 ===
     # 注: 検収書のAC4, AC5, AA19は注文書シートを参照する数式なので自動更新される
 
-    # 数量を更新
-    ws_inspection['R19'] = quantity
+    # 数量を更新（R20）
+    ws_inspection['R20'] = quantity
 
-    # 単価を更新
-    ws_inspection['T19'] = unit_price
+    # 単価を更新（T20）
+    ws_inspection['T20'] = unit_price
 
 
 def edit_offbeat_excel(wb: openpyxl.Workbook, data: Dict[str, Any]) -> None:
@@ -117,18 +126,18 @@ def edit_offbeat_excel(wb: openpyxl.Workbook, data: Dict[str, Any]) -> None:
     注文書シート:
     - AC2: 発行日（編集: 注文請書の発行日）
     - AC3: 注文番号（数式: 自動計算）
-    - R17~: 数量（編集: 請求書の明細から、複数行対応）
-    - T17~: 単価（編集: 請求書の明細から）
-    - AC17~: 摘要（編集: 見積書番号）
+    - AA17: 摘要（編集: 見積書番号を「見積番号：NNNNNNN」形式で入力）
     - C18~: 件名（編集: 請求書の品目、先頭に「・」を付ける）
+    - R18~: 数量（編集: 請求書の明細から、複数行対応）
+    - T18~: 単価（編集: 請求書の明細から）
 
     検収書シート:
     - AC4: 検収番号（数式: 自動計算）
     - AC5: 検収日（数式: 自動計算）
-    - R19~: 数量（編集: 請求書の明細から）
-    - T19~: 単価（編集: 請求書の明細から）
-    - AC19~: 摘要（数式: 自動計算）
+    - AA19: 摘要（数式: =注文書!AA17 で自動計算）
     - C20~: 件名（編集: 請求書の品目、先頭に「・」を付ける）
+    - R20~: 数量（編集: 請求書の明細から）
+    - T20~: 単価（編集: 請求書の明細から）
     """
     ws_order = wb["注文書"]
     ws_inspection = wb["検収書"]
@@ -149,8 +158,10 @@ def edit_offbeat_excel(wb: openpyxl.Workbook, data: Dict[str, Any]) -> None:
         except ValueError:
             pass  # パースエラーの場合は元の値を保持
 
-    # 見積書番号（摘要用）
+    # 見積書番号（摘要用）: 「見積番号：NNNNNNN」形式で入力
     estimate_number = estimate_data.get('estimate_number', '')
+    if estimate_number:
+        ws_order['AA17'] = f"見積番号：{estimate_number}"
 
     # 明細行（請求書から）
     items: List[Dict[str, Any]] = invoice_data.get('items', [])
@@ -158,37 +169,46 @@ def edit_offbeat_excel(wb: openpyxl.Workbook, data: Dict[str, Any]) -> None:
     if items:
         # 明細行を編集（最大行数は適宜調整）
         for i, item in enumerate(items):
-            row_order = 17 + i  # 注文書の明細開始行
-            row_inspection = 19 + i  # 検収書の明細開始行
+            row_order = 18 + i  # 注文書の明細開始行（R18, C18から）
+            row_inspection = 20 + i  # 検収書の明細開始行（R20, C20から）
 
             # 注文書シート
-            ws_order.cell(row=row_order, column=18).value = item.get('quantity', 1)  # R列
-            ws_order.cell(row=row_order, column=20).value = item.get('unit_price', 0)  # T列
-            ws_order.cell(row=row_order, column=29).value = estimate_number  # AC列（摘要）
+            ws_order.cell(row=row_order, column=18).value = item.get('quantity', 1)  # R列（18列目）
+            ws_order.cell(row=row_order, column=20).value = item.get('unit_price', 0)  # T列（20列目）
 
             # 件名（品目に「・」を付ける）
             item_name = item.get('name', '')
             if item_name and not item_name.startswith('・'):
                 item_name = '・' + item_name
-            ws_order.cell(row=row_order + 1, column=3).value = item_name  # C列の次の行
+            ws_order.cell(row=row_order, column=3).value = item_name  # C列（3列目）
 
             # 検収書シート
             ws_inspection.cell(row=row_inspection, column=18).value = item.get('quantity', 1)  # R列
             ws_inspection.cell(row=row_inspection, column=20).value = item.get('unit_price', 0)  # T列
 
             # 件名（品目に「・」を付ける）
-            ws_inspection.cell(row=row_inspection + 1, column=3).value = item_name  # C列の次の行
+            ws_inspection.cell(row=row_inspection, column=3).value = item_name  # C列
+
+        # 明細最終行の次の行に「以下、余白」を入力
+        last_row_order = 18 + len(items)
+        last_row_inspection = 20 + len(items)
+        ws_order.cell(row=last_row_order, column=3).value = "以下、余白"
+        ws_inspection.cell(row=last_row_inspection, column=3).value = "以下、余白"
+
     else:
         # 明細がない場合（単一明細の場合）
         # 請求書の合計から単一明細として処理
         subtotal = invoice_data.get('subtotal', 0)
         if subtotal > 0:
-            ws_order['R17'] = 1
-            ws_order['T17'] = subtotal
-            ws_order['AC17'] = estimate_number
+            ws_order['R18'] = 1
+            ws_order['T18'] = subtotal
 
-            ws_inspection['R19'] = 1
-            ws_inspection['T19'] = subtotal
+            ws_inspection['R20'] = 1
+            ws_inspection['T20'] = subtotal
+
+            # 「以下、余白」を入力
+            ws_order['C19'] = "以下、余白"
+            ws_inspection['C21'] = "以下、余白"
 
 
 def validate_totals(wb: openpyxl.Workbook, data: Dict[str, Any], company_name: str) -> Dict[str, Any]:
