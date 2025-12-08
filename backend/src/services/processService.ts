@@ -606,6 +606,57 @@ export async function executeProcess(
       throw new Error(`Excel編集エラー: ${excelResult.error}`)
     }
 
+    // 3.5. 金額チェック（処理ルール: 金額チェックで不一致の場合はエラーとして処理を中止）
+    // openpyxlは数式の計算結果を取得できないため、入力値から期待される金額を計算して照合
+    const invoiceTotal = invoiceData.total || 0
+    const invoiceSubtotal = invoiceData.subtotal || 0
+    const invoiceTax = invoiceData.tax || 0
+
+    if (companyName === 'ネクストビッツ') {
+      // 見積書の数量×単価 = 小計（消費税10%対象）と一致するか
+      const estimateQuantity = estimateData.quantity || 1
+      const estimateUnitPrice = estimateData.unit_price || 0
+      const expectedSubtotal = estimateQuantity * estimateUnitPrice
+
+      if (expectedSubtotal !== invoiceSubtotal) {
+        throw new Error(
+          `金額不一致エラー: 見積書の金額（${expectedSubtotal.toLocaleString()}円）と請求書の小計（${invoiceSubtotal.toLocaleString()}円）が一致しません`
+        )
+      }
+
+      // 小計 × 10% = 消費税と一致するか（端数切り捨て）
+      const expectedTax = Math.floor(expectedSubtotal * 0.1)
+      if (expectedTax !== invoiceTax) {
+        throw new Error(
+          `金額不一致エラー: 計算上の消費税（${expectedTax.toLocaleString()}円）と請求書の消費税（${invoiceTax.toLocaleString()}円）が一致しません`
+        )
+      }
+
+      // 小計 + 消費税 = 合計と一致するか
+      const expectedTotal = expectedSubtotal + expectedTax
+      if (expectedTotal !== invoiceTotal) {
+        throw new Error(
+          `金額不一致エラー: 計算上の合計（${expectedTotal.toLocaleString()}円）と請求書の合計（${invoiceTotal.toLocaleString()}円）が一致しません`
+        )
+      }
+    } else if (companyName === 'オフ・ビート・ワークス') {
+      // 請求書の明細から合計を計算
+      const items = invoiceData.items || []
+      if (items.length > 0) {
+        const calculatedSubtotal = items.reduce(
+          (sum: number, item: { quantity?: number; unit_price?: number }) =>
+            sum + (item.quantity || 1) * (item.unit_price || 0),
+          0
+        )
+
+        if (calculatedSubtotal !== invoiceSubtotal && invoiceSubtotal > 0) {
+          throw new Error(
+            `金額不一致エラー: 明細の合計（${calculatedSubtotal.toLocaleString()}円）と請求書の小計（${invoiceSubtotal.toLocaleString()}円）が一致しません`
+          )
+        }
+      }
+    }
+
     // 4. PDF生成（LibreOffice）- 注文書シートと検収書シートを個別にPDF変換
     const outputPdfDir = tmpDir
     const pdfResultJson = await runPythonScript('pdf_generator.py', [
@@ -667,10 +718,11 @@ export async function executeProcess(
     const processingTime = Math.round((endTime - startTime) / 1000) // 秒
 
     // 8. DB保存
+    const processDate = new Date().toISOString().split('T')[0] // YYYY-MM-DD
     const processId = await saveProcessedFiles(
       userId,
       companyId,
-      now.toISOString().split('T')[0], // YYYY-MM-DD
+      processDate,
       pdfSlots,
       excelBuffer,
       excelFilename,
