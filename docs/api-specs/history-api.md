@@ -56,11 +56,11 @@ P-003（処理履歴・ダウンロードページ）で使用するAPIの仕様
       "company_name": "ネクストビッツ",
       "process_date": "2025-10-15",
       "excel_file": "base64_encoded_string",
-      "excel_filename": "ネクストビッツ_2025-10-15.xlsx",
+      "excel_filename": "テラ【株式会社ネクストビッツ御中】注文検収書_2510.xlsx",
       "order_pdf": "base64_encoded_string",
-      "order_pdf_filename": "ネクストビッツ_注文書_2025-10-15.pdf",
+      "order_pdf_filename": "注文書_2510.pdf",
       "inspection_pdf": "base64_encoded_string",
-      "inspection_pdf_filename": "ネクストビッツ_検収書_2025-10-15.pdf",
+      "inspection_pdf_filename": "検収書_2510.pdf",
       "input_pdf_1": "base64_encoded_string",
       "input_pdf_1_filename": "入力PDF1.pdf",
       "input_pdf_2": "base64_encoded_string",
@@ -118,7 +118,7 @@ P-003（処理履歴・ダウンロードページ）で使用するAPIの仕様
 **レスポンス**: `200 OK`
 
 - **Content-Type**: `application/octet-stream`
-- **Content-Disposition**: `attachment; filename="ネクストビッツ_2025-10-15.xlsx"`
+- **Content-Disposition**: `attachment; filename="テラ【株式会社ネクストビッツ御中】注文検収書_2510.xlsx"`
 - **Body**: ファイルのバイナリデータ
 
 **エラーレスポンス**:
@@ -146,20 +146,20 @@ P-003（処理履歴・ダウンロードページ）で使用するAPIの仕様
 **レスポンス**: `200 OK`
 
 - **Content-Type**: `application/zip`
-- **Content-Disposition**: `attachment; filename="ネクストビッツ_2025-10-15.zip"`
+- **Content-Disposition**: `attachment; filename="ネクストビッツ_2510.zip"`
 - **Body**: ZIPファイルのバイナリデータ
 
 **ZIP内容**:
 
 ```
-ネクストビッツ_2025-10-15.zip
-├── ネクストビッツ_2025-10-15.xlsx
-├── ネクストビッツ_注文書_2025-10-15.pdf
-├── ネクストビッツ_検収書_2025-10-15.pdf
-├── 入力PDF1.pdf
-├── 入力PDF2.pdf
-├── 入力PDF3.pdf
-└── 入力PDF4.pdf
+ネクストビッツ_2510.zip
+├── テラ【株式会社ネクストビッツ御中】注文検収書_2510.xlsx
+├── 注文書_2510.pdf
+├── 検収書_2510.pdf
+├── TRR-25-010_お見積書.pdf
+├── TRR-25-010_請求書.pdf
+├── TRR-25-010_注文請書.pdf
+└── TRR-25-010_納品書.pdf
 ```
 
 **エラーレスポンス**:
