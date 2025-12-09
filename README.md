@@ -114,6 +114,34 @@ pip3 install -r backend/python/requirements.txt --break-system-packages
 python3 -c "import pdfplumber; import openpyxl; print('OK')"
 ```
 
+### 5.1 LibreOfficeのインストール（必須）
+
+PDF生成（Excel→PDF変換）にLibreOfficeが必要：
+
+```bash
+sudo apt-get update && sudo apt-get install -y libreoffice-calc
+```
+
+**動作確認**:
+```bash
+soffice --version
+```
+
+### 5.2 バックエンド環境変数の設定（必須）
+
+`backend/.env` にSupabase Service Role Keyを設定：
+
+1. https://supabase.com/dashboard にアクセス
+2. プロジェクト選択 → **Settings** → **API**
+3. **Project API keys** の `service_role` をコピー
+4. `backend/.env` を編集：
+
+```bash
+SUPABASE_SERVICE_ROLE_KEY=コピーしたキーを貼り付け
+```
+
+**注意**: service_role keyは絶対に公開しないでください
+
 ### 6. 開発サーバーの起動
 
 ```bash
