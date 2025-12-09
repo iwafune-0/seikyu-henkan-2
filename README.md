@@ -82,13 +82,51 @@ VITE_SUPABASE_URL=https://mock-project.supabase.co
 VITE_SUPABASE_ANON_KEY=mock-anon-key
 ```
 
-### 4. 開発サーバーの起動
+### 4. バックエンドの準備
 
 ```bash
+cd ../backend
+npm install
+```
+
+### 5. Python環境の構築（必須）
+
+PDF解析・Excel編集に必要なPythonパッケージをインストール：
+
+```bash
+# pipがインストールされていない場合
+curl -sS https://bootstrap.pypa.io/get-pip.py | python3 - --user --break-system-packages
+
+# PATHに追加（必要に応じて.bashrcに追記）
+export PATH="$HOME/.local/bin:$PATH"
+
+# Python依存パッケージのインストール
+pip3 install -r backend/python/requirements.txt --break-system-packages
+```
+
+**インストールされるパッケージ**:
+- `pdfplumber` - PDF解析
+- `openpyxl` - Excel編集
+- `python-dateutil` - 日付処理
+
+**動作確認**:
+```bash
+python3 -c "import pdfplumber; import openpyxl; print('OK')"
+```
+
+### 6. 開発サーバーの起動
+
+```bash
+# フロントエンド（ポート5174）
+cd frontend
+npm run dev
+
+# バックエンド（ポート3001）※別ターミナルで
+cd backend
 npm run dev
 ```
 
-### 5. ブラウザでアクセス
+### 7. ブラウザでアクセス
 
 ```
 http://localhost:5174
@@ -229,8 +267,8 @@ seikyu-henkan-2/
 | Phase 3 | フロントエンド基盤 | ✅ 完了 |
 | Phase 4 | ページ実装 | ✅ 完了（全7ページ完成） |
 | Phase 5 | 環境構築 | ✅ 完了 |
-| Phase 6 | バックエンド計画 | ⏳ 未着手 |
-| Phase 7 | バックエンド実装 | ⏳ 未着手 |
+| Phase 6 | バックエンド計画 | ✅ 完了 |
+| Phase 7 | バックエンド実装 | ✅ 完了 |
 | Phase 8 | API統合 | ⏳ 未着手 |
 | Phase 9 | E2Eテスト | ⏳ 未着手 |
 | Phase 10 | デプロイメント | ⏳ 未着手 |
@@ -292,4 +330,4 @@ seikyu-henkan-2/
 
 ---
 
-**最終更新**: 2025-12-04
+**最終更新**: 2025-12-09
