@@ -47,6 +47,7 @@ def extract_nextbits_estimate(pdf_path: str) -> Dict[str, Any]:
 
     抽出項目:
     - estimate_number: 見積番号（TRR-25-007）
+    - subject: 件名（yyyy年mm月作業：Telemasシステム改修作業等）
     - quantity: 数量（1）
     - unit_price: 単価（600000）
     """
@@ -56,6 +57,10 @@ def extract_nextbits_estimate(pdf_path: str) -> Dict[str, Any]:
         # 見積番号抽出（例: "No.TRR-25-007" → "TRR-25-007"）
         estimate_no_match = re.search(r'No\.(TRR-\d{2}-\d{3})', text)
         estimate_number = estimate_no_match.group(1) if estimate_no_match else ""
+
+        # 件名抽出（例: "件名：2025年07月作業：Telemasシステム改修作業等"）
+        subject_match = re.search(r'件名[：:]\s*(.+)', text)
+        subject = subject_match.group(1).strip() if subject_match else ""
 
         # 数量抽出（"1式" → 1）
         # 明細行のパターン: □システム改修作業費  1式  600,000  600,000
@@ -69,6 +74,7 @@ def extract_nextbits_estimate(pdf_path: str) -> Dict[str, Any]:
 
         return {
             "estimate_number": estimate_number,
+            "subject": subject,
             "quantity": quantity,
             "unit_price": unit_price
         }

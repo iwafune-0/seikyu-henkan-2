@@ -108,6 +108,38 @@ def edit_nextbits_excel(wb: openpyxl.Workbook, data: Dict[str, Any]) -> None:
     # 単価を更新（T18）
     ws_order['T18'] = unit_price
 
+    # === 件名チェック（C18, C20） ===
+    # 処理ルール: 見積書の件名が「yyyy年mm月作業：Telemasシステム改修作業等」の場合、
+    # C18が「　Telemas作業(システム改修等)」になっているかチェック
+    subject = estimate_data.get('subject', '')
+    expected_c18 = '　Telemas作業(システム改修等)'  # 先頭に全角スペース
+
+    if subject:
+        # 見積書の件名パターンをチェック
+        import re
+        telemas_pattern = re.match(r'\d{4}年\d{2}月作業[：:]Telemasシステム改修作業等', subject)
+
+        if telemas_pattern:
+            # Telemasパターンの場合、C18が正しいかチェック
+            current_c18 = ws_order['C18'].value
+            if current_c18 != expected_c18:
+                raise ValueError(
+                    f"件名不一致エラー: C18の値が正しくありません。\n"
+                    f"期待値: 「{expected_c18}」\n"
+                    f"実際値: 「{current_c18}」"
+                )
+            # C20も同様にチェック
+            current_c20 = ws_inspection['C20'].value
+            if current_c20 != expected_c18:
+                raise ValueError(
+                    f"件名不一致エラー: C20の値が正しくありません。\n"
+                    f"期待値: 「{expected_c18}」\n"
+                    f"実際値: 「{current_c20}」"
+                )
+        else:
+            # 未対応の件名パターン
+            raise ValueError(f"未対応の件名パターンです: 「{subject}」")
+
     # === 検収書シート編集 ===
     # 注: 検収書のAC4, AC5, AA19は注文書シートを参照する数式なので自動更新される
 
