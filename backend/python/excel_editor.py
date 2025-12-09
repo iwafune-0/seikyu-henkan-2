@@ -200,6 +200,20 @@ def edit_offbeat_excel(wb: openpyxl.Workbook, data: Dict[str, Any]) -> None:
     # 明細行（請求書から）
     items: List[Dict[str, Any]] = invoice_data.get('items', [])
 
+    # まず前月の明細データをクリア（最大20行分、行18〜37をクリア）
+    MAX_DETAIL_ROWS = 20
+    for i in range(MAX_DETAIL_ROWS):
+        row_order = 18 + i
+        row_inspection = 20 + i
+        # 注文書シートのクリア（C, R, T列）
+        ws_order.cell(row=row_order, column=3).value = None   # C列（件名）
+        ws_order.cell(row=row_order, column=18).value = None  # R列（数量）
+        ws_order.cell(row=row_order, column=20).value = None  # T列（単価）
+        # 検収書シートのクリア（C, R, T列）
+        ws_inspection.cell(row=row_inspection, column=3).value = None   # C列（件名）
+        ws_inspection.cell(row=row_inspection, column=18).value = None  # R列（数量）
+        ws_inspection.cell(row=row_inspection, column=20).value = None  # T列（単価）
+
     if items:
         # 明細行を編集（最大行数は適宜調整）
         for i, item in enumerate(items):

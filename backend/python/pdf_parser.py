@@ -35,41 +35,56 @@ import re
 from typing import Dict, Any, List
 
 
+def normalize_fullwidth_digits(text: str) -> str:
+    """
+    全角数字を半角数字に変換
+
+    実際のPDFでは月が全角数字で記載されている場合がある（例: 0８月）
+    """
+    fullwidth = '０１２３４５６７８９'
+    halfwidth = '0123456789'
+    for fw, hw in zip(fullwidth, halfwidth):
+        text = text.replace(fw, hw)
+    return text
+
+
 def extract_nextbits_estimate(pdf_path: str) -> Dict[str, Any]:
     """
     ネクストビッツ様の見積書からデータ抽出
 
-    実際のPDF構造（TRR-25-007_お見積書.pdf等）:
-    - No.TRR-25-007 （見積番号）
-    - 件名：2025年07月作業：Telemasシステム改修作業等
+    実際のPDF構造（TRR-25-008_お見積書.pdf等）:
+    - No.TRR-25-008 （見積番号）
+    - 件名：2025年0８月作業：Telemasシステム改修作業等（月が全角の場合あり）
     - □システム改修作業費  1式  600,000  600,000
     - 合計金額  600,000
 
     抽出項目:
-    - estimate_number: 見積番号（TRR-25-007）
-    - subject: 件名（yyyy年mm月作業：Telemasシステム改修作業等）
+    - estimate_number: 見積番号（TRR-25-008）
+    - subject: 件名（yyyy年mm月作業：Telemasシステム改修作業等）※全角数字は半角に正規化
     - quantity: 数量（1）
     - unit_price: 単価（600000）
     """
     with pdfplumber.open(pdf_path) as pdf:
         text = pdf.pages[0].extract_text()
 
-        # 見積番号抽出（例: "No.TRR-25-007" → "TRR-25-007"）
+        # 見積番号抽出（例: "No.TRR-25-008" → "TRR-25-008"）
         estimate_no_match = re.search(r'No\.(TRR-\d{2}-\d{3})', text)
         estimate_number = estimate_no_match.group(1) if estimate_no_match else ""
 
-        # 件名抽出（例: "件名：2025年07月作業：Telemasシステム改修作業等"）
-        subject_match = re.search(r'件名[：:]\s*(.+)', text)
+        # 件名抽出（例: "件名：2025年0８月作業：Telemasシステム改修作業等"）
+        # 全角数字を半角に正規化してから抽出
+        normalized_text = normalize_fullwidth_digits(text)
+        subject_match = re.search(r'件名[：:]\s*(.+)', normalized_text)
         subject = subject_match.group(1).strip() if subject_match else ""
 
         # 数量抽出（"1式" → 1）
         # 明細行のパターン: □システム改修作業費  1式  600,000  600,000
-        quantity_match = re.search(r'(\d+)式', text)
+        quantity_match = re.search(r'(\d+)式', normalized_text)
         quantity = int(quantity_match.group(1)) if quantity_match else 1
 
         # 単価抽出（明細行の単価部分: 1式の後の金額）
         # パターン: "1式 600,000 600,000" の最初の金額が単価
-        unit_price_match = re.search(r'\d+式\s+([\d,]+)', text)
+        unit_price_match = re.search(r'\d+式\s+([\d,]+)', normalized_text)
         unit_price = int(unit_price_match.group(1).replace(',', '')) if unit_price_match else 0
 
         return {
@@ -147,9 +162,12 @@ def extract_offbeat_invoice(pdf_path: str) -> Dict[str, Any]:
     """
     オフ・ビート・ワークス様の請求書からデータ抽出
 
-    実際のPDF構造（*-請求_offbeat-to-terra-*.pdf）:
-    - 明細行（複数行あり得る）
-    - 合計金額
+    実際のPDF構造（2951025-請求_offbeat-to-terra-202508.pdf等）:
+    - 明細行: 納品日 品目名 単価 数量 単位 金額
+      例: 2025/08/29 ITX テレマス4DV20コンバート作業 37,500 20 人日 750,000
+    - 小計 750,000
+    - 消費税額合計 75,000
+    - 合計 825,000
 
     抽出項目:
     - items: 明細行リスト（品目、数量、単価）
@@ -164,35 +182,69 @@ def extract_offbeat_invoice(pdf_path: str) -> Dict[str, Any]:
         # オフ・ビート・ワークスの請求書は複数行の明細がある場合がある
         items: List[Dict[str, Any]] = []
 
-        # 明細行パターン: 品目名  数量  単価  金額
-        # 例: "SES業務 2025年7月分  1  150,000  150,000"
-        item_pattern = re.compile(r'([^\d\n]+?)\s+(\d+)\s+([\d,]+)\s+([\d,]+)')
-        for match in item_pattern.finditer(text):
-            item_name = match.group(1).strip()
+        # 明細行パターン1: 納品日 品目名 単価 数量 単位 金額
+        # 例: "2025/08/29 ITX テレマス4DV20コンバート作業 37,500 20 人日 750,000"
+        # パターン: 日付 品目名 単価 数量 単位 金額
+        item_pattern1 = re.compile(
+            r'(\d{4}/\d{2}/\d{2})\s+'  # 納品日
+            r'(.+?)\s+'               # 品目名
+            r'([\d,]+)\s+'            # 単価
+            r'(\d+)\s+'               # 数量
+            r'(\S+)\s+'               # 単位（人日など）
+            r'([\d,]+)'               # 金額
+        )
+        for match in item_pattern1.finditer(text):
+            item_name = match.group(2).strip()
             # ヘッダー行やフッター行を除外
-            if item_name and '品目' not in item_name and '合計' not in item_name:
+            if item_name and '品目' not in item_name and '合計' not in item_name and '小計' not in item_name:
                 items.append({
                     "name": item_name,
-                    "quantity": int(match.group(2)),
+                    "quantity": int(match.group(4)),
                     "unit_price": int(match.group(3).replace(',', '')),
-                    "amount": int(match.group(4).replace(',', ''))
+                    "amount": int(match.group(6).replace(',', ''))
                 })
 
-        # 合計金額抽出（税込）
-        total_match = re.search(r'合計金額\s*([\d,]+)', text)
-        if not total_match:
-            total_match = re.search(r'合計\s*([\d,]+)', text)
-        total = int(total_match.group(1).replace(',', '')) if total_match else 0
+        # パターン1でマッチしない場合、旧パターンを試す
+        if not items:
+            # 明細行パターン2: 品目名  数量  単価  金額
+            # 例: "SES業務 2025年7月分  1  150,000  150,000"
+            item_pattern2 = re.compile(r'([^\d\n]+?)\s+(\d+)\s+([\d,]+)\s+([\d,]+)')
+            for match in item_pattern2.finditer(text):
+                item_name = match.group(1).strip()
+                # ヘッダー行やフッター行を除外
+                if item_name and '品目' not in item_name and '合計' not in item_name and '小計' not in item_name:
+                    items.append({
+                        "name": item_name,
+                        "quantity": int(match.group(2)),
+                        "unit_price": int(match.group(3).replace(',', '')),
+                        "amount": int(match.group(4).replace(',', ''))
+                    })
 
-        # 小計抽出
+        # 小計抽出（「小計」の後の金額）
         subtotal_match = re.search(r'小計\s*([\d,]+)', text)
         subtotal = int(subtotal_match.group(1).replace(',', '')) if subtotal_match else 0
 
-        # 消費税抽出
-        tax_match = re.search(r'消費税[（(]?10%[）)]?\s*([\d,]+)', text)
+        # 消費税抽出（「消費税額合計」または「消費税(10%)」の後の金額）
+        tax_match = re.search(r'消費税額合計\s*([\d,]+)', text)
+        if not tax_match:
+            tax_match = re.search(r'消費税[（(]?10%[）)]?\s*([\d,]+)', text)
         if not tax_match:
             tax_match = re.search(r'消費税\s*([\d,]+)', text)
         tax = int(tax_match.group(1).replace(',', '')) if tax_match else 0
+
+        # 合計金額抽出（税込）- 「合計」の後の金額（「小計」「消費税額合計」を除く）
+        # 最後の「合計」行を探す
+        total = 0
+        # 「合計金額」を優先
+        total_match = re.search(r'合計金額\s*([\d,]+)', text)
+        if total_match:
+            total = int(total_match.group(1).replace(',', ''))
+        else:
+            # 「合計」で「小計」「消費税額合計」を含まない行を探す
+            # テキスト全体から最後の「合計 XXX」パターンを探す
+            all_totals = re.findall(r'(?<!小)(?<!消費税額)合計\s*([\d,]+)', text)
+            if all_totals:
+                total = int(all_totals[-1].replace(',', ''))
 
         return {
             "items": items,
