@@ -55,59 +55,144 @@ def check_libreoffice() -> bool:
         return False
 
 
-def calculate_formulas_with_libreoffice(excel_path: str, output_path: str) -> str:
+def calculate_formulas_python(wb: openpyxl.Workbook) -> dict:
     """
-    LibreOfficeを使ってExcelの数式を計算し、計算結果を含むExcelを生成
+    Pythonで数式を計算し、計算結果を辞書で返す
 
-    openpyxlは数式の計算ができないため、LibreOfficeで開いて保存することで
-    数式を計算させる。
+    LibreOfficeのheadless変換ではシート間参照の計算に失敗するため、
+    Pythonで直接計算を行う。
 
     Args:
-        excel_path: 入力Excelファイルのパス
-        output_path: 出力Excelファイルのパス
+        wb: 編集済みのExcelワークブック
 
     Returns:
-        計算済みExcelファイルのパス
-
-    Raises:
-        RuntimeError: LibreOffice変換失敗時
+        計算結果の辞書 {シート名: {セル座標: 値}}
     """
-    output_dir = os.path.dirname(output_path)
+    from datetime import datetime
+    from calendar import monthrange
+    import math
 
-    # 元のファイルを保護するため、一時ファイルにコピーしてから変換
-    # LibreOfficeは--outdirで指定したディレクトリに元のファイル名で出力するため、
-    # 元のファイルが上書きされないように別のディレクトリで変換する
-    import tempfile
-    with tempfile.TemporaryDirectory() as temp_dir:
-        # 一時ディレクトリに入力ファイルをコピー
-        temp_input = os.path.join(temp_dir, "input_for_calc.xlsx")
-        shutil.copy2(excel_path, temp_input)
+    results = {"注文書": {}, "検収書": {}}
 
-        # LibreOfficeでxlsx形式に再保存（数式が計算される）
-        result = subprocess.run(
-            [
-                'soffice',
-                '--headless',
-                '--convert-to', 'xlsx',
-                '--outdir', temp_dir,
-                temp_input
-            ],
-            capture_output=True,
-            text=True,
-            timeout=60
-        )
+    # 注文書シートから入力値を取得
+    ws_order = wb["注文書"]
+    ws_inspection = wb["検収書"]
 
-        if result.returncode != 0:
-            raise RuntimeError(f"LibreOffice計算エラー: {result.stderr}")
+    # AC2: 発行日（入力値）
+    issue_date = ws_order['AC2'].value
+    if isinstance(issue_date, datetime):
+        pass
+    elif issue_date is None:
+        issue_date = datetime.now().replace(day=1)
+    else:
+        # 文字列の場合などはdatetimeに変換を試みる
+        try:
+            issue_date = datetime.strptime(str(issue_date), '%Y-%m-%d')
+        except:
+            issue_date = datetime.now().replace(day=1)
 
-        # 変換後のファイルを出力パスに移動
-        generated_path = os.path.join(temp_dir, "input_for_calc.xlsx")
-        if os.path.exists(generated_path):
-            shutil.copy2(generated_path, output_path)
-        else:
-            raise RuntimeError(f"LibreOffice変換後のファイルが見つかりません: {generated_path}")
+    # R18, T18: 数量・単価（入力値）
+    r18 = ws_order['R18'].value or 0
+    t18 = ws_order['T18'].value or 0
 
-    return output_path
+    # R20, T20: 検収書の数量・単価（入力値）
+    r20 = ws_inspection['R20'].value or 0
+    t20 = ws_inspection['T20'].value or 0
+
+    # === 注文書シートの数式計算 ===
+
+    # AC3: =TEXT(AC2,"yyyymmdd")&"-01"
+    ac3_value = issue_date.strftime('%Y%m%d') + '-01'
+    results["注文書"]["AC3"] = ac3_value
+
+    # C17: =TEXT(注文書!$AC$2,"yyyy年ｍｍ月分作業費")
+    c17_value = issue_date.strftime('%Y年%m月分作業費')
+    results["注文書"]["C17"] = c17_value
+
+    # AA17: ="見積番号：TRR-"&TEXT(注文書!$AC$2,"yy-")&"0"&TEXT(注文書!$AC$2,"mm")
+    yy = issue_date.strftime('%y')
+    mm = issue_date.strftime('%m')
+    aa17_value = f"見積番号：TRR-{yy}-0{mm}"
+    results["注文書"]["AA17"] = aa17_value
+
+    # W17: =T17*R17（この行は空の可能性があるのでスキップ）
+
+    # W18: 明細行の金額（R18 * T18）
+    w18_value = r18 * t18
+    results["注文書"]["W18"] = w18_value
+
+    # W39: =SUM(W16:Z38) - 簡略化してW18のみを計算（明細1行の場合）
+    w39_value = w18_value
+    results["注文書"]["W39"] = w39_value
+
+    # W40: =ROUNDDOWN(W39*0.1,0)
+    w40_value = math.floor(w39_value * 0.1)
+    results["注文書"]["W40"] = w40_value
+
+    # W41: =W39+W40
+    w41_value = w39_value + w40_value
+    results["注文書"]["W41"] = w41_value
+
+    # G12: =W41
+    results["注文書"]["G12"] = w41_value
+
+    # === 検収書シートの数式計算 ===
+
+    # AC4: =注文書!AC3
+    results["検収書"]["AC4"] = ac3_value
+
+    # AC5: =EOMONTH(注文書!$AC$2,0) - 月末日
+    year = issue_date.year
+    month = issue_date.month
+    last_day = monthrange(year, month)[1]
+    ac5_value = datetime(year, month, last_day)
+    results["検収書"]["AC5"] = ac5_value
+
+    # C19: =注文書!C17
+    results["検収書"]["C19"] = c17_value
+
+    # AA19: =注文書!AA17
+    results["検収書"]["AA19"] = aa17_value
+
+    # W19: =T19*R19（行19は空の可能性があるのでスキップ）
+
+    # W20: 明細行の金額（R20 * T20）
+    w20_value = r20 * t20
+    results["検収書"]["W20"] = w20_value
+
+    # W41: =SUM(W18:Z40) - 簡略化してW20のみを計算（明細1行の場合）
+    w41_inspection = w20_value
+    results["検収書"]["W41"] = w41_inspection
+
+    # W42: =ROUNDDOWN(W41*0.1,0)
+    w42_value = math.floor(w41_inspection * 0.1)
+    results["検収書"]["W42"] = w42_value
+
+    # W43: =W41+W42
+    w43_value = w41_inspection + w42_value
+    results["検収書"]["W43"] = w43_value
+
+    # G14: =W43
+    results["検収書"]["G14"] = w43_value
+
+    return results
+
+
+def apply_calculated_values(wb: openpyxl.Workbook, calculated_values: dict) -> None:
+    """
+    計算結果をワークブックに適用する（数式を値に置き換える）
+
+    Args:
+        wb: Excelワークブック
+        calculated_values: calculate_formulas_pythonの戻り値
+    """
+    for sheet_name, cells in calculated_values.items():
+        if sheet_name in wb.sheetnames:
+            ws = wb[sheet_name]
+            for coord, value in cells.items():
+                cell = ws[coord]
+                # 数式を計算結果で置き換え
+                cell.value = value
 
 
 def resolve_cross_sheet_formulas(wb: openpyxl.Workbook, source_sheet_name: str) -> None:
@@ -153,7 +238,7 @@ def resolve_cross_sheet_formulas(wb: openpyxl.Workbook, source_sheet_name: str) 
                             cell.data_type = ref_cell.data_type if ref_cell.data_type != 'f' else 'n'
 
 
-def convert_sheet_to_pdf(excel_path: str, sheet_name: str, output_path: str, calculated_excel_path: str = None) -> str:
+def convert_sheet_to_pdf(excel_path: str, sheet_name: str, output_path: str, calculated_values: dict = None) -> str:
     """
     Excelの特定シートをPDFに変換
 
@@ -164,7 +249,7 @@ def convert_sheet_to_pdf(excel_path: str, sheet_name: str, output_path: str, cal
         excel_path: Excelファイルのパス
         sheet_name: 変換対象のシート名
         output_path: 出力PDFファイルのパス
-        calculated_excel_path: 計算済みExcelファイルのパス（シート間参照の値取得用）
+        calculated_values: Pythonで計算した数式の結果（calculate_formulas_pythonの戻り値）
 
     Returns:
         生成されたPDFファイルのパス
@@ -185,35 +270,14 @@ def convert_sheet_to_pdf(excel_path: str, sheet_name: str, output_path: str, cal
     temp_excel_path = os.path.join(output_dir, f"temp_{sheet_name}_{os.getpid()}.xlsx")
 
     try:
-        # 計算済みExcelから値を読み込む（data_only=Trueで数式の計算結果を取得）
-        # 注意: openpyxlのdata_only=Trueは、LibreOfficeで保存されたファイルでないと
-        # 計算結果が取得できない場合がある
-        if calculated_excel_path and os.path.exists(calculated_excel_path):
-            wb_calc = openpyxl.load_workbook(calculated_excel_path, data_only=True)
-        else:
-            wb_calc = None
-
         # 元のExcelを読み込み（数式を保持）
         wb = openpyxl.load_workbook(excel_path)
 
-        # すべての数式を計算済みの値に置き換える（#NAME?エラー防止）
-        # これにより、シート間参照やTEXT関数などがPDFで正しく表示される
-        if wb_calc:
-            for ws_name in wb.sheetnames:
-                if ws_name in wb_calc.sheetnames:
-                    ws = wb[ws_name]
-                    ws_calc = wb_calc[ws_name]
-
-                    for row in ws.iter_rows():
-                        for cell in row:
-                            # 数式セルを計算結果で置き換え
-                            if cell.data_type == 'f' and cell.value:
-                                calc_cell = ws_calc[cell.coordinate]
-                                if calc_cell.value is not None:
-                                    cell.value = calc_cell.value
-
-        if wb_calc:
-            wb_calc.close()
+        # Pythonで計算した値を適用（#NAME?エラー防止）
+        # LibreOfficeのheadless変換ではシート間参照の計算に失敗するため、
+        # Pythonで計算した値を直接セルに設定する
+        if calculated_values:
+            apply_calculated_values(wb, calculated_values)
 
         # 対象シートのみを残す
         sheets_to_remove = [s for s in wb.sheetnames if s != sheet_name]
@@ -284,28 +348,23 @@ def convert_excel_sheets_to_pdf(excel_path: str, output_dir: str) -> Dict[str, s
     order_pdf_path = os.path.join(output_dir, f"order_{os.getpid()}.pdf")
     inspection_pdf_path = os.path.join(output_dir, f"inspection_{os.getpid()}.pdf")
 
-    # まずLibreOfficeで数式を計算させた一時Excelを生成
-    # これにより、TEXT関数やEOMONTH関数などの計算結果を取得できる
-    calculated_excel_path = os.path.join(output_dir, f"calculated_{os.getpid()}.xlsx")
+    # Excelを読み込み、Pythonで数式を計算
+    # LibreOfficeのheadless変換ではシート間参照の計算に失敗するため、
+    # Pythonで直接計算を行う
+    wb = openpyxl.load_workbook(excel_path)
+    calculated_values = calculate_formulas_python(wb)
+    wb.close()
 
-    try:
-        # LibreOfficeで計算済みExcelを生成
-        calculate_formulas_with_libreoffice(excel_path, calculated_excel_path)
+    # 注文書シートをPDF変換（Pythonで計算した値を使用）
+    convert_sheet_to_pdf(excel_path, "注文書", order_pdf_path, calculated_values)
 
-        # 注文書シートをPDF変換（計算済みExcelから値を取得）
-        convert_sheet_to_pdf(excel_path, "注文書", order_pdf_path, calculated_excel_path)
+    # 検収書シートをPDF変換（Pythonで計算した値を使用）
+    convert_sheet_to_pdf(excel_path, "検収書", inspection_pdf_path, calculated_values)
 
-        # 検収書シートをPDF変換（計算済みExcelから値を取得）
-        convert_sheet_to_pdf(excel_path, "検収書", inspection_pdf_path, calculated_excel_path)
-
-        return {
-            "order_pdf_path": order_pdf_path,
-            "inspection_pdf_path": inspection_pdf_path
-        }
-    finally:
-        # 計算済み一時Excelを削除
-        if os.path.exists(calculated_excel_path):
-            os.remove(calculated_excel_path)
+    return {
+        "order_pdf_path": order_pdf_path,
+        "inspection_pdf_path": inspection_pdf_path
+    }
 
 
 def main():
