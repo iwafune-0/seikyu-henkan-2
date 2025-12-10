@@ -284,6 +284,12 @@ def convert_sheet_to_pdf(excel_path: str, sheet_name: str, output_path: str, cal
         for s in sheets_to_remove:
             del wb[s]
 
+        # 印刷スケールを100%に設定
+        # LibreOfficeはExcelのスケール設定を正しく解釈できないため、
+        # 100%に設定してCubePDFと同じサイズで出力する
+        ws = wb[sheet_name]
+        ws.page_setup.scale = 100
+
         # 一時Excelとして保存
         wb.save(temp_excel_path)
         wb.close()

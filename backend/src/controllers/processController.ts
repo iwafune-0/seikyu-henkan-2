@@ -531,10 +531,10 @@ export async function downloadProcessZipController(
       return
     }
 
-    // processed_filesテーブルから取得
+    // processed_filesテーブルから取得（companiesテーブルをJOINして取引先名も取得）
     const { data, error } = await supabase
       .from('processed_files')
-      .select('*')
+      .select('*, companies(name)')
       .eq('id', processId)
       .single()
 
@@ -545,9 +545,12 @@ export async function downloadProcessZipController(
 
     // ZIP生成
     const archive = archiver('zip', { zlib: { level: 9 } })
-    const zipFilename = `${data.company_name}_${
-      data.process_date.replace(/-/g, '')
-    }.zip`
+    // ZIPファイル名: {取引先名}_{YYMM}.zip
+    // 年月はexcel_filenameから抽出（例: テラ【...】注文検収書_2507.xlsx → 2507）
+    const companyName = (data.companies as { name: string } | null)?.name || '不明'
+    const yearMonthMatch = data.excel_filename?.match(/_(\d{4})\.xlsx$/)
+    const yearMonth = yearMonthMatch ? yearMonthMatch[1] : 'unknown'
+    const zipFilename = `${companyName}_${yearMonth}.zip`
 
     // RFC 5987に準拠したファイル名エンコーディング（日本語ファイル名対応）
     const encodedZipFilename = encodeURIComponent(zipFilename).replace(/'/g, '%27')

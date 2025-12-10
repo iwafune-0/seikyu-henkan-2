@@ -1,30 +1,81 @@
 import { useState, useEffect } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { PublicLayout } from '@/components/layouts/PublicLayout'
 import { supabase } from '@/lib/supabase'
 
 export function AcceptInvitationPage() {
   const navigate = useNavigate()
-  const [searchParams] = useSearchParams()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [error, setError] = useState('')
-  const [isLoading, setIsLoading] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
+  const [isSessionReady, setIsSessionReady] = useState(false)
 
   useEffect(() => {
-    // URLからトークンとメールアドレスを取得
-    const tokenFromUrl = searchParams.get('token')
-    const emailFromUrl = searchParams.get('email')
+    const initializeSession = async () => {
+      try {
+        // ハッシュフラグメントにエラーがあるかチェック
+        const hashParams = new URLSearchParams(window.location.hash.substring(1))
+        const errorCode = hashParams.get('error_code')
+        const errorDescription = hashParams.get('error_description')
 
-    if (emailFromUrl) {
-      setEmail(emailFromUrl)
+        if (errorCode) {
+          if (errorCode === 'otp_expired') {
+            setError('招待リンクの有効期限が切れています。管理者に再度招待を依頼してください。')
+          } else {
+            setError(errorDescription ? decodeURIComponent(errorDescription.replace(/\+/g, ' ')) : '無効な招待リンクです。')
+          }
+          setIsLoading(false)
+          return
+        }
+
+        // Supabaseがセッションを確立するのを待つ
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+
+        if (sessionError) {
+          console.error('Session error:', sessionError)
+          setError('セッションの取得に失敗しました。')
+          setIsLoading(false)
+          return
+        }
+
+        if (session?.user) {
+          setEmail(session.user.email || '')
+          setIsSessionReady(true)
+          setIsLoading(false)
+        } else {
+          // セッションがまだない場合、認証状態の変化を監視
+          const { data: { subscription } } = supabase.auth.onAuthStateChange(
+            async (event, session) => {
+              console.log('Auth event:', event)
+              if (session?.user) {
+                setEmail(session.user.email || '')
+                setIsSessionReady(true)
+                setIsLoading(false)
+                subscription.unsubscribe()
+              }
+            }
+          )
+
+          // 3秒待ってもセッションが確立されない場合はエラー
+          setTimeout(() => {
+            setIsLoading(false)
+            if (!isSessionReady) {
+              setError('招待リンクが無効です。管理者に再度招待を依頼してください。')
+              subscription.unsubscribe()
+            }
+          }, 3000)
+        }
+      } catch (err) {
+        console.error('Error initializing session:', err)
+        setError('招待リンクの処理中にエラーが発生しました。')
+        setIsLoading(false)
+      }
     }
 
-    if (!tokenFromUrl) {
-      setError('無効な招待リンクです。')
-    }
-  }, [searchParams])
+    initializeSession()
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -72,15 +123,9 @@ export function AcceptInvitationPage() {
     setIsLoading(true)
 
     try {
-      const token = searchParams.get('token')
-      if (!token) {
-        throw new Error('トークンが見つかりません。')
-      }
-
       // モック認証の場合
       if (import.meta.env.VITE_SUPABASE_URL === 'https://mock-project.supabase.co') {
         console.log('Mock invitation acceptance')
-        // モック環境では単純に成功とする
         await new Promise(resolve => setTimeout(resolve, 500))
 
         navigate('/login', {
@@ -89,22 +134,68 @@ export function AcceptInvitationPage() {
         return
       }
 
-      // 本番用のSupabase招待受諾処理
+      // パスワードを設定
       const { error: updateError } = await supabase.auth.updateUser({
         password: password
       })
 
       if (updateError) throw updateError
 
-      // 成功したらログインページへ
+      // ログアウトしてログインページへ
+      await supabase.auth.signOut()
+
       navigate('/login', {
         state: { message: 'パスワードが設定されました。\nログインしてください。' }
       })
-    } catch (err: any) {
-      setError(err.message || '招待の受諾に失敗しました。')
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : '招待の受諾に失敗しました。'
+      setError(errorMessage)
     } finally {
       setIsLoading(false)
     }
+  }
+
+  // ローディング中
+  if (isLoading) {
+    return (
+      <PublicLayout>
+        <div className="w-full max-w-md">
+          <div className="bg-card border border-border rounded-lg shadow-sm p-4 sm:p-8">
+            <h2 className="text-lg sm:text-xl lg:text-2xl font-bold text-center mb-4 sm:mb-6">
+              招待受諾・パスワード設定
+            </h2>
+            <div className="text-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+              <p className="text-muted-foreground">招待リンクを確認中...</p>
+            </div>
+          </div>
+        </div>
+      </PublicLayout>
+    )
+  }
+
+  // エラー状態（セッションが確立されなかった場合）
+  if (error && !isSessionReady) {
+    return (
+      <PublicLayout>
+        <div className="w-full max-w-md">
+          <div className="bg-card border border-border rounded-lg shadow-sm p-4 sm:p-8">
+            <h2 className="text-lg sm:text-xl lg:text-2xl font-bold text-center mb-4 sm:mb-6">
+              招待受諾・パスワード設定
+            </h2>
+            <div role="alert" className="text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded-md p-3 mb-4">
+              {error}
+            </div>
+            <button
+              onClick={() => navigate('/login')}
+              className="w-full bg-primary text-primary-foreground py-2 rounded-md hover:bg-primary/90 transition-colors"
+            >
+              ログインページへ
+            </button>
+          </div>
+        </div>
+      </PublicLayout>
+    )
   }
 
   return (
@@ -174,7 +265,7 @@ export function AcceptInvitationPage() {
             {/* 送信ボタン */}
             <button
               type="submit"
-              disabled={isLoading}
+              disabled={isLoading || !isSessionReady}
               className="w-full bg-primary text-primary-foreground py-2 rounded-md hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isLoading ? '設定中...' : 'パスワードを設定'}

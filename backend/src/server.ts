@@ -23,6 +23,7 @@ app.use(
       process.env.FRONTEND_URL || '',
     ].filter(Boolean),
     credentials: true,
+    exposedHeaders: ['Content-Disposition'], // ファイル名取得のため公開
   })
 )
 

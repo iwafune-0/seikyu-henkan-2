@@ -105,8 +105,10 @@ export async function downloadFileController(req: Request, res: Response): Promi
     }
 
     // バイナリデータとして返却
+    // RFC 5987に準拠したファイル名エンコーディング（日本語ファイル名対応）
+    const encodedFilename = encodeURIComponent(file.filename).replace(/'/g, '%27')
     res.setHeader('Content-Type', contentType)
-    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(file.filename)}"`)
+    res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodedFilename}`)
     res.send(file.buffer)
   } catch (error) {
     sendInternalError(res, error, 'ファイルのダウンロードに失敗しました')
@@ -152,13 +154,16 @@ export async function downloadZipController(req: Request, res: Response): Promis
     }
 
     // ZIPファイル名の生成: {取引先名}_{YYMM}.zip
-    const processDate = new Date(result.processDate)
-    const yearMonth = `${String(processDate.getFullYear()).slice(-2)}${String(processDate.getMonth() + 1).padStart(2, '0')}`
+    // 年月はexcel_filenameから抽出（例: テラ【...】注文検収書_2507.xlsx → 2507）
+    const yearMonthMatch = result.excelFilename?.match(/_(\d{4})\.xlsx$/)
+    const yearMonth = yearMonthMatch ? yearMonthMatch[1] : 'unknown'
     const zipFilename = `${result.companyName}_${yearMonth}.zip`
 
     // レスポンスヘッダー設定
+    // RFC 5987に準拠したファイル名エンコーディング（日本語ファイル名対応）
+    const encodedZipFilename = encodeURIComponent(zipFilename).replace(/'/g, '%27')
     res.setHeader('Content-Type', 'application/zip')
-    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(zipFilename)}"`)
+    res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodedZipFilename}`)
 
     // archiverでZIP生成
     const archive = archiver('zip', {

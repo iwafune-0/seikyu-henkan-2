@@ -232,8 +232,10 @@ export async function downloadTemplateController(req: Request, res: Response): P
     }
 
     // バイナリデータとして返却
+    // RFC 5987に準拠したファイル名エンコーディング（日本語ファイル名対応）
+    const encodedFilename = encodeURIComponent(template.filename).replace(/'/g, '%27')
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(template.filename)}"`)
+    res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodedFilename}`)
     res.send(template.buffer)
   } catch (error) {
     sendInternalError(res, error, 'テンプレートのダウンロードに失敗しました')

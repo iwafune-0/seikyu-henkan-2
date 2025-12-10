@@ -183,6 +183,7 @@ export async function getFilesForZip(
   status: string
   companyName: string
   processDate: string
+  excelFilename: string
   files: Array<{ buffer: Buffer; filename: string }>
 } | null> {
   const { data, error } = await supabase
@@ -215,10 +216,11 @@ export async function getFilesForZip(
   const companies = data.companies as unknown as { name: string } | null
   const companyName = companies?.name || ''
   const processDate = data.process_date as string
+  const excelFilename = (data.excel_filename as string) || ''
 
   // ステータスがerrorの場合はダウンロード不可
   if (data.status === 'error') {
-    return { status: 'error', companyName, processDate, files: [] }
+    return { status: 'error', companyName, processDate, excelFilename, files: [] }
   }
 
   const files: Array<{ buffer: Buffer; filename: string }> = []
@@ -243,5 +245,5 @@ export async function getFilesForZip(
     }
   }
 
-  return { status: 'success', companyName, processDate, files }
+  return { status: 'success', companyName, processDate, excelFilename, files }
 }
