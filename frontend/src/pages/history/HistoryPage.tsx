@@ -39,7 +39,7 @@ import {
   type SelectChangeEvent,
 } from '@mui/material'
 import { DatePicker } from '@mui/x-date-pickers/DatePicker'
-import { type Dayjs } from 'dayjs'
+import dayjs, { type Dayjs } from 'dayjs'
 import {
   Close as CloseIcon,
   Download as DownloadIcon,
@@ -48,9 +48,9 @@ import {
   CheckCircle as CheckCircleIcon,
 } from '@mui/icons-material'
 import { AuthenticatedLayout } from '@/components/layouts/AuthenticatedLayout'
-import { fetchHistory, downloadFile, downloadZip } from '@/services/mock/historyService'
-import { fetchCompanies } from '@/services/mock/companiesService'
-import { UsersService } from '@/services/mock/usersService'
+import { fetchHistory, downloadFile, downloadZip } from '@/services/historyService'
+import { fetchCompanies } from '@/services/companiesService'
+import { UsersService } from '@/services/usersService'
 import type { ProcessedFile, DownloadFileType, Company, User } from '@/types'
 
 interface TabPanelProps {
@@ -241,7 +241,6 @@ export function HistoryPage() {
   // 取引先一覧（companiesServiceから取得）とユーザー一覧（usersServiceから取得）
   const [companies, setCompanies] = useState<Company[]>([])
   const [allUsers, setAllUsers] = useState<User[]>([])
-  const [allHistory, setAllHistory] = useState<ProcessedFile[]>([])
 
   // 取引先が無効かどうかを判定
   const isCompanyInactive = (companyName?: string) => {
@@ -285,6 +284,12 @@ export function HistoryPage() {
     return isUserDeleted(email) ? `${email}（削除済み）` : email
   }
 
+  // 処理日時のフォーマット（処理日 + 実行時刻）
+  const formatProcessDateTime = (record: ProcessedFile) => {
+    const time = dayjs(record.created_at).format('HH:mm')
+    return `${record.process_date} ${time}`
+  }
+
   // 初回読み込み時に取引先・ユーザー・履歴データを取得
   useEffect(() => {
     const loadInitialData = async () => {
@@ -293,13 +298,10 @@ export function HistoryPage() {
         const companiesResponse = await fetchCompanies()
         setCompanies(companiesResponse.companies)
 
-        // ユーザーマスタから取得（削除済み含む、usersServiceと連携）
-        const usersData = UsersService.getAllUsersIncludingDeleted()
-        setAllUsers(usersData)
-
-        // 履歴データ取得
-        const historyResponse = await fetchHistory()
-        setAllHistory(historyResponse.history)
+        // ユーザーマスタから取得（アクティブユーザーのみ）
+        // 削除済みユーザーの表示は履歴APIのレスポンスに依存
+        const usersResponse = await UsersService.getUsers()
+        setAllUsers(usersResponse.users)
       } catch (err) {
         console.error('Failed to load initial data:', err)
       }
@@ -503,7 +505,7 @@ export function HistoryPage() {
                 <TableHead>
                   <TableRow>
                     <TableCell sx={{ width: 200 }}>取引先</TableCell>
-                    <TableCell sx={{ width: 120 }}>処理日</TableCell>
+                    <TableCell sx={{ width: 160 }}>処理日時</TableCell>
                     <TableCell sx={{ width: 250 }}>処理者</TableCell>
                     <TableCell sx={{ width: 100 }}>状態</TableCell>
                     <TableCell sx={{ width: 150 }}>出力ファイル</TableCell>
@@ -524,7 +526,7 @@ export function HistoryPage() {
                       <TableCell sx={getCompanyStyle(record.company_name)}>
                         {getCompanyDisplayName(record.company_name)}
                       </TableCell>
-                      <TableCell>{record.process_date}</TableCell>
+                      <TableCell>{formatProcessDateTime(record)}</TableCell>
                       <TableCell sx={getUserStyle(record.user_email)}>
                         {getUserDisplayName(record.user_email)}
                       </TableCell>
@@ -598,9 +600,9 @@ export function HistoryPage() {
                   {/* ボディ */}
                   <Box sx={{ mb: 1.5 }}>
                     <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
-                      処理日:
+                      処理日時:
                     </Typography>
-                    <Typography variant="body2">{record.process_date}</Typography>
+                    <Typography variant="body2">{formatProcessDateTime(record)}</Typography>
                   </Box>
                   <Box sx={{ mb: 1.5 }}>
                     <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
@@ -657,9 +659,9 @@ export function HistoryPage() {
 
                   <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
                     <Typography variant="body2" color="text.secondary" sx={{ width: 60, flexShrink: 0 }}>
-                      処理日
+                      処理日時
                     </Typography>
-                    <Typography variant="body1">{selectedRecord.process_date}</Typography>
+                    <Typography variant="body1">{formatProcessDateTime(selectedRecord)}</Typography>
                   </Box>
 
                   <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>

@@ -68,11 +68,25 @@ router.post(
  * PDF処理実行（PDF解析→Excel編集→PDF生成→DB保存）
  *
  * 認証: 必須（全ユーザー）
- * リクエストボディ（JSON）:
+ * ファイル: 4つのPDF（multipart/form-data）
+ *   - pdf_estimate: 見積書PDF
+ *   - pdf_invoice: 請求書PDF
+ *   - pdf_order_confirmation: 注文請書PDF
+ *   - pdf_delivery: 納品書PDF
+ * リクエストボディ:
  *   - companyId: 取引先ID
- *   - pdfSlots: JSON文字列（PDFスロット情報）
  */
-router.post('/execute', authenticateToken, executeProcessController)
+router.post(
+  '/execute',
+  authenticateToken,
+  upload.fields([
+    { name: 'pdf_estimate', maxCount: 1 },
+    { name: 'pdf_invoice', maxCount: 1 },
+    { name: 'pdf_order_confirmation', maxCount: 1 },
+    { name: 'pdf_delivery', maxCount: 1 },
+  ]),
+  executeProcessController
+)
 
 /**
  * GET /api/process/download/:processId/:fileType

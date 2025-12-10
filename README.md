@@ -142,6 +142,36 @@ SUPABASE_SERVICE_ROLE_KEY=コピーしたキーを貼り付け
 
 **注意**: service_role keyは絶対に公開しないでください
 
+### 5.3 Supabase招待メール設定（必須）
+
+ユーザー招待機能を動作させるには、Supabaseダッシュボードで以下を設定：
+
+#### Redirect URLs設定（必須）
+
+1. https://supabase.com/dashboard にアクセス
+2. プロジェクト選択 → **Authentication** → **URL Configuration**
+3. **Redirect URLs** に以下を追加：
+   - 開発環境: `http://localhost:5174/accept-invitation`
+   - 本番環境: `https://your-domain.com/accept-invitation`（Phase 10で追加）
+
+#### メールテンプレートの日本語化（任意）
+
+1. **Authentication** → **Email Templates**
+2. 「Invite user」テンプレートを編集：
+
+```html
+<h2>アカウント招待</h2>
+<p>月次処理自動化システムへの招待を受け取りました。</p>
+<p>以下のリンクをクリックしてパスワードを設定してください：</p>
+<p><a href="{{ .ConfirmationURL }}">パスワードを設定する</a></p>
+<p>このリンクは24時間で無効になります。</p>
+```
+
+#### SMTP設定（本番運用時に必要）
+
+開発環境ではSupabase内蔵のメールサーバーを使用（1時間あたり4通まで）。
+本番運用時は **Settings** → **Auth** → **SMTP Settings** でカスタムSMTPサーバーを設定。
+
 ### 6. 開発サーバーの起動
 
 ```bash
@@ -259,30 +289,12 @@ seikyu-henkan-2/
 
 | ページID | ページ名 | URL | 権限 | 状態 |
 |---------|---------|-----|------|------|
-| P-002 | PDF処理実行ページ | `/process` | 全ユーザー | ✅ 完成（モック） |
-| P-003 | 処理履歴・ダウンロードページ | `/history` | 全ユーザー | ✅ 完成（モック） |
-| P-004 | ユーザー管理ページ | `/users` | 管理者専用 | ✅ 完成（モック） |
-| P-005 | 取引先設定ページ | `/companies` | 管理者専用 | ✅ 完成（モック） |
+| P-002 | PDF処理実行ページ | `/process` | 全ユーザー | ✅ 完成（API統合済） |
+| P-003 | 処理履歴・ダウンロードページ | `/history` | 全ユーザー | ✅ 完成（API統合済） |
+| P-004 | ユーザー管理ページ | `/users` | 管理者専用 | ✅ 完成（API統合済） |
+| P-005 | 取引先設定ページ | `/companies` | 管理者専用 | ✅ 完成（API統合済） |
 
 **補足**: `/` にアクセスすると、ログイン済みなら `/process`、未ログインなら `/login` にリダイレクト
-
----
-
-## 🔑 モックユーザー（Phase 5以前）
-
-開発環境では以下のモックユーザーでログイン可能：
-
-**管理者1**:
-- メール: `admin@example.com`
-- パスワード: `password123`
-
-**管理者2**:
-- メール: `admin2@example.com`
-- パスワード: `password123`
-
-**一般ユーザー**:
-- メール: `user@example.com`
-- パスワード: `password123`
 
 ---
 
@@ -297,7 +309,7 @@ seikyu-henkan-2/
 | Phase 5 | 環境構築 | ✅ 完了 |
 | Phase 6 | バックエンド計画 | ✅ 完了 |
 | Phase 7 | バックエンド実装 | ✅ 完了 |
-| Phase 8 | API統合 | ⏳ 未着手 |
+| Phase 8 | API統合 | ✅ 完了 |
 | Phase 9 | E2Eテスト | ⏳ 未着手 |
 | Phase 10 | デプロイメント | ⏳ 未着手 |
 
@@ -332,6 +344,8 @@ seikyu-henkan-2/
 - [Phase 4-B完了報告](docs/phase4_b_summary.md) - ログイン状態保持機能
 - [Phase 4-P004完了報告](docs/phase4_p004_summary.md) - P-004（ユーザー管理ページ）
 - [Phase 4-P005完了報告](docs/phase4_p005_summary.md) - P-005（取引先設定ページ）
+- [Phase 7完了報告](docs/phase7_summary.md) - バックエンド実装
+- [Phase 8完了報告](docs/phase8_summary.md) - API統合・Excel検証機能
 
 ---
 

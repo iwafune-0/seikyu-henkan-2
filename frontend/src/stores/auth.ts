@@ -1,7 +1,6 @@
 import { create } from 'zustand'
 import type { User } from '@/types'
 import { supabase } from '@/lib/supabase'
-import { UsersService } from '@/services/mock/usersService'
 
 const AUTH_STORAGE_KEY = 'auth-storage'
 
@@ -84,85 +83,50 @@ export const useAuthStore = create<AuthState>()((set) => ({
   },
 
   login: async (email: string, password: string, remember: boolean = false) => {
-        console.log('auth store login called:', { email })
-        set({ isLoading: true })
-        try {
-          // モック認証（開発用）
-          console.log('Checking Supabase URL:', import.meta.env.VITE_SUPABASE_URL)
-          if (import.meta.env.VITE_SUPABASE_URL === 'https://mock-project.supabase.co') {
-            console.log('Using mock authentication')
+    set({ isLoading: true })
+    try {
+      // Supabase認証
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      })
 
-            // 簡単なパスワードチェック（開発用）
-            if (password.length < 8) {
-              console.error('Password too short')
-              throw new Error('パスワードは8文字以上で入力してください')
-            }
+      if (error) {
+        throw new Error(translateAuthError(error.message))
+      }
 
-            // UsersServiceから最新のユーザー情報を取得（ロール変更を反映）
-            const user = UsersService.getUserByEmail(email)
-            if (!user) {
-              console.error('User not found:', email)
-              throw new Error('ユーザーが見つかりません')
-            }
+      if (data.user) {
+        // profilesテーブルからロール情報を取得
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', data.user.id)
+          .single()
 
-            console.log('Mock user found:', user)
-            // 少し遅延を入れて実際の認証のような動作をシミュレート
-            await new Promise(resolve => setTimeout(resolve, 500))
-
-            console.log('Setting authenticated user')
-            const authState = {
-              user,
-              isAuthenticated: true,
-              isLoading: false
-            }
-            set(authState)
-            saveAuthState({ user, isAuthenticated: true }, remember)
-            console.log('Mock login successful')
-            return
-          }
-
-          // 本番用のSupabase認証
-          const { data, error } = await supabase.auth.signInWithPassword({
-            email,
-            password,
-          })
-
-          if (error) {
-            throw new Error(translateAuthError(error.message))
-          }
-
-          if (data.user) {
-            // profilesテーブルからロール情報を取得
-            const { data: profile, error: profileError } = await supabase
-              .from('profiles')
-              .select('role')
-              .eq('id', data.user.id)
-              .single()
-
-            if (profileError) {
-              console.error('Profile fetch error:', profileError)
-            }
-
-            // SupabaseのユーザーデータをアプリケーションのUser型に変換
-            const user: User = {
-              id: data.user.id,
-              email: data.user.email || '',
-              role: (profile?.role as 'admin' | 'user') || 'user',
-              created_at: data.user.created_at || new Date().toISOString(),
-            }
-            const authState = {
-              user,
-              isAuthenticated: true,
-              isLoading: false
-            }
-            set(authState)
-            saveAuthState({ user, isAuthenticated: true }, remember)
-          }
-        } catch (error) {
-          set({ isLoading: false })
-          throw error
+        if (profileError) {
+          console.error('Profile fetch error:', profileError)
         }
-      },
+
+        // SupabaseのユーザーデータをアプリケーションのUser型に変換
+        const user: User = {
+          id: data.user.id,
+          email: data.user.email || '',
+          role: (profile?.role as 'admin' | 'user') || 'user',
+          created_at: data.user.created_at || new Date().toISOString(),
+        }
+        const authState = {
+          user,
+          isAuthenticated: true,
+          isLoading: false
+        }
+        set(authState)
+        saveAuthState({ user, isAuthenticated: true }, remember)
+      }
+    } catch (error) {
+      set({ isLoading: false })
+      throw error
+    }
+  },
 
   logout: async () => {
     await supabase.auth.signOut()
@@ -175,19 +139,9 @@ export const useAuthStore = create<AuthState>()((set) => ({
   },
 
   checkAuth: async () => {
-    console.log('checkAuth called')
     set({ isLoading: true })
     try {
-      // モック認証の場合は、既存のstateを維持
-      if (import.meta.env.VITE_SUPABASE_URL === 'https://mock-project.supabase.co') {
-        console.log('Mock mode: preserving existing auth state')
-        const currentState = useAuthStore.getState()
-        console.log('Current state:', { user: currentState.user, isAuthenticated: currentState.isAuthenticated })
-        set({ isLoading: false })
-        return
-      }
-
-      // 本番用のSupabase認証チェック
+      // Supabase認証チェック
       const { data: { session } } = await supabase.auth.getSession()
 
       if (session?.user) {

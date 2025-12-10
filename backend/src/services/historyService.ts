@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase'
 import { ProcessedFile, HistoryFilters, DownloadFileType } from '../types/index'
+import { decodeByteaToBuffer } from '../utils/response'
 
 /**
  * 処理履歴サービス
@@ -154,7 +155,7 @@ export async function getFileById(
     throw new Error('ファイルの取得に失敗しました')
   }
 
-  const fileData = (data as unknown as Record<string, unknown>)[columns.data] as Buffer | null | undefined
+  const fileData = (data as unknown as Record<string, unknown>)[columns.data] as string | null | undefined
   const filename = (data as unknown as Record<string, unknown>)[columns.filename] as string | null | undefined
 
   // ファイルが存在しない場合
@@ -162,8 +163,9 @@ export async function getFileById(
     return null
   }
 
+  // SupabaseのBYTEA型データをデコード
   return {
-    buffer: Buffer.from(fileData),
+    buffer: decodeByteaToBuffer(fileData),
     filename,
   }
 }
@@ -229,12 +231,13 @@ export async function getFilesForZip(
   ]
 
   for (const fileType of fileTypes) {
-    const fileData = data[fileType.data] as Buffer | null | undefined
+    const fileData = data[fileType.data] as string | null | undefined
     const filename = data[fileType.filename] as string | null | undefined
 
     if (fileData && filename) {
+      // SupabaseのBYTEA型データをデコード
       files.push({
-        buffer: Buffer.from(fileData),
+        buffer: decodeByteaToBuffer(fileData),
         filename,
       })
     }

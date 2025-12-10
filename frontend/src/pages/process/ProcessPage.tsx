@@ -66,7 +66,7 @@ import {
   downloadResultZip,
   getPdfTypeLabel,
   isAllSlotsReady,
-} from '@/services/mock/processService'
+} from '@/services/processService'
 
 export function ProcessPage() {
   // 状態管理
@@ -225,10 +225,11 @@ export function ProcessPage() {
       )
 
       if (pdfFiles.length === 0) {
-        showSnackbar('PDFファイルを選択してください', 'error')
+        showAlert('PDFファイルを選択してください')
         return
       }
 
+      const previousState = state
       setState('detecting')
       setErrorMessage(null)
 
@@ -248,20 +249,17 @@ export function ProcessPage() {
           setState('incomplete')
         }
       } catch (err) {
-        // 取引先混在エラーなどはダイアログで表示し、現在の状態を維持
-        const hasExistingFiles = pdfSlots.some((s) => s.file !== null)
-        if (hasExistingFiles) {
-          // 既存ファイルがある場合はincomplete状態を維持してダイアログ表示
-          setState('incomplete')
-          showAlert(err instanceof Error ? err.message : '判別処理中にエラーが発生しました')
-        } else {
-          // 初回アップロード時のエラーはinitial状態に戻してダイアログ表示
+        // エラー時は元の状態を維持してダイアログで表示
+        // ただし、初回アップロード（initial）の場合はinitialに戻す
+        if (previousState === 'initial') {
           setState('initial')
-          showAlert(err instanceof Error ? err.message : '判別処理中にエラーが発生しました')
+        } else {
+          setState(previousState)
         }
+        showAlert(err instanceof Error ? err.message : '判別処理中にエラーが発生しました')
       }
     },
-    [pdfSlots]
+    [pdfSlots, state]
   )
 
   const handleDrop = useCallback(
@@ -292,6 +290,7 @@ export function ProcessPage() {
   // 個別スロットへのファイルアップロード
   const handleSlotUpload = useCallback(
     async (targetType: PdfType, file: File) => {
+      const previousState = state
       setState('detecting')
 
       try {
@@ -312,12 +311,12 @@ export function ProcessPage() {
 
         showSnackbar(`${getPdfTypeLabel(targetType)}をアップロードしました`, 'success')
       } catch (err) {
-        // 種別不一致エラーはアラートダイアログで表示
-        setState('incomplete')
+        // エラー時は元の状態を維持してアラートダイアログで表示
+        setState(previousState)
         showAlert(err instanceof Error ? err.message : 'アップロードに失敗しました')
       }
     },
-    [pdfSlots]
+    [pdfSlots, state]
   )
 
   // スロットからファイルを削除
@@ -349,10 +348,15 @@ export function ProcessPage() {
   // Excelファイル処理（選択またはドロップ時に即アップロード）
   const handleExcelFile = useCallback(async (file: File) => {
     if (!file.name.endsWith('.xlsx') && !file.name.endsWith('.xls')) {
-      showSnackbar('Excelファイルを選択してください', 'error')
+      showAlert('Excelファイル（.xlsx または .xls）を選択してください')
       return
     }
     if (!detectionResult?.company) return
+
+    // 元のファイルを保持（エラー時に復元用）
+    const previousFile = excelFile
+    const previousUploaded = excelUploaded
+    const previousState = state
 
     setExcelFile(file)
     try {
@@ -361,11 +365,12 @@ export function ProcessPage() {
       setState('ready')
     } catch (err) {
       showAlert(err instanceof Error ? err.message : 'アップロードに失敗しました')
-      setExcelFile(null)
-      setExcelUploaded(false)
-      setState('excel_required')
+      // エラー時は元の状態を復元
+      setExcelFile(previousFile)
+      setExcelUploaded(previousUploaded)
+      setState(previousState)
     }
-  }, [detectionResult])
+  }, [detectionResult, excelFile, excelUploaded, state])
 
   // Excelファイル削除（アップロードし直し用）
   const handleRemoveExcel = useCallback(() => {
@@ -450,19 +455,7 @@ export function ProcessPage() {
       if (!processResult) return
 
       try {
-        let filename: string
-        switch (type) {
-          case 'excel':
-            filename = processResult.excelFilename
-            break
-          case 'order_pdf':
-            filename = processResult.orderPdfFilename
-            break
-          case 'inspection_pdf':
-            filename = processResult.inspectionPdfFilename
-            break
-        }
-        await downloadResultFile(filename, type)
+        await downloadResultFile(processResult.processId, type)
         showSnackbar('ファイルをダウンロードしました', 'success')
       } catch (err) {
         showSnackbar('ダウンロードに失敗しました', 'error')
@@ -475,7 +468,7 @@ export function ProcessPage() {
     if (!processResult) return
 
     try {
-      await downloadResultZip(processResult)
+      await downloadResultZip(processResult.processId)
       showSnackbar('ZIPファイルをダウンロードしました', 'success')
     } catch (err) {
       showSnackbar('ダウンロードに失敗しました', 'error')

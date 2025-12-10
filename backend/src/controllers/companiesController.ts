@@ -179,8 +179,11 @@ export async function uploadTemplateController(req: Request, res: Response): Pro
       return
     }
 
+    // multerはファイル名をLatin-1としてデコードするため、UTF-8に再変換
+    const filename = Buffer.from(file.originalname, 'latin1').toString('utf8')
+
     // アップロード実行
-    const updatedCompany = await uploadTemplate(id, file.buffer, file.originalname, userId)
+    const updatedCompany = await uploadTemplate(id, file.buffer, filename, userId)
 
     const response: UploadTemplateResponse = {
       success: true,

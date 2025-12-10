@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase'
 import { Company } from '../types/index'
+import { decodeByteaToBuffer } from '../utils/response'
 
 /**
  * 取引先サービス
@@ -104,10 +105,14 @@ export async function uploadTemplate(
 ): Promise<Company> {
   const now = new Date().toISOString()
 
+  // Supabaseのbytea型カラムにはBase64エンコードした文字列として保存
+  // 読み込み時もBase64文字列として返されるため、整合性を保つ
+  const base64Data = fileBuffer.toString('base64')
+
   const { data, error } = await supabase
     .from('companies')
     .update({
-      template_excel: fileBuffer,
+      template_excel: base64Data,
       template_filename: filename,
       template_updated_at: now,
       template_updated_by: userId,
@@ -156,7 +161,7 @@ export async function getTemplate(
   }
 
   return {
-    buffer: Buffer.from(data.template_excel),
+    buffer: decodeByteaToBuffer(data.template_excel),
     filename: data.template_filename,
   }
 }

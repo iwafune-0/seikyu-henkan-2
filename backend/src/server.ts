@@ -14,10 +14,14 @@ const PORT = process.env.PORT || 3001
 // ミドルウェア設定
 // ========================================
 
-// CORS設定（フロントエンド: localhost:5174 からのリクエストを許可）
+// CORS設定（フロントエンド: localhost:5174, 127.0.0.1:5174 からのリクエストを許可）
 app.use(
   cors({
-    origin: process.env.FRONTEND_URL || 'http://localhost:5174',
+    origin: [
+      'http://localhost:5174',
+      'http://127.0.0.1:5174',
+      process.env.FRONTEND_URL || '',
+    ].filter(Boolean),
     credentials: true,
   })
 )

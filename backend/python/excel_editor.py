@@ -48,7 +48,7 @@ from dateutil.relativedelta import relativedelta
 from typing import Dict, Any, List
 
 
-def edit_nextbits_excel(wb: openpyxl.Workbook, data: Dict[str, Any]) -> None:
+def edit_nextbits_excel(wb: openpyxl.Workbook, data: Dict[str, Any]) -> datetime:
     """
     ネクストビッツ様のExcel編集
 
@@ -70,6 +70,9 @@ def edit_nextbits_excel(wb: openpyxl.Workbook, data: Dict[str, Any]) -> None:
     - T20: 単価（編集: 見積書から）
     - W20: 金額（数式: 自動計算）
     - AA19: 摘要（数式: 自動計算）
+
+    Returns:
+        発行日（TEXT関数のキャッシュ値計算に使用）
     """
     ws_order = wb["注文書"]
     ws_inspection = wb["検収書"]
@@ -149,8 +152,11 @@ def edit_nextbits_excel(wb: openpyxl.Workbook, data: Dict[str, Any]) -> None:
     # 単価を更新（T20）
     ws_inspection['T20'] = unit_price
 
+    # 発行日を返す（TEXT関数のキャッシュ値計算に使用）
+    return issue_date
 
-def edit_offbeat_excel(wb: openpyxl.Workbook, data: Dict[str, Any]) -> None:
+
+def edit_offbeat_excel(wb: openpyxl.Workbook, data: Dict[str, Any]) -> datetime:
     """
     オフ・ビート・ワークス様のExcel編集
 
@@ -172,6 +178,9 @@ def edit_offbeat_excel(wb: openpyxl.Workbook, data: Dict[str, Any]) -> None:
     - C20~: 件名（編集: 請求書の品目、先頭に「・」を付ける）
     - R20~: 数量（編集: 請求書の明細から）
     - T20~: 単価（編集: 請求書の明細から）
+
+    Returns:
+        発行日（TEXT関数のキャッシュ値計算に使用）
     """
     ws_order = wb["注文書"]
     ws_inspection = wb["検収書"]
@@ -184,6 +193,7 @@ def edit_offbeat_excel(wb: openpyxl.Workbook, data: Dict[str, Any]) -> None:
     # === 注文書シート編集 ===
 
     # 発行日（注文請書の発行日から）
+    issue_date = None
     issue_date_str = order_confirmation_data.get('issue_date', '')
     if issue_date_str:
         try:
@@ -191,6 +201,9 @@ def edit_offbeat_excel(wb: openpyxl.Workbook, data: Dict[str, Any]) -> None:
             ws_order['AC2'] = issue_date
         except ValueError:
             pass  # パースエラーの場合は元の値を保持
+    if issue_date is None:
+        # 発行日が取得できない場合は今月の1日
+        issue_date = datetime.now().replace(day=1)
 
     # 見積書番号（摘要用）: 「見積番号：NNNNNNN」形式で入力
     estimate_number = estimate_data.get('estimate_number', '')
@@ -258,6 +271,9 @@ def edit_offbeat_excel(wb: openpyxl.Workbook, data: Dict[str, Any]) -> None:
             ws_order['C19'] = "以下、余白"
             ws_inspection['C21'] = "以下、余白"
 
+    # 発行日を返す（TEXT関数のキャッシュ値計算に使用）
+    return issue_date
+
 
 def validate_totals(wb: openpyxl.Workbook, data: Dict[str, Any], company_name: str) -> Dict[str, Any]:
     """
@@ -282,6 +298,240 @@ def validate_totals(wb: openpyxl.Workbook, data: Dict[str, Any], company_name: s
     }
 
 
+def restore_drawing_from_template(template_path: str, output_path: str, issue_date: datetime = None) -> None:
+    """
+    テンプレートからopenpyxlが削除/変更したファイルを復元する
+
+    openpyxlは以下のファイルを適切に処理できない:
+    - [Content_Types].xml: ContentType定義が変更される
+    - _rels/.rels: ルートリレーションが変更される
+    - xl/_rels/workbook.xml.rels: ワークブックリレーションが変更される
+    - xl/workbook.xml: ワークブック定義が変更される
+    - xl/calcChain.xml: 計算チェーンが削除される
+    - xl/sharedStrings.xml: 共有文字列が削除される
+    - xl/drawings/: Office 2014以降の拡張情報が削除される
+    - xl/printerSettings/: プリンタ設定が削除される
+    - xl/worksheets/_rels/: シートのリレーションファイルが変更される
+
+    また、openpyxlは数式のキャッシュ値（計算結果）を保持しないため、
+    TEXT関数などのキャッシュ値をPythonで計算して設定する。
+
+    この関数は、テンプレートからこれらのファイルをそのまま出力ファイルにコピーし、
+    シートXML（データ）のみを処理後ファイルから取得することで、Excelでの修復エラーを防ぐ。
+
+    Args:
+        template_path: テンプレートExcelファイルのパス
+        output_path: 出力Excelファイルのパス（修復対象）
+        issue_date: 発行日（TEXT関数のキャッシュ値計算用）
+    """
+    import zipfile
+    import tempfile
+    import shutil
+    import os
+    import re
+
+    # テンプレートから復元するファイル
+    # openpyxlが壊す/削除するファイルのみをテンプレートから取得
+    # 注意: calcChain.xmlは復元しない（openpyxlの編集内容と不整合になり、数式が再計算されなくなる）
+    files_from_template = [
+        # drawingsフォルダ内のファイル（Office拡張情報）
+        'xl/drawings/drawing1.xml',
+        'xl/drawings/_rels/drawing1.xml.rels',
+        # printerSettingsフォルダ（削除される）
+        'xl/printerSettings/printerSettings1.bin',
+        'xl/printerSettings/printerSettings2.bin',
+        # シートのリレーションファイル（rIdが変更される）
+        'xl/worksheets/_rels/sheet1.xml.rels',
+        'xl/worksheets/_rels/sheet2.xml.rels',
+        # sharedStrings（削除される場合がある）
+        'xl/sharedStrings.xml',
+        # Content_Typesとrels（変更される）
+        '[Content_Types].xml',
+        '_rels/.rels',
+        'xl/_rels/workbook.xml.rels',
+        # workbook.xml（定義が変更される）
+        'xl/workbook.xml',
+        # docProps（メタデータが変更される）
+        'docProps/app.xml',
+        'docProps/core.xml',
+    ]
+
+    # 削除するファイル（復元もしない、存在させない）
+    files_to_remove = [
+        # calcChain.xmlは削除しない（削除すると修復ダイアログが出る）
+    ]
+
+    template_files = {}
+    processed_files = {}
+    template_drawing_rids = {}
+
+    try:
+        # テンプレートファイルを読み込み
+        with zipfile.ZipFile(template_path, 'r') as template_zip:
+            for name in template_zip.namelist():
+                template_files[name] = template_zip.read(name)
+
+            # テンプレートのシートXMLからdrawing参照のrIdを取得
+            for name in template_zip.namelist():
+                if name.startswith('xl/worksheets/sheet') and name.endswith('.xml'):
+                    content = template_files[name].decode('utf-8')
+                    match = re.search(r'<drawing[^>]*r:id="(rId\d+)"', content)
+                    if match:
+                        template_drawing_rids[name] = match.group(1)
+
+        # 処理後ファイルを読み込み
+        with zipfile.ZipFile(output_path, 'r') as output_zip:
+            for name in output_zip.namelist():
+                processed_files[name] = output_zip.read(name)
+
+    except Exception as e:
+        print(f"[restore_drawing] Error reading files: {e}", file=sys.stderr)
+        raise
+
+    # 出力ファイルを更新
+    tmp_path = None
+    try:
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.xlsx') as tmp_file:
+            tmp_path = tmp_file.name
+
+        with zipfile.ZipFile(tmp_path, 'w', zipfile.ZIP_DEFLATED) as new_zip:
+            # 処理後ファイルのすべてのファイルをベースにする
+            for name, content in processed_files.items():
+                # 削除対象のファイルはスキップ
+                if name in files_to_remove:
+                    continue
+
+                # テンプレートから復元すべきファイルの場合
+                if name in files_from_template and name in template_files:
+                    content = template_files[name]
+
+                # シートXMLの場合、drawing参照のrIdを修正（テンプレートの正しいrIdに合わせる）
+                if name in template_drawing_rids:
+                    content_str = content.decode('utf-8')
+                    correct_rid = template_drawing_rids[name]
+                    # drawing参照のrIdを正しい値に置換
+                    content_str = re.sub(
+                        r'(<drawing[^>]*r:id=")rId\d+(")',
+                        rf'\g<1>{correct_rid}\2',
+                        content_str
+                    )
+                    content = content_str.encode('utf-8')
+
+                # シートXML（sheet1.xml = 注文書）の場合、TEXT関数のキャッシュ値を設定
+                # openpyxlは数式のキャッシュ値を保持しないため、Pythonで計算して設定する
+                if name == 'xl/worksheets/sheet1.xml' and issue_date is not None:
+                    content_str = content.decode('utf-8')
+
+                    # AC3: =TEXT(AC2,"yyyymmdd")&"-01" → "20250801-01"
+                    ac3_value = issue_date.strftime('%Y%m%d') + '-01'
+                    # <v></v> または <v/> を <v>計算結果</v> に置換
+                    # AC3セルのパターン: <c r="AC3" ...><f>...</f><v></v></c>
+                    content_str = re.sub(
+                        r'(<c r="AC3"[^>]*>)(<f>[^<]*</f>)<v></v>(</c>)',
+                        rf'\1\2<v>{ac3_value}</v>\3',
+                        content_str
+                    )
+                    # <v/>の場合も対応
+                    content_str = re.sub(
+                        r'(<c r="AC3"[^>]*>)(<f>[^<]*</f>)<v/>(</c>)',
+                        rf'\1\2<v>{ac3_value}</v>\3',
+                        content_str
+                    )
+                    # t="str"属性を追加（数式の結果が文字列であることを示す）
+                    # <c r="AC3" s="47"> → <c r="AC3" s="47" t="str">
+                    content_str = re.sub(
+                        r'(<c r="AC3" s="\d+")(?! t="str")([^>]*>)',
+                        r'\1 t="str"\2',
+                        content_str
+                    )
+
+                    # C17: =TEXT(注文書!$AC$2,"yyyy年mm月分作業費") → "2025年08月分作業費"
+                    c17_value = issue_date.strftime('%Y年%m月分作業費')
+                    content_str = re.sub(
+                        r'(<c r="C17"[^>]*>)(<f>[^<]*</f>)<v></v>(</c>)',
+                        rf'\1\2<v>{c17_value}</v>\3',
+                        content_str
+                    )
+                    content_str = re.sub(
+                        r'(<c r="C17"[^>]*>)(<f>[^<]*</f>)<v/>(</c>)',
+                        rf'\1\2<v>{c17_value}</v>\3',
+                        content_str
+                    )
+                    # t="str"属性を追加
+                    content_str = re.sub(
+                        r'(<c r="C17" s="\d+")(?! t="str")([^>]*>)',
+                        r'\1 t="str"\2',
+                        content_str
+                    )
+
+                    content = content_str.encode('utf-8')
+
+                # シートXML（sheet2.xml = 検収書）の場合も同様にキャッシュ値を設定
+                if name == 'xl/worksheets/sheet2.xml' and issue_date is not None:
+                    content_str = content.decode('utf-8')
+
+                    # C19: =TEXT(注文書!$AC$2,"yyyy年mm月分作業費") → "2025年08月分作業費"
+                    c19_value = issue_date.strftime('%Y年%m月分作業費')
+                    content_str = re.sub(
+                        r'(<c r="C19"[^>]*>)(<f>[^<]*</f>)<v></v>(</c>)',
+                        rf'\1\2<v>{c19_value}</v>\3',
+                        content_str
+                    )
+                    content_str = re.sub(
+                        r'(<c r="C19"[^>]*>)(<f>[^<]*</f>)<v/>(</c>)',
+                        rf'\1\2<v>{c19_value}</v>\3',
+                        content_str
+                    )
+                    # t="str"属性を追加
+                    content_str = re.sub(
+                        r'(<c r="C19" s="\d+")(?! t="str")([^>]*>)',
+                        r'\1 t="str"\2',
+                        content_str
+                    )
+
+                    content = content_str.encode('utf-8')
+
+                # workbook.xmlの場合、強制再計算フラグを追加
+                # calcPr要素にfullCalcOnLoad="1"を設定してExcelがファイルを開いた時に再計算させる
+                if name == 'xl/workbook.xml':
+                    content_str = content.decode('utf-8')
+                    # calcPr要素が存在する場合、fullCalcOnLoadを追加
+                    if '<calcPr' in content_str:
+                        # fullCalcOnLoad属性がない場合のみ追加
+                        if 'fullCalcOnLoad' not in content_str:
+                            content_str = re.sub(
+                                r'(<calcPr)',
+                                r'\1 fullCalcOnLoad="1"',
+                                content_str
+                            )
+                    else:
+                        # calcPr要素がない場合、workbook終了タグの前に追加
+                        content_str = re.sub(
+                            r'(</workbook>)',
+                            r'<calcPr fullCalcOnLoad="1"/>\1',
+                            content_str
+                        )
+                    content = content_str.encode('utf-8')
+
+                new_zip.writestr(name, content)
+
+            # テンプレートにあって処理後ファイルにないファイルを追加
+            # （openpyxlが削除したファイルを復元）
+            # ただし削除対象のファイルは復元しない
+            for name, content in template_files.items():
+                if name not in processed_files and name not in files_to_remove:
+                    new_zip.writestr(name, content)
+
+        # 元のファイルを置き換え
+        shutil.move(tmp_path, output_path)
+
+    except Exception as e:
+        if tmp_path and os.path.exists(tmp_path):
+            os.remove(tmp_path)
+        print(f"[restore_drawing] Error restoring files: {e}", file=sys.stderr)
+        raise
+
+
 def edit_excel(company_name: str, template_path: str, output_path: str, data: Dict[str, Any]) -> Dict[str, Any]:
     """
     Excelテンプレートにデータを転記
@@ -299,11 +549,12 @@ def edit_excel(company_name: str, template_path: str, output_path: str, data: Di
         # テンプレートExcelを読み込み
         wb = openpyxl.load_workbook(template_path)
 
-        # 取引先ごとの編集処理
+        # 取引先ごとの編集処理（発行日を返す）
+        issue_date = None
         if company_name == "ネクストビッツ":
-            edit_nextbits_excel(wb, data)
+            issue_date = edit_nextbits_excel(wb, data)
         elif company_name == "オフ・ビート・ワークス":
-            edit_offbeat_excel(wb, data)
+            issue_date = edit_offbeat_excel(wb, data)
         else:
             raise ValueError(f"未対応の取引先: {company_name}")
 
@@ -312,6 +563,10 @@ def edit_excel(company_name: str, template_path: str, output_path: str, data: Di
 
         # 編集済みExcelを保存
         wb.save(output_path)
+
+        # テンプレートからdrawing1.xmlを復元（openpyxlが削除した拡張情報を復元）
+        # issue_dateを渡してTEXT関数のキャッシュ値を設定
+        restore_drawing_from_template(template_path, output_path, issue_date)
 
         return {
             "success": True,
@@ -353,9 +608,11 @@ def main():
 
     except Exception as e:
         # エラー時はエラー情報をJSON形式で返す
+        import traceback
         print(json.dumps({
             "error": str(e),
-            "error_type": type(e).__name__
+            "error_type": type(e).__name__,
+            "traceback": traceback.format_exc()
         }, ensure_ascii=False), file=sys.stderr)
         sys.exit(1)
 

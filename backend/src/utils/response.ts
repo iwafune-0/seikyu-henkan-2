@@ -147,3 +147,32 @@ export function sendInternalError(
 
   res.status(500).json(response)
 }
+
+/**
+ * SupabaseのBYTEA型データをBufferにデコード
+ *
+ * Supabaseは BYTEA 型のデータを以下の形式で返す:
+ * - Hex形式文字列: "\x504b0304..." のような形式
+ *
+ * 保存時にBase64エンコードしている場合:
+ * 1. Hex形式をHexデコード → Base64文字列
+ * 2. Base64文字列をBase64デコード → バイナリ
+ *
+ * @param byteaData - SupabaseからのBYTEA型データ（文字列）
+ * @returns デコードされたBuffer
+ */
+export function decodeByteaToBuffer(byteaData: string): Buffer {
+  // Hex形式かチェック（\xで始まる）
+  if (byteaData.startsWith('\\x')) {
+    // 1. \xプレフィックスを除去してHexデコード
+    const hexString = byteaData.substring(2)
+    const base64Buffer = Buffer.from(hexString, 'hex')
+
+    // 2. UTF-8文字列としてBase64デコード
+    const base64String = base64Buffer.toString('utf8')
+    return Buffer.from(base64String, 'base64')
+  }
+
+  // Hex形式でない場合は直接Base64デコードを試みる
+  return Buffer.from(byteaData, 'base64')
+}

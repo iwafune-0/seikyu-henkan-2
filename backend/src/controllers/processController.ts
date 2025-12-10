@@ -5,6 +5,7 @@ import {
   sendBadRequest,
   sendInternalError,
   sendNotFound,
+  decodeByteaToBuffer,
 } from '../utils/response'
 import {
   detectPdfFiles,
@@ -84,10 +85,17 @@ export async function detectPdfController(
     }
 
     // ファイル情報をBufferに変換
+    // multerはファイル名をLatin-1としてデコードするため、UTF-8に再変換
     const fileData = files.map((file) => ({
-      filename: file.originalname,
+      filename: Buffer.from(file.originalname, 'latin1').toString('utf8'),
       buffer: file.buffer,
     }))
+
+    // デバッグログ: アップロードされたファイル名を出力
+    console.log('=== アップロードされたファイル ===')
+    fileData.forEach((f, i) => {
+      console.log(`[${i + 1}] ${f.filename}`)
+    })
 
     // 取引先・種別判別
     const result = await detectPdfFiles(fileData, existingSlots)
@@ -172,8 +180,9 @@ export async function uploadSinglePdfController(
     }
 
     // ファイル情報
+    // multerはファイル名をLatin-1としてデコードするため、UTF-8に再変換
     const fileData = {
-      filename: file.originalname,
+      filename: Buffer.from(file.originalname, 'latin1').toString('utf8'),
       buffer: file.buffer,
     }
 
@@ -264,8 +273,11 @@ export async function uploadExcelController(
       return
     }
 
+    // multerはファイル名をLatin-1としてデコードするため、UTF-8に再変換
+    const filename = Buffer.from(file.originalname, 'latin1').toString('utf8')
+
     // ファイル名に取引先名が含まれているか検証
-    const isValid = await validateExcelFilename(file.originalname, companyId)
+    const isValid = await validateExcelFilename(filename, companyId)
 
     if (!isValid) {
       sendBadRequest(
@@ -284,15 +296,15 @@ export async function uploadExcelController(
     }
 
     // Excelテンプレートをアップロード
-    await uploadTemplate(companyId, file.buffer, file.originalname, userId)
+    await uploadTemplate(companyId, file.buffer, filename, userId)
 
     sendSuccess(
       res,
       {
         success: true,
-        message: `テンプレート「${file.originalname}」をアップロードしました`,
+        message: `テンプレート「${filename}」をアップロードしました`,
       },
-      `テンプレート「${file.originalname}」をアップロードしました`
+      `テンプレート「${filename}」をアップロードしました`
     )
   } catch (error) {
     if (error instanceof Error) {
@@ -320,26 +332,74 @@ export async function executeProcessController(
   res: Response
 ): Promise<void> {
   try {
-    const { companyId, pdfSlots: pdfSlotsJson } = req.body
+    const { companyId } = req.body
 
     if (!companyId) {
       sendBadRequest(res, 'companyIdが指定されていません')
       return
     }
 
-    if (!pdfSlotsJson) {
-      sendBadRequest(res, 'pdfSlotsが指定されていません')
+    // multerで処理されたファイルを取得
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const files = req.files as { [fieldname: string]: Express.Multer.File[] } | undefined
+
+    if (!files) {
+      sendBadRequest(res, 'PDFファイルがアップロードされていません')
       return
     }
 
-    // pdfSlotsをパース
-    let pdfSlots: PdfSlot[]
-    try {
-      pdfSlots = JSON.parse(pdfSlotsJson)
-    } catch (error) {
-      sendBadRequest(res, 'pdfSlotsの形式が不正です')
+    // 各PDFファイルを取得
+    const estimateFile = files['pdf_estimate']?.[0]
+    const invoiceFile = files['pdf_invoice']?.[0]
+    const orderConfirmationFile = files['pdf_order_confirmation']?.[0]
+    const deliveryFile = files['pdf_delivery']?.[0]
+
+    // 必須ファイルのチェック
+    if (!estimateFile || !invoiceFile || !orderConfirmationFile || !deliveryFile) {
+      const missingFiles: string[] = []
+      if (!estimateFile) missingFiles.push('見積書')
+      if (!invoiceFile) missingFiles.push('請求書')
+      if (!orderConfirmationFile) missingFiles.push('注文請書')
+      if (!deliveryFile) missingFiles.push('納品書')
+      sendBadRequest(res, `以下のPDFファイルが不足しています: ${missingFiles.join(', ')}`)
       return
     }
+
+    // PdfSlot形式に変換（multerはファイル名をLatin-1としてデコードするため、UTF-8に再変換）
+    const pdfSlots: PdfSlot[] = [
+      {
+        type: 'estimate',
+        file: {
+          filename: Buffer.from(estimateFile.originalname, 'latin1').toString('utf8'),
+          buffer: estimateFile.buffer,
+        },
+        status: 'uploaded',
+      },
+      {
+        type: 'invoice',
+        file: {
+          filename: Buffer.from(invoiceFile.originalname, 'latin1').toString('utf8'),
+          buffer: invoiceFile.buffer,
+        },
+        status: 'uploaded',
+      },
+      {
+        type: 'order_confirmation',
+        file: {
+          filename: Buffer.from(orderConfirmationFile.originalname, 'latin1').toString('utf8'),
+          buffer: orderConfirmationFile.buffer,
+        },
+        status: 'uploaded',
+      },
+      {
+        type: 'delivery',
+        file: {
+          filename: Buffer.from(deliveryFile.originalname, 'latin1').toString('utf8'),
+          buffer: deliveryFile.buffer,
+        },
+        status: 'uploaded',
+      },
+    ]
 
     // ユーザーIDを取得
     const userId = req.user?.id
@@ -364,13 +424,16 @@ export async function executeProcessController(
       return
     }
 
+    // テンプレートExcelをデコード（SupabaseのBYTEA型はHex形式で返される）
+    const templateBuffer = decodeByteaToBuffer(company.template_excel)
+
     // 処理実行
     const result = await executeProcess(
       userId,
       companyId,
       company.name,
       pdfSlots,
-      Buffer.from(company.template_excel, 'base64')
+      templateBuffer
     )
 
     sendSuccess(res, result, '処理が完了しました')
@@ -409,18 +472,19 @@ export async function downloadProcessFileController(
     }
 
     // ファイル種別に応じてファイルを返す
+    // SupabaseのBYTEA型はHex形式（\x...）で返されるのでdecodeByteaToBufferを使用
     let fileBuffer: Buffer | null = null
     let filename = ''
 
     if (fileType === 'excel') {
-      fileBuffer = data.excel_file ? Buffer.from(data.excel_file, 'base64') : null
+      fileBuffer = data.excel_file ? decodeByteaToBuffer(data.excel_file) : null
       filename = data.excel_filename || 'output.xlsx'
     } else if (fileType === 'order_pdf') {
-      fileBuffer = data.order_pdf ? Buffer.from(data.order_pdf, 'base64') : null
+      fileBuffer = data.order_pdf ? decodeByteaToBuffer(data.order_pdf) : null
       filename = data.order_pdf_filename || 'order.pdf'
     } else if (fileType === 'inspection_pdf') {
       fileBuffer = data.inspection_pdf
-        ? Buffer.from(data.inspection_pdf, 'base64')
+        ? decodeByteaToBuffer(data.inspection_pdf)
         : null
       filename = data.inspection_pdf_filename || 'inspection.pdf'
     } else {
@@ -437,8 +501,13 @@ export async function downloadProcessFileController(
     }
 
     // ファイルを返す
+    // RFC 5987に準拠したファイル名エンコーディング（日本語ファイル名対応）
+    const encodedFilename = encodeURIComponent(filename).replace(/'/g, '%27')
     res.setHeader('Content-Type', 'application/octet-stream')
-    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`)
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename*=UTF-8''${encodedFilename}`
+    )
     res.send(fileBuffer)
   } catch (error) {
     console.error('ファイルダウンロードエラー:', error)
@@ -480,28 +549,37 @@ export async function downloadProcessZipController(
       data.process_date.replace(/-/g, '')
     }.zip`
 
+    // RFC 5987に準拠したファイル名エンコーディング（日本語ファイル名対応）
+    const encodedZipFilename = encodeURIComponent(zipFilename).replace(/'/g, '%27')
     res.setHeader('Content-Type', 'application/zip')
-    res.setHeader('Content-Disposition', `attachment; filename="${zipFilename}"`)
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename*=UTF-8''${encodedZipFilename}`
+    )
 
     archive.pipe(res)
 
-    // Excel追加
+    // Excel追加（SupabaseのBYTEA型はHex形式で返されるのでdecodeByteaToBufferを使用）
     if (data.excel_file && data.excel_filename) {
-      archive.append(Buffer.from(data.excel_file, 'base64'), {
+      const excelBuffer = decodeByteaToBuffer(data.excel_file)
+      // デバッグログ: Excelファイルの状態を確認
+      const hasCreationId = excelBuffer.toString('utf8').includes('a16:creationId')
+      console.log(`[ZIP Download] processId: ${processId}, Excel: ${data.excel_filename}, size: ${excelBuffer.length} bytes, a16:creationId: ${hasCreationId}, created_at: ${data.created_at}`)
+      archive.append(excelBuffer, {
         name: data.excel_filename,
       })
     }
 
     // 注文書PDF追加
     if (data.order_pdf && data.order_pdf_filename) {
-      archive.append(Buffer.from(data.order_pdf, 'base64'), {
+      archive.append(decodeByteaToBuffer(data.order_pdf), {
         name: data.order_pdf_filename,
       })
     }
 
     // 検収書PDF追加
     if (data.inspection_pdf && data.inspection_pdf_filename) {
-      archive.append(Buffer.from(data.inspection_pdf, 'base64'), {
+      archive.append(decodeByteaToBuffer(data.inspection_pdf), {
         name: data.inspection_pdf_filename,
       })
     }

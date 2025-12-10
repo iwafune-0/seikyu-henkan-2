@@ -135,6 +135,41 @@ export async function detectCompanyFromFiles(
 }
 
 /**
+ * 複数ファイル名から取引先を判別（混在チェック付き）
+ *
+ * @param filenames - ファイル名の配列
+ * @returns 判別された取引先（混在またはdetect不可の場合はnull）
+ * @throws 取引先混在エラー
+ */
+export async function detectCompanyFromFilenames(
+  filenames: string[]
+): Promise<Company | null> {
+  const companies = new Set<string>()
+
+  for (const filename of filenames) {
+    const company = await detectCompanyFromFilename(filename)
+    if (company) {
+      companies.add(company.id)
+    }
+  }
+
+  // 取引先混在チェック
+  if (companies.size > 1) {
+    throw new Error('COMPANY_MISMATCH')
+  }
+
+  // 取引先が1つだけの場合はその取引先を返す
+  if (companies.size === 1) {
+    const companyId = Array.from(companies)[0]
+    const allCompanies = await getAllCompanies()
+    return allCompanies.find((c) => c.id === companyId) || null
+  }
+
+  // 判別不可
+  return null
+}
+
+/**
  * 初回処理かどうかを判定（DBに前回Excelが存在するかチェック）
  *
  * @param companyId - 取引先ID
@@ -208,8 +243,21 @@ export async function detectPdfFiles(
   files: { filename: string; buffer: Buffer }[],
   existingSlots?: PdfSlot[]
 ): Promise<DetectionResult> {
-  // 取引先判別
-  const company = await detectCompanyFromFiles(files)
+  // 全てのファイル名を収集（新規 + 既存）
+  // 注: フロントエンドからは { type, filename, status } 形式で送信される
+  const allFilenames: string[] = files.map((f) => f.filename)
+  if (existingSlots) {
+    for (const slot of existingSlots) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const filename = (slot as any).filename || slot.file?.filename
+      if (filename) {
+        allFilenames.push(filename)
+      }
+    }
+  }
+
+  // 取引先判別（既存 + 新規の全ファイルで混在チェック）
+  const company = await detectCompanyFromFilenames(allFilenames)
 
   if (!company) {
     throw new Error('UNDETECTABLE_COMPANY')
@@ -229,11 +277,15 @@ export async function detectPdfFiles(
   }))
 
   // 既存スロットがあればマージ
+  // 注: フロントエンドからは { type, filename, status } 形式で送信される
   if (existingSlots) {
     for (const existingSlot of existingSlots) {
       const slot = slots.find((s) => s.type === existingSlot.type)
-      if (slot && existingSlot.file) {
-        slot.file = existingSlot.file
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const filename = (existingSlot as any).filename || existingSlot.file?.filename
+      if (slot && filename) {
+        // ファイル名のみを保持（Bufferはフロントエンドから送信されない）
+        slot.file = { filename, buffer: Buffer.alloc(0) }
         slot.status = 'uploaded'
       }
     }
@@ -291,22 +343,32 @@ export async function uploadSinglePdf(
   }
 
   // 取引先判別（既存スロット + 新規ファイル）
-  const allFiles = existingSlots
-    .filter((s) => s.file)
-    .map((s) => ({
-      filename: s.file!.filename,
-      buffer: s.file!.buffer,
-    }))
-  allFiles.push(file)
+  // 注: フロントエンドからは { type, filename, status } 形式で送信される
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const allFilenames: string[] = existingSlots
+    .filter((s: any) => s.filename || (s.file && s.file.filename))
+    .map((s: any) => s.filename || s.file?.filename)
+  allFilenames.push(file.filename)
 
-  const company = await detectCompanyFromFiles(allFiles)
+  // ファイル名から取引先を判別（混在チェック付き）
+  const company = await detectCompanyFromFilenames(allFilenames)
 
   if (!company) {
     throw new Error('UNDETECTABLE_COMPANY')
   }
 
   // スロット更新
-  const slots: PdfSlot[] = existingSlots.map((slot) => ({ ...slot }))
+  // 注: フロントエンドからは { type, filename, status } 形式で送信される
+  // バックエンドの PdfSlot 形式に変換
+  const slots: PdfSlot[] = existingSlots.map((slot) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const filename = (slot as any).filename || slot.file?.filename
+    return {
+      type: slot.type,
+      file: filename ? { filename, buffer: Buffer.alloc(0) } : null,
+      status: slot.status,
+    }
+  })
   const targetSlot = slots.find((s) => s.type === targetType)
 
   if (targetSlot) {
@@ -395,7 +457,10 @@ async function runPythonScript(
 
     pythonProcess.on('close', (code: number) => {
       if (code !== 0) {
-        reject(new Error(`Pythonスクリプトエラー: ${stderr}`))
+        // stderrが空の場合はstdoutからエラーメッセージを取得
+        // （excel_validator.pyは検証エラー時にstdoutにJSON出力してexit(1)するため）
+        const errorMessage = stderr.trim() || stdout.trim() || '不明なエラー'
+        reject(new Error(`Pythonスクリプトエラー: ${errorMessage}`))
       } else {
         resolve(stdout.trim())
       }
@@ -454,27 +519,34 @@ async function saveProcessedFiles(
   )
   const deliverySlot = pdfSlots.find((s) => s.type === 'delivery')
 
+  // BufferをBase64文字列に変換（SupabaseのBYTEA型に正しく保存するため）
+  // companiesService.tsのuploadTemplateと同様の方式
+  const toBase64 = (buffer: Buffer | undefined): string | null => {
+    if (!buffer || buffer.length === 0) return null
+    return buffer.toString('base64')
+  }
+
   const { data, error } = await supabase
     .from('processed_files')
     .insert({
       user_id: userId,
       company_id: companyId,
       process_date: processDate,
-      // 入力PDF（BYTEA型）
-      input_pdf_1: estimateSlot?.file?.buffer,
+      // 入力PDF（BYTEA型 - Base64エンコード）
+      input_pdf_1: toBase64(estimateSlot?.file?.buffer),
       input_pdf_1_filename: estimateSlot?.file?.filename,
-      input_pdf_2: invoiceSlot?.file?.buffer,
+      input_pdf_2: toBase64(invoiceSlot?.file?.buffer),
       input_pdf_2_filename: invoiceSlot?.file?.filename,
-      input_pdf_3: orderConfirmationSlot?.file?.buffer,
+      input_pdf_3: toBase64(orderConfirmationSlot?.file?.buffer),
       input_pdf_3_filename: orderConfirmationSlot?.file?.filename,
-      input_pdf_4: deliverySlot?.file?.buffer,
+      input_pdf_4: toBase64(deliverySlot?.file?.buffer),
       input_pdf_4_filename: deliverySlot?.file?.filename,
-      // 出力ファイル（BYTEA型）
-      excel_file: excelFile,
+      // 出力ファイル（BYTEA型 - Base64エンコード）
+      excel_file: toBase64(excelFile),
       excel_filename: excelFilename,
-      order_pdf: orderPdf,
+      order_pdf: toBase64(orderPdf),
       order_pdf_filename: orderPdfFilename,
-      inspection_pdf: inspectionPdf,
+      inspection_pdf: toBase64(inspectionPdf),
       inspection_pdf_filename: inspectionPdfFilename,
       // 処理情報
       processing_time: processingTime,
@@ -657,7 +729,42 @@ export async function executeProcess(
       }
     }
 
-    // 4. PDF生成（LibreOffice）- 注文書シートと検収書シートを個別にPDF変換
+    // 4. Excel検証（LibreOfficeで数式計算後のセル値を取得して検証）
+    // ※PDF生成前に検証することで、エラー時のPDF生成を回避
+    const validationData = {
+      invoice: invoiceData,
+      estimate: estimateData,
+      items_count: invoiceData.items?.length || 1,  // オフ・ビート・ワークスの動的行数用
+    }
+    const validationResultJson = await runPythonScript('excel_validator.py', [
+      outputExcelPath,
+      companyName,
+      JSON.stringify(validationData),
+    ])
+
+    const validationResult = JSON.parse(validationResultJson)
+
+    if (!validationResult.success) {
+      // 検証エラーの詳細をログに出力
+      console.error('Excel検証エラー:', validationResult.errors)
+
+      // エラーメッセージを整形
+      const errorMessages = validationResult.errors.join('\n')
+      throw new Error(`Excel検証エラー:\n${errorMessages}`)
+    }
+
+    console.log('Excel検証結果:', JSON.stringify(validationResult.checks, null, 2))
+
+    // 5. Excelバッファを読み込み（PDF生成前に読み込むことで、LibreOfficeによる上書きの影響を受けない）
+    console.log('[DEBUG] Excelファイル読み込み開始:', outputExcelPath)
+    const excelBuffer = await fs.readFile(outputExcelPath)
+    console.log('[DEBUG] Excelファイル読み込み完了、サイズ:', excelBuffer.length)
+    if (excelBuffer.length === 0) {
+      throw new Error('Excel読み込みエラー: ファイルが空です')
+    }
+
+    // 6. PDF生成（LibreOffice）- 注文書シートと検収書シートを個別にPDF変換
+    // ※検証OKの場合のみ実行
     const outputPdfDir = tmpDir
     const pdfResultJson = await runPythonScript('pdf_generator.py', [
       outputExcelPath,
@@ -670,12 +777,11 @@ export async function executeProcess(
       throw new Error(`PDF生成エラー: ${pdfResult.error}`)
     }
 
-    // 5. 生成ファイルを読み込み
-    const excelBuffer = await fs.readFile(outputExcelPath)
+    // PDFファイルを読み込み
     const orderPdfBuffer = await fs.readFile(pdfResult.order_pdf_path)
     const inspectionPdfBuffer = await fs.readFile(pdfResult.inspection_pdf_path)
 
-    // 6. ファイル名生成（処理ルール確定版: 2025-12-08）
+    // 7. ファイル名生成（処理ルール確定版: 2025-12-08）
     // YYMM形式（年下2桁 + 月2桁）- 見積書ファイル名から処理対象月を抽出
     let yearMonth = ''
 
@@ -757,28 +863,26 @@ export async function executeProcess(
       processId,
     }
   } catch (error) {
-    // エラー時もDB保存
-    const endTime = Date.now()
-    const processingTime = Math.round((endTime - startTime) / 1000)
+    // エラー時はprocess_logsテーブルにのみ記録
+    // processed_filesテーブルはexcel_fileがNOT NULLなので空Bufferを保存できない
+    const errorMessage = error instanceof Error ? error.message : '不明なエラー'
+    const errorDetail = error instanceof Error ? error.stack : undefined
 
-    await saveProcessedFiles(
-      userId,
-      companyId,
-      new Date().toISOString().split('T')[0],
-      pdfSlots,
-      Buffer.from([]), // 空Buffer
-      '',
-      Buffer.from([]),
-      '',
-      Buffer.from([]),
-      '',
-      processingTime,
-      'error',
-      error instanceof Error ? error.message : '不明なエラー',
-      'PROCESS_ERROR',
-      error instanceof Error ? error.stack : undefined,
-      error instanceof Error ? error.stack : undefined
-    )
+    console.error('[executeProcess] エラー発生:', errorMessage)
+
+    try {
+      await supabase
+        .from('process_logs')
+        .insert({
+          user_id: userId,
+          company_id: companyId,
+          status: 'error',
+          error_message: errorMessage,
+          error_detail: errorDetail,
+        })
+    } catch (logError) {
+      console.error('[executeProcess] ログ保存エラー:', logError)
+    }
 
     throw error
   }

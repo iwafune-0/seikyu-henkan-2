@@ -42,7 +42,7 @@ import {
 } from '@mui/material'
 import { PersonAdd as PersonAddIcon } from '@mui/icons-material'
 import { AuthenticatedLayout } from '@/components/layouts/AuthenticatedLayout'
-import { UsersService } from '@/services/mock/usersService'
+import { UsersService } from '@/services/usersService'
 import { useAuthStore } from '@/stores/auth'
 import type { User, UserRole } from '@/types'
 
