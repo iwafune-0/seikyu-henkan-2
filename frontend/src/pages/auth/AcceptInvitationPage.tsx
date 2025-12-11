@@ -141,6 +141,23 @@ export function AcceptInvitationPage() {
 
       if (updateError) throw updateError
 
+      // profilesテーブルにユーザーを登録
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        const { error: profileError } = await supabase.from('profiles').insert({
+          id: user.id,
+          email: user.email,
+          role: user.user_metadata?.role || 'user',
+          is_deleted: false,
+          created_at: new Date().toISOString()
+        })
+
+        if (profileError) {
+          console.error('Profile creation error:', profileError)
+          // プロファイル作成に失敗してもパスワード設定は成功しているので続行
+        }
+      }
+
       // ログアウトしてログインページへ
       await supabase.auth.signOut()
 
