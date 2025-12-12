@@ -236,6 +236,15 @@ CompaniesPage.tsxの3箇所で日付表示を`formatDateTime()`関数に統一�
 
 SCOPE_PROGRESS.mdに「エラーメッセージ改善」タスクを記録。
 
+### 7. TypeScript型チェック
+
+E2Eテスト前の品質確認として、TypeScript型チェックを実施：
+
+| 対象 | コマンド | 結果 |
+|------|---------|------|
+| フロントエンド | `npx tsc --noEmit` | ✅ エラーなし |
+| バックエンド | `npx tsc --noEmit` | ✅ エラーなし |
+
 ---
 
 **作成日**: 2025-12-09
