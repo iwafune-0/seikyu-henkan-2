@@ -691,7 +691,6 @@ Supabase: $0（無料枠内）
 | Phase 6 | バックエンド計画 | 実装順序計画 |
 | Phase 7 | バックエンド実装 | API実装 |
 | Phase 8 | API統合 | フロントエンド連携 |
-| Phase 8.5 | TypeScript型解消 | 型エラー一掃 |
 | Phase 9 | E2Eテスト | 品質担保 |
 | Phase 10 | デプロイメント | AWS本番デプロイ |
 
