@@ -349,28 +349,87 @@ def convert_excel_sheets_to_pdf(excel_path: str, output_dir: str) -> Dict[str, s
 
     Raises:
         RuntimeError: 変換失敗時
+
+    Note:
+        openpyxlを経由するとExcel XMLのキャッシュ値が失われ、LibreOfficeがTEXT関数を
+        正しく計算できない問題があった。そのため、元のExcelを直接LibreOfficeでPDF変換し、
+        pypdfでページを分割する方式に変更した。
     """
-    # 出力パスを生成
-    order_pdf_path = os.path.join(output_dir, f"order_{os.getpid()}.pdf")
-    inspection_pdf_path = os.path.join(output_dir, f"inspection_{os.getpid()}.pdf")
+    from pypdf import PdfReader, PdfWriter
 
-    # Excelを読み込み、Pythonで数式を計算
-    # LibreOfficeのheadless変換ではシート間参照の計算に失敗するため、
-    # Pythonで直接計算を行う
-    wb = openpyxl.load_workbook(excel_path)
-    calculated_values = calculate_formulas_python(wb)
-    wb.close()
+    # LibreOfficeチェック
+    if not check_libreoffice():
+        raise RuntimeError(
+            "LibreOfficeがインストールされていません。\n"
+            "本番環境（AWS Lambda Docker Image）ではLibreOfficeを含むイメージを使用してください。"
+        )
 
-    # 注文書シートをPDF変換（Pythonで計算した値を使用）
-    convert_sheet_to_pdf(excel_path, "注文書", order_pdf_path, calculated_values)
+    # 一時PDFパス
+    temp_full_pdf_path = os.path.join(output_dir, f"temp_full_{os.getpid()}.pdf")
 
-    # 検収書シートをPDF変換（Pythonで計算した値を使用）
-    convert_sheet_to_pdf(excel_path, "検収書", inspection_pdf_path, calculated_values)
+    try:
+        # LibreOfficeで全シートをPDFに変換（openpyxlを経由しない）
+        # これによりexcel_editor.pyで設定したキャッシュ値が保持される
+        result = subprocess.run(
+            [
+                'soffice',
+                '--headless',
+                '--convert-to', 'pdf',
+                '--outdir', output_dir,
+                excel_path
+            ],
+            capture_output=True,
+            text=True,
+            timeout=60
+        )
 
-    return {
-        "order_pdf_path": order_pdf_path,
-        "inspection_pdf_path": inspection_pdf_path
-    }
+        if result.returncode != 0:
+            raise RuntimeError(f"LibreOffice変換エラー: {result.stderr}")
+
+        # LibreOfficeが生成するPDFのファイル名を推測
+        excel_filename = os.path.basename(excel_path)
+        generated_pdf_name = os.path.splitext(excel_filename)[0] + '.pdf'
+        generated_pdf_path = os.path.join(output_dir, generated_pdf_name)
+
+        if not os.path.exists(generated_pdf_path):
+            raise RuntimeError(f"PDFファイルが生成されませんでした: {generated_pdf_path}")
+
+        # 一時ファイル名にリネーム
+        shutil.move(generated_pdf_path, temp_full_pdf_path)
+
+        # PDFをページごとに分割（注文書=1ページ目、検収書=2ページ目）
+        reader = PdfReader(temp_full_pdf_path)
+
+        if len(reader.pages) < 2:
+            raise RuntimeError(f"PDFのページ数が不足しています: {len(reader.pages)}ページ")
+
+        # 注文書（1ページ目）
+        order_pdf_path = os.path.join(output_dir, f"order_{os.getpid()}.pdf")
+        order_writer = PdfWriter()
+        order_writer.add_page(reader.pages[0])
+        with open(order_pdf_path, 'wb') as f:
+            order_writer.write(f)
+
+        # 検収書（2ページ目）
+        inspection_pdf_path = os.path.join(output_dir, f"inspection_{os.getpid()}.pdf")
+        inspection_writer = PdfWriter()
+        inspection_writer.add_page(reader.pages[1])
+        with open(inspection_pdf_path, 'wb') as f:
+            inspection_writer.write(f)
+
+        return {
+            "order_pdf_path": order_pdf_path,
+            "inspection_pdf_path": inspection_pdf_path
+        }
+
+    except subprocess.TimeoutExpired:
+        raise RuntimeError("PDF変換がタイムアウトしました（60秒以内に完了しませんでした）")
+    except Exception as e:
+        raise RuntimeError(f"PDF変換エラー: {str(e)}") from e
+    finally:
+        # 一時ファイル削除
+        if os.path.exists(temp_full_pdf_path):
+            os.remove(temp_full_pdf_path)
 
 
 def main():

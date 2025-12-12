@@ -282,7 +282,7 @@ export async function uploadExcelController(
     if (!isValid) {
       sendBadRequest(
         res,
-        'ファイル名に取引先名（ネクストビッツ または オフ・ビート・ワークス）が含まれていません'
+        '選択中の取引先と異なるExcelファイルがアップロードされました'
       )
       return
     }

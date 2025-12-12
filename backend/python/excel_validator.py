@@ -31,6 +31,7 @@ LibreOfficeでExcelを開いて数式を計算させ、セル値を取得して�
             - G12: 発注金額が請求書PDFの合計金額と一致するか
             - C17: 明細タイトルが「yyyy年mm月分作業費」形式か
             - AA17: 摘要が「見積番号：TRR-YY-0MM」形式で見積PDFの番号と一致するか
+            - C18: 件名が「　Telemas作業(システム改修等)」か（固定文字列、先頭全角スペース）
             - C19: 「以下、余白」か
             - W39: 小計が請求書PDFの消費税10%対象と一致するか
             - W40: 消費税が請求書PDFの消費税(10%)と一致するか
@@ -42,6 +43,7 @@ LibreOfficeでExcelを開いて数式を計算させ、セル値を取得して�
             - G14: 合計金額が請求書PDFの合計金額と一致するか
             - C19: 明細タイトルが「yyyy年mm月分作業費」形式か
             - AA19: 摘要が「見積番号：TRR-YY-0MM」形式で見積PDFの番号と一致するか
+            - C20: 件名が「　Telemas作業(システム改修等)」か（固定文字列、先頭全角スペース）
             - C21: 「以下、余白」か
             - W41: 小計が請求書PDFの消費税10%対象と一致するか
             - W42: 消費税が請求書PDFの消費税(10%)と一致するか
@@ -328,6 +330,7 @@ def validate_nextbits_excel(csv_paths: Dict[str, str], validation_data: Dict[str
 
     # 見積データ（摘要チェック用）
     estimate_number = estimate_data.get('estimate_number', '')
+    estimate_subject = estimate_data.get('subject', '')  # 件名チェック用
 
     # === 注文書シート検証 ===
 
@@ -407,6 +410,22 @@ def validate_nextbits_excel(csv_paths: Dict[str, str], validation_data: Dict[str
     })
     if not order_remarks_valid:
         errors.append(f"注文書AA17: 摘要が不正です（期待: {expected_remarks}、実際: {order_remarks}）")
+
+    # C18: 件名（固定文字列「　Telemas作業(システム改修等)」との比較）
+    # ※処理手順より：見積書の件名「yyyy年mm月作業：Telemasシステム改修作業等」→「　Telemas作業(システム改修等)」に変換
+    order_subject = get_cell_value(order_csv, "C18")
+    expected_subject = "　Telemas作業(システム改修等)"  # 先頭に全角スペース
+    order_subject_valid = order_subject == expected_subject
+    checks.append({
+        "sheet": "注文書",
+        "cell": "C18",
+        "item": "件名",
+        "expected": expected_subject,
+        "actual": order_subject,
+        "passed": order_subject_valid
+    })
+    if not order_subject_valid:
+        errors.append(f"注文書C18: 件名が不正です（期待: {expected_subject}、実際: {order_subject}）")
 
     # C19: 以下、余白
     blank_marker = get_cell_value(order_csv, "C19")
@@ -560,6 +579,22 @@ def validate_nextbits_excel(csv_paths: Dict[str, str], validation_data: Dict[str
     })
     if not inspection_remarks_valid:
         errors.append(f"検収書AA19: 摘要が不正です（期待: {expected_inspection_remarks}、実際: {inspection_remarks}）")
+
+    # C20: 件名（固定文字列「　Telemas作業(システム改修等)」との比較）
+    # ※処理手順より：見積書の件名「yyyy年mm月作業：Telemasシステム改修作業等」→「　Telemas作業(システム改修等)」に変換
+    inspection_subject = get_cell_value(inspection_csv, "C20")
+    expected_inspection_subject = "　Telemas作業(システム改修等)"  # 先頭に全角スペース
+    inspection_subject_valid = inspection_subject == expected_inspection_subject
+    checks.append({
+        "sheet": "検収書",
+        "cell": "C20",
+        "item": "件名",
+        "expected": expected_inspection_subject,
+        "actual": inspection_subject,
+        "passed": inspection_subject_valid
+    })
+    if not inspection_subject_valid:
+        errors.append(f"検収書C20: 件名が不正です（期待: {expected_inspection_subject}、実際: {inspection_subject}）")
 
     # C21: 以下、余白
     inspection_blank = get_cell_value(inspection_csv, "C21")

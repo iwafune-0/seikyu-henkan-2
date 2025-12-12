@@ -753,7 +753,55 @@ export async function executeProcess(
       throw new Error(`Excel検証エラー:\n${errorMessages}`)
     }
 
-    console.log('Excel検証結果:', JSON.stringify(validationResult.checks, null, 2))
+    // ===== 自動チェック結果サマリー =====
+    console.log('\n========================================')
+    console.log('     自動チェック結果サマリー')
+    console.log('========================================')
+    console.log(`[✓] PDF解析: 注文書・検収書を正常に解析`)
+    console.log(`[✓] 取引先判別: ${companyName}`)
+
+    // 金額チェック結果
+    const invoiceTotalForLog = invoiceData.total || 0
+    const invoiceSubtotalForLog = invoiceData.subtotal || 0
+    const invoiceTaxForLog = invoiceData.tax || 0
+    console.log(`[✓] 金額整合性チェック:`)
+    console.log(`    - 小計: ¥${invoiceSubtotalForLog.toLocaleString()}`)
+    console.log(`    - 消費税: ¥${invoiceTaxForLog.toLocaleString()}`)
+    console.log(`    - 合計: ¥${invoiceTotalForLog.toLocaleString()}`)
+
+    // ネクストビッツ専用チェック
+    if (companyName === 'ネクストビッツ') {
+      const estimateSubject = estimateData.subject || '(取得なし)'
+      console.log(`[✓] 件名: ${estimateSubject}`)
+    }
+
+    // オフ・ビート・ワークス専用チェック
+    if (companyName === 'オフ・ビート・ワークス') {
+      const itemsCount = invoiceData.items?.length || 0
+      console.log(`[✓] 明細行数: ${itemsCount}行`)
+      if (invoiceData.items && invoiceData.items.length > 0) {
+        invoiceData.items.forEach((item: { name?: string; unit_price?: number }, idx: number) => {
+          console.log(`    - 明細${idx + 1}: ${item.name || '(品名なし)'} ¥${(item.unit_price || 0).toLocaleString()}`)
+        })
+      }
+    }
+
+    // Excel検証結果（配列形式で返ってくる）
+    console.log(`[✓] Excel検証:`)
+    if (validationResult.checks && Array.isArray(validationResult.checks)) {
+      const passedCount = validationResult.checks.filter((c: { passed: boolean }) => c.passed).length
+      const totalCount = validationResult.checks.length
+      console.log(`    チェック項目: ${passedCount}/${totalCount} OK`)
+
+      // 各チェック項目を表示
+      for (const check of validationResult.checks) {
+        const status = check.passed ? '✓' : '✗'
+        console.log(`    [${status}] ${check.sheet} ${check.cell}(${check.item}): ${check.actual}`)
+      }
+    }
+    console.log('========================================')
+    console.log('     全チェック完了 - 処理続行')
+    console.log('========================================\n')
 
     // 5. Excelバッファを読み込み（PDF生成前に読み込むことで、LibreOfficeによる上書きの影響を受けない）
     console.log('[DEBUG] Excelファイル読み込み開始:', outputExcelPath)
@@ -839,6 +887,17 @@ export async function executeProcess(
       processingTime,
       'success'
     )
+
+    // 8.5. 取引先の最終処理日を更新
+    const { error: updateError } = await supabase
+      .from('companies')
+      .update({ last_processed_at: new Date().toISOString() })
+      .eq('id', companyId)
+
+    if (updateError) {
+      console.error('[executeProcess] last_processed_at更新エラー:', updateError)
+      // 処理自体は成功しているので、エラーはログに残すのみで続行
+    }
 
     // 9. 一時ファイル削除
     await Promise.all([

@@ -66,6 +66,19 @@ function TabPanel(props: TabPanelProps) {
   )
 }
 
+// ISO形式の日時を日本語形式に変換
+const formatDateTime = (isoString: string | undefined | null): string => {
+  if (!isoString) return '-'
+  const date = new Date(isoString)
+  return date.toLocaleString('ja-JP', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
 export function CompaniesPage() {
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('lg'))
@@ -341,7 +354,7 @@ export function CompaniesPage() {
                         />
                       </TableCell>
                       <TableCell>
-                        {company.last_processed_at || '-'}
+                        {formatDateTime(company.last_processed_at)}
                       </TableCell>
                     </TableRow>
                   ))}
@@ -401,7 +414,7 @@ export function CompaniesPage() {
                     最終処理日
                   </Typography>
                   <Typography variant="body2">
-                    {company.last_processed_at || '-'}
+                    {formatDateTime(company.last_processed_at)}
                   </Typography>
                 </Box>
               </Card>
@@ -480,7 +493,7 @@ export function CompaniesPage() {
               />
               <Box sx={{ mt: 2 }}>
                 <Typography variant="body2" color="text.secondary">
-                  最終処理日: {selectedCompany?.last_processed_at || '-'}
+                  最終処理日: {formatDateTime(selectedCompany?.last_processed_at)}
                 </Typography>
               </Box>
             </TabPanel>

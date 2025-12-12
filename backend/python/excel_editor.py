@@ -218,14 +218,16 @@ def edit_offbeat_excel(wb: openpyxl.Workbook, data: Dict[str, Any]) -> datetime:
     for i in range(MAX_DETAIL_ROWS):
         row_order = 18 + i
         row_inspection = 20 + i
-        # 注文書シートのクリア（C, R, T列）
+        # 注文書シートのクリア（C, R, T, W列）
         ws_order.cell(row=row_order, column=3).value = None   # C列（件名）
         ws_order.cell(row=row_order, column=18).value = None  # R列（数量）
         ws_order.cell(row=row_order, column=20).value = None  # T列（単価）
-        # 検収書シートのクリア（C, R, T列）
+        ws_order.cell(row=row_order, column=23).value = None  # W列（金額）
+        # 検収書シートのクリア（C, R, T, W列）
         ws_inspection.cell(row=row_inspection, column=3).value = None   # C列（件名）
         ws_inspection.cell(row=row_inspection, column=18).value = None  # R列（数量）
         ws_inspection.cell(row=row_inspection, column=20).value = None  # T列（単価）
+        ws_inspection.cell(row=row_inspection, column=23).value = None  # W列（金額）
 
     if items:
         # 明細行を編集（最大行数は適宜調整）
@@ -236,6 +238,8 @@ def edit_offbeat_excel(wb: openpyxl.Workbook, data: Dict[str, Any]) -> datetime:
             # 注文書シート
             ws_order.cell(row=row_order, column=18).value = item.get('quantity', 1)  # R列（18列目）
             ws_order.cell(row=row_order, column=20).value = item.get('unit_price', 0)  # T列（20列目）
+            # W列に金額計算の数式を追加（=T[行]*R[行]）
+            ws_order.cell(row=row_order, column=23).value = f"=T{row_order}*R{row_order}"  # W列（23列目）
 
             # 件名（品目に「・」を付ける）
             item_name = item.get('name', '')
@@ -246,6 +250,8 @@ def edit_offbeat_excel(wb: openpyxl.Workbook, data: Dict[str, Any]) -> datetime:
             # 検収書シート
             ws_inspection.cell(row=row_inspection, column=18).value = item.get('quantity', 1)  # R列
             ws_inspection.cell(row=row_inspection, column=20).value = item.get('unit_price', 0)  # T列
+            # W列に金額計算の数式を追加（=T[行]*R[行]）
+            ws_inspection.cell(row=row_inspection, column=23).value = f"=T{row_inspection}*R{row_inspection}"  # W列（23列目）
 
             # 件名（品目に「・」を付ける）
             ws_inspection.cell(row=row_inspection, column=3).value = item_name  # C列
@@ -263,9 +269,11 @@ def edit_offbeat_excel(wb: openpyxl.Workbook, data: Dict[str, Any]) -> datetime:
         if subtotal > 0:
             ws_order['R18'] = 1
             ws_order['T18'] = subtotal
+            ws_order['W18'] = "=T18*R18"  # W列に金額計算の数式を追加
 
             ws_inspection['R20'] = 1
             ws_inspection['T20'] = subtotal
+            ws_inspection['W20'] = "=T20*R20"  # W列に金額計算の数式を追加
 
             # 「以下、余白」を入力
             ws_order['C19'] = "以下、余白"
@@ -298,7 +306,7 @@ def validate_totals(wb: openpyxl.Workbook, data: Dict[str, Any], company_name: s
     }
 
 
-def restore_drawing_from_template(template_path: str, output_path: str, issue_date: datetime = None) -> None:
+def restore_drawing_from_template(template_path: str, output_path: str, issue_date: datetime = None, company_name: str = None) -> None:
     """
     テンプレートからopenpyxlが削除/変更したファイルを復元する
 
@@ -422,8 +430,11 @@ def restore_drawing_from_template(template_path: str, output_path: str, issue_da
                 if name == 'xl/worksheets/sheet1.xml' and issue_date is not None:
                     content_str = content.decode('utf-8')
 
-                    # AC3: =TEXT(AC2,"yyyymmdd")&"-01" → "20250801-01"
-                    ac3_value = issue_date.strftime('%Y%m%d') + '-01'
+                    # AC3: 注文番号（取引先ごとに異なる形式）
+                    # ネクストビッツ: =TEXT(AC2,"yyyymmdd")&"-01" → "20250801-01"
+                    # オフビートワークス: =TEXT(AC2,"yyyymmdd")&"-02" → "20250801-02"
+                    order_suffix = '-02' if company_name == 'オフ・ビート・ワークス' else '-01'
+                    ac3_value = issue_date.strftime('%Y%m%d') + order_suffix
                     # <v></v> または <v/> を <v>計算結果</v> に置換
                     # AC3セルのパターン: <c r="AC3" ...><f>...</f><v></v></c>
                     content_str = re.sub(
@@ -445,8 +456,13 @@ def restore_drawing_from_template(template_path: str, output_path: str, issue_da
                         content_str
                     )
 
-                    # C17: =TEXT(注文書!$AC$2,"yyyy年mm月分作業費") → "2025年08月分作業費"
-                    c17_value = issue_date.strftime('%Y年%m月分作業費')
+                    # C17: 明細タイトル（取引先ごとに異なる形式）
+                    # ネクストビッツ: =TEXT(AC2,"yyyy年mm月分作業費") → "2025年08月分作業費"
+                    # オフビートワークス: =TEXT(AC2,"yyyy年mm月作業費") → "2025年08月作業費"（「分」なし）
+                    if company_name == 'オフ・ビート・ワークス':
+                        c17_value = issue_date.strftime('%Y年%m月作業費')
+                    else:
+                        c17_value = issue_date.strftime('%Y年%m月分作業費')
                     content_str = re.sub(
                         r'(<c r="C17"[^>]*>)(<f>[^<]*</f>)<v></v>(</c>)',
                         rf'\1\2<v>{c17_value}</v>\3',
@@ -470,8 +486,13 @@ def restore_drawing_from_template(template_path: str, output_path: str, issue_da
                 if name == 'xl/worksheets/sheet2.xml' and issue_date is not None:
                     content_str = content.decode('utf-8')
 
-                    # C19: =TEXT(注文書!$AC$2,"yyyy年mm月分作業費") → "2025年08月分作業費"
-                    c19_value = issue_date.strftime('%Y年%m月分作業費')
+                    # C19: 明細タイトル（取引先ごとに異なる形式）
+                    # ネクストビッツ: =TEXT(注文書!$AC$2,"yyyy年mm月分作業費") → "2025年08月分作業費"
+                    # オフビートワークス: =TEXT(注文書!$AC$2,"yyyy年mm月作業費") → "2025年08月作業費"（「分」なし）
+                    if company_name == 'オフ・ビート・ワークス':
+                        c19_value = issue_date.strftime('%Y年%m月作業費')
+                    else:
+                        c19_value = issue_date.strftime('%Y年%m月分作業費')
                     content_str = re.sub(
                         r'(<c r="C19"[^>]*>)(<f>[^<]*</f>)<v></v>(</c>)',
                         rf'\1\2<v>{c19_value}</v>\3',
@@ -565,8 +586,8 @@ def edit_excel(company_name: str, template_path: str, output_path: str, data: Di
         wb.save(output_path)
 
         # テンプレートからdrawing1.xmlを復元（openpyxlが削除した拡張情報を復元）
-        # issue_dateを渡してTEXT関数のキャッシュ値を設定
-        restore_drawing_from_template(template_path, output_path, issue_date)
+        # issue_dateとcompany_nameを渡してTEXT関数のキャッシュ値を設定
+        restore_drawing_from_template(template_path, output_path, issue_date, company_name)
 
         return {
             "success": True,

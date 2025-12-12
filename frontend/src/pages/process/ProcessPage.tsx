@@ -848,8 +848,8 @@ export function ProcessPage() {
 
             </Card>
 
-            {/* Excelアップロードカード（初回のみ） */}
-            {state === 'excel_required' && (
+            {/* Excelアップロードカード（初回のみ、Excelが未アップロードの場合） */}
+            {(state === 'excel_required' || (state === 'incomplete' && detectionResult?.needsExcel && !excelUploaded)) && (
               <Card sx={{ p: 3 }}>
                 <Typography variant="h6" gutterBottom>
                   Excelテンプレートのアップロード
@@ -1041,7 +1041,9 @@ export function ProcessPage() {
             )}
 
             {/* 処理実行ボタン */}
-            {state === 'ready' && (
+            {/* ready状態、または incomplete/excel_required でも全条件を満たしている場合 */}
+            {(state === 'ready' ||
+              (isAllSlotsReady(pdfSlots) && (!detectionResult?.needsExcel || excelUploaded))) && (
               <Box sx={{ textAlign: 'center' }}>
                 <Alert severity="success" icon={<CheckCircleIcon />} sx={{ mb: 2, textAlign: 'left' }}>
                   すべてのファイルが揃いました。
