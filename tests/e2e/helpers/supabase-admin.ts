@@ -85,7 +85,7 @@ export async function generateRecoveryLink(email: string): Promise<string> {
 /**
  * テスト用ユーザーを作成する
  */
-export async function createTestUser(email: string, password: string): Promise<string> {
+export async function createTestUser(email: string, password: string, role: 'admin' | 'user' = 'user'): Promise<string> {
   const { data, error } = await supabase.auth.admin.createUser({
     email,
     password,
@@ -94,6 +94,20 @@ export async function createTestUser(email: string, password: string): Promise<s
 
   if (error) {
     throw new Error(`Failed to create test user: ${error.message}`)
+  }
+
+  // profilesテーブルにロールを設定
+  const { error: profileError } = await supabase
+    .from('profiles')
+    .upsert({
+      id: data.user.id,
+      email,
+      role,
+      is_deleted: false,
+    })
+
+  if (profileError) {
+    throw new Error(`Failed to create profile: ${profileError.message}`)
   }
 
   return data.user.id
@@ -118,8 +132,58 @@ export async function deleteTestUserByEmail(email: string): Promise<void> {
   const user = users?.users?.find(u => u.email === email)
 
   if (user) {
+    // profilesテーブルから削除
+    await supabase
+      .from('profiles')
+      .delete()
+      .eq('email', email)
+
+    // auth.usersから削除
     await deleteTestUser(user.id)
   }
+}
+
+/**
+ * 論理削除済みユーザーを作成する
+ * E2E-USER-014テスト用
+ *
+ * このテストでは、profilesテーブルのみに論理削除済みユーザーを残し、
+ * auth.usersからはユーザーを削除します。
+ * これにより、再招待時にSupabase Authが新規ユーザーとして扱い、
+ * 招待メールを送信できるようになります。
+ */
+export async function createDeletedUser(email: string, password: string, role: 'admin' | 'user' = 'user'): Promise<string> {
+  // まず既存ユーザーがいれば完全削除
+  await deleteTestUserByEmail(email)
+
+  // profilesテーブルに論理削除済みユーザーを作成
+  // UUIDはauth.usersのIDと一致する必要があるため、仮のIDを使用
+  // 実際の再招待時に新しいIDで作成される
+  const tempId = '00000000-0000-0000-0000-000000000000'
+
+  const { error: profileError } = await supabase
+    .from('profiles')
+    .insert({
+      id: tempId,
+      email,
+      role,
+      is_deleted: true,
+      deleted_at: new Date().toISOString(),
+    })
+
+  if (profileError) {
+    // 既に存在する場合は更新
+    await supabase
+      .from('profiles')
+      .update({
+        role,
+        is_deleted: true,
+        deleted_at: new Date().toISOString(),
+      })
+      .eq('email', email)
+  }
+
+  return tempId
 }
 
 /**
@@ -253,6 +317,138 @@ export async function cleanupAllE2ETestUsers(): Promise<{ deleted: string[], err
     .like('email', 'e2e-%@example.com')
 
   return { deleted, errors }
+}
+
+// ============================================
+// P-003 処理履歴テスト用ヘルパー
+// ============================================
+
+/**
+ * P-003テスト用の成功処理データを作成
+ */
+export async function createP003SuccessTestData(): Promise<string | null> {
+  // 取引先IDを取得
+  const companyId = await getCompanyId('ネクストビッツ')
+  if (!companyId) {
+    console.warn('Company not found: ネクストビッツ')
+    return null
+  }
+
+  // テスト用ユーザーIDを取得（現在のユーザー一覧から最初の管理者を使用）
+  const { data: profiles } = await supabase
+    .from('profiles')
+    .select('id')
+    .eq('is_deleted', false)
+    .limit(1)
+
+  if (!profiles || profiles.length === 0) {
+    console.warn('No active user found')
+    return null
+  }
+
+  const userId = profiles[0].id
+
+  // 成功処理データを作成
+  const { data, error } = await supabase
+    .from('processed_files')
+    .insert({
+      user_id: userId,
+      company_id: companyId,
+      process_date: new Date().toISOString().split('T')[0],
+      excel_file: Buffer.from('test excel content').toString('base64'),
+      excel_filename: 'E2E_テスト_ネクストビッツ_2025-12.xlsx',
+      order_pdf: Buffer.from('test order pdf').toString('base64'),
+      order_pdf_filename: '注文書_E2Eテスト.pdf',
+      inspection_pdf: Buffer.from('test inspection pdf').toString('base64'),
+      inspection_pdf_filename: '検収書_E2Eテスト.pdf',
+      processing_time: 5000,
+      status: 'success',
+    })
+    .select('id')
+    .single()
+
+  if (error) {
+    console.error('Failed to create success test data:', error.message)
+    return null
+  }
+
+  return data?.id || null
+}
+
+/**
+ * P-003テスト用のエラー処理データを作成
+ */
+export async function createP003ErrorTestData(): Promise<string | null> {
+  // 取引先IDを取得
+  const companyId = await getCompanyId('ネクストビッツ')
+  if (!companyId) {
+    console.warn('Company not found: ネクストビッツ')
+    return null
+  }
+
+  // テスト用ユーザーIDを取得
+  const { data: profiles } = await supabase
+    .from('profiles')
+    .select('id')
+    .eq('is_deleted', false)
+    .limit(1)
+
+  if (!profiles || profiles.length === 0) {
+    console.warn('No active user found')
+    return null
+  }
+
+  const userId = profiles[0].id
+
+  // エラー処理データをprocessed_filesテーブルに作成
+  // 必須カラム（excel_file, order_pdf, inspection_pdf）にはダミーデータを設定
+  const { data, error } = await supabase
+    .from('processed_files')
+    .insert({
+      user_id: userId,
+      company_id: companyId,
+      process_date: new Date().toISOString().split('T')[0],
+      excel_file: Buffer.from('dummy excel for error').toString('base64'),
+      excel_filename: 'E2E_テスト_エラー_ネクストビッツ.xlsx',
+      order_pdf: Buffer.from('dummy order pdf').toString('base64'),
+      order_pdf_filename: '注文書_E2Eテストエラー.pdf',
+      inspection_pdf: Buffer.from('dummy inspection pdf').toString('base64'),
+      inspection_pdf_filename: '検収書_E2Eテストエラー.pdf',
+      processing_time: 0,
+      status: 'error',
+      error_message: 'E2Eテスト用エラーメッセージ',
+      error_code: 'E2E_TEST_ERROR',
+      error_detail: 'これはE2Eテスト用のエラーデータです',
+      error_stacktrace: 'Error: E2E Test Error\n    at test.spec.ts:1:1',
+    })
+    .select('id')
+    .single()
+
+  if (error) {
+    console.error('Failed to create error test data:', error.message)
+    return null
+  }
+
+  return data?.id || null
+}
+
+/**
+ * P-003テスト用データのクリーンアップ
+ */
+export async function cleanupP003TestData(): Promise<void> {
+  // E2Eテスト用のprocessed_filesを削除（ファイル名でフィルタ）
+  await supabase
+    .from('processed_files')
+    .delete()
+    .like('excel_filename', '%E2E%テスト%')
+
+  // E2Eテスト用のprocessed_filesを削除（エラーメッセージでフィルタ）
+  await supabase
+    .from('processed_files')
+    .delete()
+    .like('error_message', '%E2Eテスト%')
+
+  console.log('P-003 test data cleanup completed')
 }
 
 /**
