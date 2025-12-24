@@ -298,9 +298,9 @@ export function HistoryPage() {
         const companiesResponse = await fetchCompanies()
         setCompanies(companiesResponse.companies)
 
-        // ユーザーマスタから取得（アクティブユーザーのみ）
-        // 削除済みユーザーの表示は履歴APIのレスポンスに依存
-        const usersResponse = await UsersService.getUsers()
+        // ユーザーマスタから取得（削除済みユーザーを含む）
+        // 履歴ページでは削除済みユーザーをグレー表示するため、全ユーザーが必要
+        const usersResponse = await UsersService.getUsers(true)
         setAllUsers(usersResponse.users)
       } catch (err) {
         console.error('Failed to load initial data:', err)

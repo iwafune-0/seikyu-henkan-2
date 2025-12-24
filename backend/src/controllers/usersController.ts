@@ -22,17 +22,21 @@ import { InviteUserRequest, UpdateUserRoleRequest } from '../types/index'
 
 /**
  * GET /api/users
- * アクティブなユーザー一覧を取得
+ * ユーザー一覧を取得
+ *
+ * クエリパラメータ:
+ * - includeDeleted: 'true' で削除済みユーザーを含める（デフォルト: false）
  *
  * @param req - Expressリクエストオブジェクト
  * @param res - Expressレスポンスオブジェクト
  */
 export async function getUsersController(
-  _req: Request,
+  req: Request,
   res: Response
 ): Promise<void> {
   try {
-    const result = await getAllUsers()
+    const includeDeleted = req.query.includeDeleted === 'true'
+    const result = await getAllUsers(includeDeleted)
     sendSuccess(res, result, 'ユーザー一覧を取得しました')
   } catch (error) {
     sendInternalError(res, error)

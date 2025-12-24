@@ -17,18 +17,27 @@ import {
  */
 
 /**
- * アクティブなユーザー一覧を取得
+ * ユーザー一覧を取得
  *
+ * @param includeDeleted 削除済みユーザーを含めるか（デフォルト: false）
  * @returns ユーザー一覧とカウント
  * @throws Error データベースエラー時
  */
-export async function getAllUsers(): Promise<UserListResponse> {
+export async function getAllUsers(
+  includeDeleted: boolean = false
+): Promise<UserListResponse> {
   try {
-    const { data, error } = await supabase
+    let query = supabase
       .from('profiles')
       .select('*')
-      .eq('is_deleted', false)
       .order('created_at', { ascending: false })
+
+    // includeDeleted=false の場合のみ、アクティブユーザーに絞る
+    if (!includeDeleted) {
+      query = query.eq('is_deleted', false)
+    }
+
+    const { data, error } = await query
 
     if (error) {
       throw new Error(`ユーザー一覧の取得に失敗しました: ${error.message}`)

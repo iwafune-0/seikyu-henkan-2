@@ -115,30 +115,32 @@ export async function createTestUser(email: string, password: string, role: 'adm
 
 /**
  * テスト用ユーザーを削除する
+ * エラーが発生しても警告を出すのみで続行
  */
 export async function deleteTestUser(userId: string): Promise<void> {
   const { error } = await supabase.auth.admin.deleteUser(userId)
 
   if (error) {
-    throw new Error(`Failed to delete test user: ${error.message}`)
+    console.warn(`Warning: Failed to delete test user: ${error.message}`)
   }
 }
 
 /**
  * メールアドレスでユーザーを検索して削除する
+ * auth.usersにユーザーがいなくてもprofilesは削除する
  */
 export async function deleteTestUserByEmail(email: string): Promise<void> {
+  // profilesテーブルから削除（常に実行）
+  await supabase
+    .from('profiles')
+    .delete()
+    .eq('email', email)
+
+  // auth.usersから削除（存在する場合のみ）
   const { data: users } = await supabase.auth.admin.listUsers()
   const user = users?.users?.find(u => u.email === email)
 
   if (user) {
-    // profilesテーブルから削除
-    await supabase
-      .from('profiles')
-      .delete()
-      .eq('email', email)
-
-    // auth.usersから削除
     await deleteTestUser(user.id)
   }
 }
@@ -264,6 +266,55 @@ export async function clearCompanyTemplate(companyId: string): Promise<void> {
 
   if (error) {
     console.warn(`Failed to clear company template: ${error.message}`)
+  }
+}
+
+/**
+ * テンプレートバックアップデータの型
+ */
+export interface TemplateBackup {
+  template_excel: string | null
+  template_filename: string | null
+  template_updated_at: string | null
+  template_updated_by: string | null
+}
+
+/**
+ * 取引先のテンプレートをバックアップする
+ * E2E-COMP-022, 023, 039テスト用
+ */
+export async function backupCompanyTemplate(companyId: string): Promise<TemplateBackup | null> {
+  const { data, error } = await supabase
+    .from('companies')
+    .select('template_excel, template_filename, template_updated_at, template_updated_by')
+    .eq('id', companyId)
+    .single()
+
+  if (error) {
+    console.warn(`Failed to backup company template: ${error.message}`)
+    return null
+  }
+
+  return data as TemplateBackup
+}
+
+/**
+ * 取引先のテンプレートをリストアする
+ * E2E-COMP-022, 023, 039テスト用
+ */
+export async function restoreCompanyTemplate(companyId: string, backup: TemplateBackup): Promise<void> {
+  const { error } = await supabase
+    .from('companies')
+    .update({
+      template_excel: backup.template_excel,
+      template_filename: backup.template_filename,
+      template_updated_at: backup.template_updated_at,
+      template_updated_by: backup.template_updated_by,
+    })
+    .eq('id', companyId)
+
+  if (error) {
+    console.warn(`Failed to restore company template: ${error.message}`)
   }
 }
 
@@ -449,6 +500,438 @@ export async function cleanupP003TestData(): Promise<void> {
     .like('error_message', '%E2Eテスト%')
 
   console.log('P-003 test data cleanup completed')
+}
+
+// ============================================
+// P-003 追加テスト用ヘルパー（E2E-HIST-005, 013, 014）
+// ============================================
+
+/**
+ * E2E-HIST-005用: 2人目の処理者による処理データを作成
+ */
+export async function createP003TestDataWithSecondUser(): Promise<{
+  userId: string
+  processedFileId: string
+} | null> {
+  const testEmail = 'e2e-hist005-seconduser@example.com'
+  const testPassword = 'TestPassword123'
+
+  // 既存のテストユーザーを削除
+  await deleteTestUserByEmail(testEmail)
+
+  // テストユーザーを作成
+  const userId = await createTestUser(testEmail, testPassword, 'user')
+
+  // 取引先IDを取得
+  const companyId = await getCompanyId('ネクストビッツ')
+  if (!companyId) {
+    console.warn('Company not found: ネクストビッツ')
+    return null
+  }
+
+  // 処理データを作成
+  const { data, error } = await supabase
+    .from('processed_files')
+    .insert({
+      user_id: userId,
+      company_id: companyId,
+      process_date: new Date().toISOString().split('T')[0],
+      excel_file: Buffer.from('test excel for second user').toString('base64'),
+      excel_filename: 'E2E_テスト_HIST005_2人目処理者.xlsx',
+      order_pdf: Buffer.from('test order pdf').toString('base64'),
+      order_pdf_filename: '注文書_E2Eテスト_HIST005.pdf',
+      inspection_pdf: Buffer.from('test inspection pdf').toString('base64'),
+      inspection_pdf_filename: '検収書_E2Eテスト_HIST005.pdf',
+      processing_time: 3000,
+      status: 'success',
+    })
+    .select('id')
+    .single()
+
+  if (error) {
+    console.error('Failed to create test data with second user:', error.message)
+    return null
+  }
+
+  return { userId, processedFileId: data?.id || '' }
+}
+
+/**
+ * E2E-HIST-005用: クリーンアップ
+ */
+export async function cleanupP003SecondUserTestData(): Promise<void> {
+  const testEmail = 'e2e-hist005-seconduser@example.com'
+
+  // processed_filesを削除
+  await supabase
+    .from('processed_files')
+    .delete()
+    .like('excel_filename', '%HIST005%')
+
+  // テストユーザーを削除
+  await deleteTestUserByEmail(testEmail)
+
+  console.log('P-003 HIST-005 test data cleanup completed')
+}
+
+/**
+ * E2E-HIST-013用: 削除済みユーザーの処理データを作成
+ */
+export async function createP003TestDataWithDeletedUser(): Promise<{
+  userId: string
+  processedFileId: string
+} | null> {
+  const testEmail = 'e2e-hist013-deleteduser@example.com'
+  const testPassword = 'TestPassword123'
+
+  // 既存データをクリーンアップ（FK制約を考慮した順序）
+  // 1. processed_filesを先に削除
+  await supabase.from('processed_files').delete().like('excel_filename', '%HIST013%')
+
+  // 2. auth.usersとprofilesを削除
+  await deleteTestUserByEmail(testEmail)
+
+  // テストユーザーを作成
+  const userId = await createTestUser(testEmail, testPassword, 'user')
+
+  // 取引先IDを取得
+  const companyId = await getCompanyId('ネクストビッツ')
+  if (!companyId) {
+    console.warn('Company not found: ネクストビッツ')
+    return null
+  }
+
+  // 処理データを作成
+  const { data, error } = await supabase
+    .from('processed_files')
+    .insert({
+      user_id: userId,
+      company_id: companyId,
+      process_date: new Date().toISOString().split('T')[0],
+      excel_file: Buffer.from('test excel for deleted user').toString('base64'),
+      excel_filename: 'E2E_テスト_HIST013_削除済み処理者.xlsx',
+      order_pdf: Buffer.from('test order pdf').toString('base64'),
+      order_pdf_filename: '注文書_E2Eテスト_HIST013.pdf',
+      inspection_pdf: Buffer.from('test inspection pdf').toString('base64'),
+      inspection_pdf_filename: '検収書_E2Eテスト_HIST013.pdf',
+      processing_time: 3000,
+      status: 'success',
+    })
+    .select('id')
+    .single()
+
+  if (error) {
+    console.error('Failed to create test data with deleted user:', error.message)
+    return null
+  }
+
+  // ユーザーを論理削除（auth.usersは削除しない - FK制約があるため）
+  await supabase
+    .from('profiles')
+    .update({
+      is_deleted: true,
+      deleted_at: new Date().toISOString(),
+    })
+    .eq('id', userId)
+
+  return { userId, processedFileId: data?.id || '' }
+}
+
+/**
+ * E2E-HIST-013用: クリーンアップ
+ * 削除順序: processed_files → profiles → auth.users（FK制約を考慮）
+ */
+export async function cleanupP003DeletedUserTestData(): Promise<void> {
+  const testEmail = 'e2e-hist013-deleteduser@example.com'
+
+  // 1. processed_filesを削除（FK制約があるため最初に削除）
+  await supabase
+    .from('processed_files')
+    .delete()
+    .like('excel_filename', '%HIST013%')
+
+  // 2. auth.usersからユーザーを検索
+  const { data: users } = await supabase.auth.admin.listUsers()
+  const testUser = users?.users?.find((u) => u.email === testEmail)
+
+  // 3. profilesから削除
+  await supabase.from('profiles').delete().eq('email', testEmail)
+
+  // 4. auth.usersから削除
+  if (testUser) {
+    await supabase.auth.admin.deleteUser(testUser.id)
+  }
+
+  console.log('P-003 HIST-013 test data cleanup completed')
+}
+
+/**
+ * E2E-HIST-014用: 無効な取引先の処理データを作成
+ */
+export async function createP003TestDataWithInactiveCompany(): Promise<{
+  companyId: string
+  processedFileId: string
+  originalIsActive: boolean
+} | null> {
+  // オフ・ビート・ワークスを使用（テスト用に一時的に無効化）
+  const companyName = 'オフ・ビート・ワークス'
+  const { data: company } = await supabase
+    .from('companies')
+    .select('id, is_active')
+    .ilike('name', `%${companyName}%`)
+    .single()
+
+  if (!company) {
+    console.warn(`Company not found: ${companyName}`)
+    return null
+  }
+
+  const originalIsActive = company.is_active
+
+  // 取引先を無効化
+  await supabase
+    .from('companies')
+    .update({ is_active: false })
+    .eq('id', company.id)
+
+  // ユーザーIDを取得
+  const { data: profiles } = await supabase
+    .from('profiles')
+    .select('id')
+    .eq('is_deleted', false)
+    .limit(1)
+
+  if (!profiles || profiles.length === 0) {
+    console.warn('No active user found')
+    return null
+  }
+
+  const userId = profiles[0].id
+
+  // 処理データを作成
+  const { data, error } = await supabase
+    .from('processed_files')
+    .insert({
+      user_id: userId,
+      company_id: company.id,
+      process_date: new Date().toISOString().split('T')[0],
+      excel_file: Buffer.from('test excel for inactive company').toString('base64'),
+      excel_filename: 'E2E_テスト_HIST014_無効取引先.xlsx',
+      order_pdf: Buffer.from('test order pdf').toString('base64'),
+      order_pdf_filename: '注文書_E2Eテスト_HIST014.pdf',
+      inspection_pdf: Buffer.from('test inspection pdf').toString('base64'),
+      inspection_pdf_filename: '検収書_E2Eテスト_HIST014.pdf',
+      processing_time: 3000,
+      status: 'success',
+    })
+    .select('id')
+    .single()
+
+  if (error) {
+    console.error('Failed to create test data with inactive company:', error.message)
+    return null
+  }
+
+  return {
+    companyId: company.id,
+    processedFileId: data?.id || '',
+    originalIsActive,
+  }
+}
+
+/**
+ * E2E-HIST-014用: クリーンアップ（取引先を有効に戻す）
+ */
+export async function cleanupP003InactiveCompanyTestData(
+  companyId: string,
+  originalIsActive: boolean
+): Promise<void> {
+  // processed_filesを削除
+  await supabase
+    .from('processed_files')
+    .delete()
+    .like('excel_filename', '%HIST014%')
+
+  // 取引先の状態を元に戻す
+  await supabase
+    .from('companies')
+    .update({ is_active: originalIsActive })
+    .eq('id', companyId)
+
+  console.log('P-003 HIST-014 test data cleanup completed')
+}
+
+// ============================================
+// 孤立ユーザー・テストユーザー クリーンアップ
+// ============================================
+
+/**
+ * E2Eテストパターンにマッチするメールアドレスかどうか判定
+ */
+function isTestEmail(email: string): boolean {
+  const testPatterns = [
+    /^e2e-/i,                      // e2e-で始まる
+    /^test[-_]/i,                  // test-またはtest_で始まる
+    /@example\.com$/i,             // @example.comで終わる
+    /^newadmin_test_/i,            // newadmin_test_で始まる
+    /^newuser_test_/i,             // newuser_test_で始まる
+    /^deleted@/i,                  // deleted@で始まる
+    /test.*@.*\.co\.jp$/i,         // test含む@*.co.jp
+  ]
+
+  return testPatterns.some((pattern) => pattern.test(email))
+}
+
+/**
+ * 孤立ユーザー（auth.usersにいるがprofilesにいない）を検出
+ */
+export async function findOrphanedAuthUsers(): Promise<
+  Array<{ id: string; email: string }>
+> {
+  const { data: authUsers } = await supabase.auth.admin.listUsers()
+  if (!authUsers?.users) {
+    return []
+  }
+
+  const { data: profiles } = await supabase.from('profiles').select('id, email')
+  const profileEmails = new Set(profiles?.map((p) => p.email) || [])
+
+  const orphaned = authUsers.users
+    .filter((u) => u.email && !profileEmails.has(u.email))
+    .map((u) => ({ id: u.id, email: u.email || '' }))
+
+  return orphaned
+}
+
+/**
+ * テストユーザー（パターンにマッチするメール）を検出
+ */
+export async function findTestUsers(): Promise<
+  Array<{ id: string; email: string; inProfiles: boolean }>
+> {
+  const { data: authUsers } = await supabase.auth.admin.listUsers()
+  if (!authUsers?.users) {
+    return []
+  }
+
+  const { data: profiles } = await supabase.from('profiles').select('id, email')
+  const profileEmails = new Set(profiles?.map((p) => p.email) || [])
+
+  const testUsers = authUsers.users
+    .filter((u) => u.email && isTestEmail(u.email))
+    .map((u) => ({
+      id: u.id,
+      email: u.email || '',
+      inProfiles: profileEmails.has(u.email || ''),
+    }))
+
+  return testUsers
+}
+
+/**
+ * 包括的なE2Eテストクリーンアップ
+ *
+ * 以下を順番に実行:
+ * 1. 孤立ユーザーを検出
+ * 2. テストユーザーを検出
+ * 3. 関連するprocessed_filesを削除（FK制約対策）
+ * 4. profilesから削除
+ * 5. auth.usersから削除
+ */
+export async function comprehensiveE2ECleanup(): Promise<{
+  orphanedUsers: string[]
+  testUsers: string[]
+  deletedProcessedFiles: number
+  errors: string[]
+}> {
+  const result = {
+    orphanedUsers: [] as string[],
+    testUsers: [] as string[],
+    deletedProcessedFiles: 0,
+    errors: [] as string[],
+  }
+
+  try {
+    // 1. 孤立ユーザーを検出
+    const orphaned = await findOrphanedAuthUsers()
+    result.orphanedUsers = orphaned.map((u) => u.email)
+
+    // 2. テストユーザーを検出
+    const testUsers = await findTestUsers()
+    result.testUsers = testUsers.map((u) => u.email)
+
+    // 削除対象のユーザーIDを収集
+    const userIdsToDelete = [
+      ...orphaned.map((u) => u.id),
+      ...testUsers.map((u) => u.id),
+    ]
+    const emailsToDelete = [
+      ...orphaned.map((u) => u.email),
+      ...testUsers.map((u) => u.email),
+    ]
+
+    if (userIdsToDelete.length === 0) {
+      console.log('クリーンアップ対象のユーザーはいません')
+      return result
+    }
+
+    // 3. 関連するprocessed_filesを削除（FK制約対策）
+    for (const userId of userIdsToDelete) {
+      const { data: deletedFiles } = await supabase
+        .from('processed_files')
+        .delete()
+        .eq('user_id', userId)
+        .select('id')
+
+      if (deletedFiles) {
+        result.deletedProcessedFiles += deletedFiles.length
+      }
+    }
+
+    // 4. profilesから削除
+    for (const email of emailsToDelete) {
+      await supabase.from('profiles').delete().eq('email', email)
+    }
+
+    // 5. auth.usersから削除
+    for (const user of [...orphaned, ...testUsers]) {
+      try {
+        await supabase.auth.admin.deleteUser(user.id)
+      } catch (err) {
+        result.errors.push(`${user.email}: ${err}`)
+      }
+    }
+
+    console.log('=== E2Eクリーンアップ完了 ===')
+    console.log(`孤立ユーザー削除: ${result.orphanedUsers.length}件`)
+    console.log(`テストユーザー削除: ${result.testUsers.length}件`)
+    console.log(`処理ファイル削除: ${result.deletedProcessedFiles}件`)
+
+    return result
+  } catch (err) {
+    result.errors.push(`Unexpected error: ${err}`)
+    return result
+  }
+}
+
+/**
+ * クリーンアップの実行確認（ドライラン）
+ * 実際には削除せず、対象を表示するのみ
+ */
+export async function dryRunE2ECleanup(): Promise<void> {
+  console.log('=== E2Eクリーンアップ ドライラン ===')
+
+  const orphaned = await findOrphanedAuthUsers()
+  console.log(`\n孤立ユーザー (${orphaned.length}件):`)
+  orphaned.forEach((u) => console.log(`  - ${u.email}`))
+
+  const testUsers = await findTestUsers()
+  console.log(`\nテストユーザー (${testUsers.length}件):`)
+  testUsers.forEach((u) =>
+    console.log(`  - ${u.email} (profiles: ${u.inProfiles ? 'あり' : 'なし'})`)
+  )
+
+  console.log('\n※ 実際に削除するには comprehensiveE2ECleanup() を使用')
 }
 
 /**

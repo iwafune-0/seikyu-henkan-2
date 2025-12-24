@@ -20,9 +20,14 @@ export const UsersService = {
   /**
    * ユーザー一覧取得
    * GET /api/users
+   *
+   * @param includeDeleted 削除済みユーザーを含めるか（デフォルト: false）
    */
-  async getUsers(): Promise<UserListResponse> {
-    return apiGet<UserListResponse>(API_PATHS.USERS.LIST)
+  async getUsers(includeDeleted: boolean = false): Promise<UserListResponse> {
+    const url = includeDeleted
+      ? `${API_PATHS.USERS.LIST}?includeDeleted=true`
+      : API_PATHS.USERS.LIST
+    return apiGet<UserListResponse>(url)
   },
 
   /**
