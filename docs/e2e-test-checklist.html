@@ -1,0 +1,1658 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>E2Eテスト チェックリスト</title>
+  <style>
+    :root {
+      --primary: #1976d2;
+      --success: #2e7d32;
+      --warning: #ed6c02;
+      --error: #d32f2f;
+      --bg-light: #f5f5f5;
+      --border: #e0e0e0;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      line-height: 1.6;
+      color: #333;
+      background: #fafafa;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      text-align: center;
+      color: var(--primary);
+      margin-bottom: 10px;
+      font-size: 1.8rem;
+    }
+
+    .update-date {
+      text-align: center;
+      color: #666;
+      margin-bottom: 30px;
+      font-size: 0.9rem;
+    }
+
+    /* サマリーカード */
+    .summary {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 15px;
+      margin-bottom: 30px;
+    }
+
+    .summary-card {
+      background: white;
+      border-radius: 8px;
+      padding: 20px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      text-align: center;
+    }
+
+    .summary-card.total { border-top: 4px solid var(--primary); }
+    .summary-card.pass { border-top: 4px solid var(--success); }
+    .summary-card.fail { border-top: 4px solid var(--error); }
+    .summary-card.pending { border-top: 4px solid var(--warning); }
+
+    .summary-card .number {
+      font-size: 2.5rem;
+      font-weight: bold;
+      line-height: 1;
+    }
+
+    .summary-card.total .number { color: var(--primary); }
+    .summary-card.pass .number { color: var(--success); }
+    .summary-card.fail .number { color: var(--error); }
+    .summary-card.pending .number { color: var(--warning); }
+
+    .summary-card .label {
+      color: #666;
+      font-size: 0.9rem;
+      margin-top: 5px;
+    }
+
+    /* プログレスバー */
+    .progress-container {
+      background: white;
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 30px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .progress-bar {
+      height: 30px;
+      background: #e0e0e0;
+      border-radius: 15px;
+      overflow: hidden;
+      display: flex;
+    }
+
+    .progress-pass {
+      background: var(--success);
+      height: 100%;
+      transition: width 0.3s;
+    }
+
+    .progress-fail {
+      background: var(--error);
+      height: 100%;
+      transition: width 0.3s;
+    }
+
+    .progress-legend {
+      display: flex;
+      justify-content: center;
+      gap: 30px;
+      margin-top: 15px;
+      font-size: 0.85rem;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .legend-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+    }
+
+    .legend-dot.pass { background: var(--success); }
+    .legend-dot.fail { background: var(--error); }
+    .legend-dot.pending { background: #e0e0e0; }
+
+    /* セクション */
+    .section {
+      background: white;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      overflow: hidden;
+    }
+
+    .section-header {
+      background: var(--primary);
+      color: white;
+      padding: 15px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+    }
+
+    .section-header:hover {
+      background: #1565c0;
+    }
+
+    .section-title {
+      font-size: 1.1rem;
+      font-weight: 600;
+    }
+
+    .section-badge {
+      background: rgba(255,255,255,0.2);
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-size: 0.85rem;
+    }
+
+    .section-content {
+      padding: 0;
+    }
+
+    /* サブセクション */
+    .subsection {
+      border-bottom: 1px solid var(--border);
+    }
+
+    .subsection:last-child {
+      border-bottom: none;
+    }
+
+    .subsection-header {
+      background: var(--bg-light);
+      padding: 12px 20px;
+      font-weight: 600;
+      color: #555;
+      font-size: 0.95rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .subsection-count {
+      font-size: 0.8rem;
+      color: #888;
+      font-weight: normal;
+    }
+
+    /* テスト項目 */
+    .test-list {
+      list-style: none;
+    }
+
+    .test-item {
+      display: flex;
+      align-items: center;
+      padding: 12px 20px;
+      border-bottom: 1px solid #f0f0f0;
+      transition: background 0.2s;
+    }
+
+    .test-item:hover {
+      background: #fafafa;
+    }
+
+    .test-item:last-child {
+      border-bottom: none;
+    }
+
+    .test-checkbox {
+      width: 20px;
+      height: 20px;
+      margin-right: 15px;
+      cursor: pointer;
+      accent-color: var(--success);
+    }
+
+    .test-id {
+      font-family: 'Monaco', 'Consolas', monospace;
+      font-size: 0.8rem;
+      color: var(--primary);
+      background: #e3f2fd;
+      padding: 2px 8px;
+      border-radius: 4px;
+      margin-right: 12px;
+      white-space: nowrap;
+    }
+
+    .test-name {
+      flex: 1;
+      font-size: 0.9rem;
+    }
+
+    .test-status {
+      font-size: 0.75rem;
+      padding: 3px 10px;
+      border-radius: 10px;
+      margin-left: 10px;
+    }
+
+    .status-pending {
+      background: #fff3e0;
+      color: var(--warning);
+    }
+
+    .status-pass {
+      background: #e8f5e9;
+      color: var(--success);
+    }
+
+    .status-fail {
+      background: #ffebee;
+      color: var(--error);
+    }
+
+    /* フッター */
+    footer {
+      text-align: center;
+      padding: 30px;
+      color: #888;
+      font-size: 0.85rem;
+    }
+
+    /* レスポンシブ */
+    @media (max-width: 768px) {
+      body {
+        padding: 10px;
+      }
+
+      h1 {
+        font-size: 1.4rem;
+      }
+
+      .summary {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .summary-card .number {
+        font-size: 2rem;
+      }
+
+      .test-item {
+        flex-wrap: wrap;
+        padding: 10px 15px;
+      }
+
+      .test-id {
+        font-size: 0.7rem;
+        margin-bottom: 5px;
+      }
+
+      .test-name {
+        width: 100%;
+        margin-left: 35px;
+        font-size: 0.85rem;
+      }
+
+      .test-status {
+        margin-left: 35px;
+        margin-top: 5px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>E2Eテスト チェックリスト</h1>
+    <p class="update-date">最終更新: 2025-12-24</p>
+
+    <!-- サマリー -->
+    <div class="summary">
+      <div class="summary-card total">
+        <div class="number">140</div>
+        <div class="label">総テスト項目</div>
+      </div>
+      <div class="summary-card pass">
+        <div class="number" id="pass-count">0</div>
+        <div class="label">Pass</div>
+      </div>
+      <div class="summary-card fail">
+        <div class="number" id="fail-count">0</div>
+        <div class="label">Fail</div>
+      </div>
+      <div class="summary-card pending">
+        <div class="number" id="pending-count">140</div>
+        <div class="label">未実行</div>
+      </div>
+    </div>
+
+    <!-- プログレスバー -->
+    <div class="progress-container">
+      <div class="progress-bar">
+        <div class="progress-pass" id="progress-pass" style="width: 0%"></div>
+        <div class="progress-fail" id="progress-fail" style="width: 0%"></div>
+      </div>
+      <div class="progress-legend">
+        <div class="legend-item">
+          <span class="legend-dot pass"></span>
+          <span>Pass (<span id="pass-percent">0</span>%)</span>
+        </div>
+        <div class="legend-item">
+          <span class="legend-dot fail"></span>
+          <span>Fail (<span id="fail-percent">0</span>%)</span>
+        </div>
+        <div class="legend-item">
+          <span class="legend-dot pending"></span>
+          <span>未実行 (<span id="pending-percent">100</span>%)</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 1. 認証ページ -->
+    <div class="section">
+      <div class="section-header" onclick="toggleSection(this)">
+        <span class="section-title">1. 認証ページ（P-001）</span>
+        <span class="section-badge">38項目 ✅完了</span>
+      </div>
+      <div class="section-content">
+        <!-- P-001a 正常系 -->
+        <div class="subsection">
+          <div class="subsection-header">
+            <span>P-001a: ログインページ（正常系）</span>
+            <span class="subsection-count">5項目</span>
+          </div>
+          <ul class="test-list">
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-AUTH-001">
+              <span class="test-id">E2E-AUTH-001</span>
+              <span class="test-name">TC-001a-N01 ログイン成功（管理者）</span>
+              <span class="test-status status-pending">未実行</span>
+            </li>
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-AUTH-002">
+              <span class="test-id">E2E-AUTH-002</span>
+              <span class="test-name">TC-001a-N02 ログイン成功（一般ユーザー）</span>
+              <span class="test-status status-pending">未実行</span>
+            </li>
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-AUTH-003">
+              <span class="test-id">E2E-AUTH-003</span>
+              <span class="test-name">TC-001a-N03 ログイン状態保持（チェックON - localStorage）</span>
+              <span class="test-status status-pending">未実行</span>
+            </li>
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-AUTH-004">
+              <span class="test-id">E2E-AUTH-004</span>
+              <span class="test-name">TC-001a-N04 ログイン状態非保持（チェックOFF - sessionStorage）</span>
+              <span class="test-status status-pending">未実行</span>
+            </li>
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-AUTH-005">
+              <span class="test-id">E2E-AUTH-005</span>
+              <span class="test-name">TC-001a-N05 パスワードリセットページへ遷移</span>
+              <span class="test-status status-pending">未実行</span>
+            </li>
+          </ul>
+        </div>
+
+        <!-- P-001a 異常系 -->
+        <div class="subsection">
+          <div class="subsection-header">
+            <span>P-001a: ログインページ（異常系）</span>
+            <span class="subsection-count">4項目</span>
+          </div>
+          <ul class="test-list">
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-AUTH-006">
+              <span class="test-id">E2E-AUTH-006</span>
+              <span class="test-name">TC-001a-E01 メールアドレス未入力</span>
+              <span class="test-status status-pending">未実行</span>
+            </li>
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-AUTH-007">
+              <span class="test-id">E2E-AUTH-007</span>
+              <span class="test-name">TC-001a-E02 メールアドレス形式不正</span>
+              <span class="test-status status-pending">未実行</span>
+            </li>
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-AUTH-008">
+              <span class="test-id">E2E-AUTH-008</span>
+              <span class="test-name">TC-001a-E03 パスワード未入力</span>
+              <span class="test-status status-pending">未実行</span>
+            </li>
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-AUTH-009">
+              <span class="test-id">E2E-AUTH-009</span>
+              <span class="test-name">TC-001a-E04 認証失敗（ユーザー不存在）</span>
+              <span class="test-status status-pending">未実行</span>
+            </li>
+          </ul>
+        </div>
+
+        <!-- P-001b 正常系 -->
+        <div class="subsection">
+          <div class="subsection-header">
+            <span>P-001b: 招待受諾・パスワード設定ページ（正常系）</span>
+            <span class="subsection-count">1項目</span>
+          </div>
+          <ul class="test-list">
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-AUTH-011">
+              <span class="test-id">E2E-AUTH-011</span>
+              <span class="test-name">TC-001b-N01 パスワード設定成功</span>
+              <span class="test-status status-pending">未実行</span>
+            </li>
+          </ul>
+        </div>
+
+        <!-- P-001b 異常系 -->
+        <div class="subsection">
+          <div class="subsection-header">
+            <span>P-001b: 招待受諾・パスワード設定ページ（異常系）</span>
+            <span class="subsection-count">8項目</span>
+          </div>
+          <ul class="test-list">
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-AUTH-012">
+              <span class="test-id">E2E-AUTH-012</span>
+              <span class="test-name">TC-001b-E01 トークン不正</span>
+              <span class="test-status status-pending">未実行</span>
+            </li>
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-AUTH-013">
+              <span class="test-id">E2E-AUTH-013</span>
+              <span class="test-name">TC-001b-E02 パスワード未入力</span>
+              <span class="test-status status-pending">未実行</span>
+            </li>
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-AUTH-014">
+              <span class="test-id">E2E-AUTH-014</span>
+              <span class="test-name">TC-001b-E03 パスワード長さ不足</span>
+              <span class="test-status status-pending">未実行</span>
+            </li>
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-AUTH-015">
+              <span class="test-id">E2E-AUTH-015</span>
+              <span class="test-name">TC-001b-E04 パスワードに英字なし</span>
+              <span class="test-status status-pending">未実行</span>
+            </li>
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-AUTH-016">
+              <span class="test-id">E2E-AUTH-016</span>
+              <span class="test-name">TC-001b-E05 パスワードに数字なし</span>
+              <span class="test-status status-pending">未実行</span>
+            </li>
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-AUTH-017">
+              <span class="test-id">E2E-AUTH-017</span>
+              <span class="test-name">TC-001b-E06 パスワードに記号あり</span>
+              <span class="test-status status-pending">未実行</span>
+            </li>
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-AUTH-018">
+              <span class="test-id">E2E-AUTH-018</span>
+              <span class="test-name">TC-001b-E07 パスワード確認未入力</span>
+              <span class="test-status status-pending">未実行</span>
+            </li>
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-AUTH-019">
+              <span class="test-id">E2E-AUTH-019</span>
+              <span class="test-name">TC-001b-E08 パスワード不一致</span>
+              <span class="test-status status-pending">未実行</span>
+            </li>
+          </ul>
+        </div>
+
+        <!-- P-001c 正常系 -->
+        <div class="subsection">
+          <div class="subsection-header">
+            <span>P-001c: パスワードリセットページ（正常系）</span>
+            <span class="subsection-count">3項目</span>
+          </div>
+          <ul class="test-list">
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-AUTH-020">
+              <span class="test-id">E2E-AUTH-020</span>
+              <span class="test-name">TC-001c-N01 パスワードリセットメール送信成功</span>
+              <span class="test-status status-pending">未実行</span>
+            </li>
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-AUTH-021">
+              <span class="test-id">E2E-AUTH-021</span>
+              <span class="test-name">TC-001c-N02 新パスワード設定成功</span>
+              <span class="test-status status-pending">未実行</span>
+            </li>
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-AUTH-022">
+              <span class="test-id">E2E-AUTH-022</span>
+              <span class="test-name">TC-001c-N03 ログインページに戻る</span>
+              <span class="test-status status-pending">未実行</span>
+            </li>
+          </ul>
+        </div>
+
+        <!-- P-001c 異常系 -->
+        <div class="subsection">
+          <div class="subsection-header">
+            <span>P-001c: パスワードリセットページ（異常系）</span>
+            <span class="subsection-count">9項目</span>
+          </div>
+          <ul class="test-list">
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-AUTH-023">
+              <span class="test-id">E2E-AUTH-023</span>
+              <span class="test-name">TC-001c-E01 メールアドレス未入力</span>
+              <span class="test-status status-pending">未実行</span>
+            </li>
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-AUTH-024">
+              <span class="test-id">E2E-AUTH-024</span>
+              <span class="test-name">TC-001c-E02 メールアドレス形式不正</span>
+              <span class="test-status status-pending">未実行</span>
+            </li>
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-AUTH-025">
+              <span class="test-id">E2E-AUTH-025</span>
+              <span class="test-name">TC-001c-E03 新パスワード未入力</span>
+              <span class="test-status status-pending">未実行</span>
+            </li>
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-AUTH-026">
+              <span class="test-id">E2E-AUTH-026</span>
+              <span class="test-name">TC-001c-E04 新パスワード長さ不足</span>
+              <span class="test-status status-pending">未実行</span>
+            </li>
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-AUTH-027">
+              <span class="test-id">E2E-AUTH-027</span>
+              <span class="test-name">TC-001c-E05 新パスワードに英字なし</span>
+              <span class="test-status status-pending">未実行</span>
+            </li>
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-AUTH-028">
+              <span class="test-id">E2E-AUTH-028</span>
+              <span class="test-name">TC-001c-E06 新パスワードに数字なし</span>
+              <span class="test-status status-pending">未実行</span>
+            </li>
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-AUTH-029">
+              <span class="test-id">E2E-AUTH-029</span>
+              <span class="test-name">TC-001c-E07 新パスワードに記号あり</span>
+              <span class="test-status status-pending">未実行</span>
+            </li>
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-AUTH-030">
+              <span class="test-id">E2E-AUTH-030</span>
+              <span class="test-name">TC-001c-E08 パスワード確認未入力</span>
+              <span class="test-status status-pending">未実行</span>
+            </li>
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-AUTH-031">
+              <span class="test-id">E2E-AUTH-031</span>
+              <span class="test-name">TC-001c-E09 パスワード不一致</span>
+              <span class="test-status status-pending">未実行</span>
+            </li>
+          </ul>
+        </div>
+
+        <!-- レスポンシブテスト -->
+        <div class="subsection">
+          <div class="subsection-header">
+            <span>認証ページ レスポンシブテスト</span>
+            <span class="subsection-count">3項目</span>
+          </div>
+          <ul class="test-list">
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-AUTH-032">
+              <span class="test-id">E2E-AUTH-032</span>
+              <span class="test-name">TC-RESP-01 モバイル表示（375px）</span>
+              <span class="test-status status-pending">未実行</span>
+            </li>
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-AUTH-033">
+              <span class="test-id">E2E-AUTH-033</span>
+              <span class="test-name">TC-RESP-02 タブレット表示（768px）</span>
+              <span class="test-status status-pending">未実行</span>
+            </li>
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-AUTH-034">
+              <span class="test-id">E2E-AUTH-034</span>
+              <span class="test-name">TC-RESP-03 デスクトップ表示（1920px）</span>
+              <span class="test-status status-pending">未実行</span>
+            </li>
+          </ul>
+        </div>
+
+        <!-- アクセシビリティテスト -->
+        <div class="subsection">
+          <div class="subsection-header">
+            <span>認証ページ アクセシビリティテスト</span>
+            <span class="subsection-count">2項目</span>
+          </div>
+          <ul class="test-list">
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-AUTH-035">
+              <span class="test-id">E2E-AUTH-035</span>
+              <span class="test-name">TC-A11Y-01 aria属性の確認</span>
+              <span class="test-status status-pending">未実行</span>
+            </li>
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-AUTH-037">
+              <span class="test-id">E2E-AUTH-037</span>
+              <span class="test-name">TC-A11Y-03 キーボードナビゲーション</span>
+              <span class="test-status status-pending">未実行</span>
+            </li>
+          </ul>
+        </div>
+
+        <!-- セキュリティテスト -->
+        <div class="subsection">
+          <div class="subsection-header">
+            <span>認証ページ セキュリティテスト</span>
+            <span class="subsection-count">3項目</span>
+          </div>
+          <ul class="test-list">
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-AUTH-038">
+              <span class="test-id">E2E-AUTH-038</span>
+              <span class="test-name">TC-SEC-01 パスワードマスキング</span>
+              <span class="test-status status-pending">未実行</span>
+            </li>
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-AUTH-039">
+              <span class="test-id">E2E-AUTH-039</span>
+              <span class="test-name">TC-SEC-02 localStorage保存確認</span>
+              <span class="test-status status-pending">未実行</span>
+            </li>
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-AUTH-040">
+              <span class="test-id">E2E-AUTH-040</span>
+              <span class="test-name">TC-SEC-03 認証状態の確認</span>
+              <span class="test-status status-pending">未実行</span>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. PDF処理実行ページ -->
+    <div class="section">
+      <div class="section-header" onclick="toggleSection(this)">
+        <span class="section-title">2. PDF処理実行ページ（P-002）</span>
+        <span class="section-badge">25項目</span>
+      </div>
+      <div class="section-content">
+        <!-- 正常系 -->
+        <div class="subsection">
+          <div class="subsection-header">
+            <span>正常系</span>
+            <span class="subsection-count">6項目</span>
+          </div>
+          <ul class="test-list">
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-PROC-001">
+              <span class="test-id">E2E-PROC-001</span>
+              <span class="test-name">TC-001 ネクストビッツ - 初回処理フロー</span>
+              <span class="test-status status-pending">未実行</span>
+            </li>
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-PROC-002">
+              <span class="test-id">E2E-PROC-002</span>
+              <span class="test-name">TC-002 ネクストビッツ - 2回目以降の処理フロー</span>
+              <span class="test-status status-pending">未実行</span>
+            </li>
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-PROC-003">
+              <span class="test-id">E2E-PROC-003</span>
+              <span class="test-name">TC-003 オフ・ビート・ワークス - 処理フロー</span>
+              <span class="test-status status-pending">未実行</span>
+            </li>
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-PROC-004">
+              <span class="test-id">E2E-PROC-004</span>
+              <span class="test-name">TC-004 個別スロットへのファイルアップロード</span>
+              <span class="test-status status-pending">未実行</span>
+            </li>
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-PROC-005">
+              <span class="test-id">E2E-PROC-005</span>
+              <span class="test-name">TC-005 ファイルの削除と再アップロード</span>
+              <span class="test-status status-pending">未実行</span>
+            </li>
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-PROC-006">
+              <span class="test-id">E2E-PROC-006</span>
+              <span class="test-name">TC-006 ファイルダウンロード</span>
+              <span class="test-status status-pending">未実行</span>
+            </li>
+          </ul>
+        </div>
+
+        <!-- 異常系 -->
+        <div class="subsection">
+          <div class="subsection-header">
+            <span>異常系</span>
+            <span class="subsection-count">8項目</span>
+          </div>
+          <ul class="test-list">
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-PROC-007">
+              <span class="test-id">E2E-PROC-007</span>
+              <span class="test-name">TC-101 取引先混在エラー</span>
+              <span class="test-status status-pending">未実行</span>
+            </li>
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-PROC-008">
+              <span class="test-id">E2E-PROC-008</span>
+              <span class="test-name">TC-102 個別追加時の取引先混在エラー</span>
+              <span class="test-status status-pending">未実行</span>
+            </li>
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-PROC-009">
+              <span class="test-id">E2E-PROC-009</span>
+              <span class="test-name">TC-103 判別不可能なファイル名</span>
+              <span class="test-status status-pending">未実行</span>
+            </li>
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-PROC-010">
+              <span class="test-id">E2E-PROC-010</span>
+              <span class="test-name">TC-104 種別不一致エラー</span>
+              <span class="test-status status-pending">未実行</span>
+            </li>
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-PROC-011">
+              <span class="test-id">E2E-PROC-011</span>
+              <span class="test-name">TC-105 PDF以外のファイル</span>
+              <span class="test-status status-pending">未実行</span>
+            </li>
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-PROC-012">
+              <span class="test-id">E2E-PROC-012</span>
+              <span class="test-name">TC-106 Excel以外のファイル（テンプレートアップロード）</span>
+              <span class="test-status status-pending">未実行</span>
+            </li>
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-PROC-013">
+              <span class="test-id">E2E-PROC-013</span>
+              <span class="test-name">TC-107 Excelファイル名に取引先名がない</span>
+              <span class="test-status status-pending">未実行</span>
+            </li>
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-PROC-014">
+              <span class="test-id">E2E-PROC-014</span>
+              <span class="test-name">TC-108 Excelファイルの取引先不一致</span>
+              <span class="test-status status-pending">未実行</span>
+            </li>
+          </ul>
+        </div>
+
+        <!-- UI/UXテスト -->
+        <div class="subsection">
+          <div class="subsection-header">
+            <span>UI/UXテスト</span>
+            <span class="subsection-count">5項目</span>
+          </div>
+          <ul class="test-list">
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-PROC-015">
+              <span class="test-id">E2E-PROC-015</span>
+              <span class="test-name">TC-201 ドラッグ&ドロップオーバーレイ</span>
+              <span class="test-status status-pending">未実行</span>
+            </li>
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-PROC-016">
+              <span class="test-id">E2E-PROC-016</span>
+              <span class="test-name">TC-202 Excelテンプレート差し替え</span>
+              <span class="test-status status-pending">未実行</span>
+            </li>
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-PROC-017">
+              <span class="test-id">E2E-PROC-017</span>
+              <span class="test-name">TC-203 処理完了フェードインアニメーション</span>
+              <span class="test-status status-pending">未実行</span>
+            </li>
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-PROC-018">
+              <span class="test-id">E2E-PROC-018</span>
+              <span class="test-name">TC-204 プログレスバー表示</span>
+              <span class="test-status status-pending">未実行</span>
+            </li>
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-PROC-019">
+              <span class="test-id">E2E-PROC-019</span>
+              <span class="test-name">TC-205 新規処理開始</span>
+              <span class="test-status status-pending">未実行</span>
+            </li>
+          </ul>
+        </div>
+
+        <!-- レスポンシブテスト -->
+        <div class="subsection">
+          <div class="subsection-header">
+            <span>レスポンシブテスト</span>
+            <span class="subsection-count">3項目</span>
+          </div>
+          <ul class="test-list">
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-PROC-020">
+              <span class="test-id">E2E-PROC-020</span>
+              <span class="test-name">TC-301 デスクトップ表示</span>
+              <span class="test-status status-pending">未実行</span>
+            </li>
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-PROC-021">
+              <span class="test-id">E2E-PROC-021</span>
+              <span class="test-name">TC-302 タブレット表示</span>
+              <span class="test-status status-pending">未実行</span>
+            </li>
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-PROC-022">
+              <span class="test-id">E2E-PROC-022</span>
+              <span class="test-name">TC-303 モバイル表示</span>
+              <span class="test-status status-pending">未実行</span>
+            </li>
+          </ul>
+        </div>
+
+        <!-- セキュリティテスト -->
+        <div class="subsection">
+          <div class="subsection-header">
+            <span>セキュリティテスト</span>
+            <span class="subsection-count">2項目</span>
+          </div>
+          <ul class="test-list">
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-PROC-023">
+              <span class="test-id">E2E-PROC-023</span>
+              <span class="test-name">TC-401 未認証アクセス</span>
+              <span class="test-status status-pending">未実行</span>
+            </li>
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-PROC-024">
+              <span class="test-id">E2E-PROC-024</span>
+              <span class="test-name">TC-402 ファイルサイズ制限</span>
+              <span class="test-status status-pending">未実行</span>
+            </li>
+          </ul>
+        </div>
+
+        <!-- ナビゲーション制御テスト -->
+        <div class="subsection">
+          <div class="subsection-header">
+            <span>ナビゲーション制御テスト</span>
+            <span class="subsection-count">1項目</span>
+          </div>
+          <ul class="test-list">
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-PROC-025">
+              <span class="test-id">E2E-PROC-025</span>
+              <span class="test-name">TC-501〜TC-505 ナビゲーション警告（一括）</span>
+              <span class="test-status status-pending">未実行</span>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. 処理履歴・ダウンロードページ -->
+    <div class="section">
+      <div class="section-header" onclick="toggleSection(this)">
+        <span class="section-title">3. 処理履歴・ダウンロードページ（P-003）</span>
+        <span class="section-badge">16項目 ✅完了</span>
+      </div>
+      <div class="section-content">
+        <div class="subsection">
+          <div class="subsection-header">
+            <span>全テスト項目</span>
+            <span class="subsection-count">16項目</span>
+          </div>
+          <ul class="test-list">
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-HIST-001" checked>
+              <span class="test-id">E2E-HIST-001</span>
+              <span class="test-name">E2E-P003-001 ページの初期表示</span>
+              <span class="test-status status-pass">Pass</span>
+            </li>
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-HIST-002" checked>
+              <span class="test-id">E2E-HIST-002</span>
+              <span class="test-name">E2E-P003-002 処理履歴一覧の表示（デスクトップ）</span>
+              <span class="test-status status-pass">Pass</span>
+            </li>
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-HIST-002b" checked>
+              <span class="test-id">E2E-HIST-002b</span>
+              <span class="test-name">E2E-P003-002 処理履歴一覧の表示（モバイル）</span>
+              <span class="test-status status-pass">Pass</span>
+            </li>
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-HIST-003" checked>
+              <span class="test-id">E2E-HIST-003</span>
+              <span class="test-name">E2E-P003-003 レスポンシブ対応（テーブル↔カード切り替え）</span>
+              <span class="test-status status-pass">Pass</span>
+            </li>
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-HIST-004" checked>
+              <span class="test-id">E2E-HIST-004</span>
+              <span class="test-name">E2E-P003-004 取引先フィルター</span>
+              <span class="test-status status-pass">Pass</span>
+            </li>
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-HIST-005" checked>
+              <span class="test-id">E2E-HIST-005</span>
+              <span class="test-name">E2E-P003-005 処理者フィルター</span>
+              <span class="test-status status-pass">Pass</span>
+            </li>
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-HIST-006" checked>
+              <span class="test-id">E2E-HIST-006</span>
+              <span class="test-name">E2E-P003-006 状態フィルター</span>
+              <span class="test-status status-pass">Pass</span>
+            </li>
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-HIST-007" checked>
+              <span class="test-id">E2E-HIST-007</span>
+              <span class="test-name">E2E-P003-007 期間フィルター</span>
+              <span class="test-status status-pass">Pass</span>
+            </li>
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-HIST-008" checked>
+              <span class="test-id">E2E-HIST-008</span>
+              <span class="test-name">E2E-P003-008 並び順フィルター</span>
+              <span class="test-status status-pass">Pass</span>
+            </li>
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-HIST-009" checked>
+              <span class="test-id">E2E-HIST-009</span>
+              <span class="test-name">E2E-P003-009 処理詳細モーダル表示</span>
+              <span class="test-status status-pass">Pass</span>
+            </li>
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-HIST-010" checked>
+              <span class="test-id">E2E-HIST-010</span>
+              <span class="test-name">E2E-P003-010 エラー詳細モーダル表示</span>
+              <span class="test-status status-pass">Pass</span>
+            </li>
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-HIST-011" checked>
+              <span class="test-id">E2E-HIST-011</span>
+              <span class="test-name">E2E-P003-011 個別ファイルダウンロード</span>
+              <span class="test-status status-pass">Pass</span>
+            </li>
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-HIST-012" checked>
+              <span class="test-id">E2E-HIST-012</span>
+              <span class="test-name">E2E-P003-012 ZIP一括ダウンロード</span>
+              <span class="test-status status-pass">Pass</span>
+            </li>
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-HIST-013" checked>
+              <span class="test-id">E2E-HIST-013</span>
+              <span class="test-name">E2E-P003-013 削除済みユーザーのグレー表示</span>
+              <span class="test-status status-pass">Pass</span>
+            </li>
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-HIST-014" checked>
+              <span class="test-id">E2E-HIST-014</span>
+              <span class="test-name">E2E-P003-014 無効な取引先のグレー表示</span>
+              <span class="test-status status-pass">Pass</span>
+            </li>
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-HIST-SEC" checked>
+              <span class="test-id">E2E-HIST-SEC</span>
+              <span class="test-name">セキュリティ - 未認証アクセス</span>
+              <span class="test-status status-pass">Pass</span>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- 4. ユーザー管理ページ -->
+    <div class="section">
+      <div class="section-header" onclick="toggleSection(this)">
+        <span class="section-title">4. ユーザー管理ページ（P-004）</span>
+        <span class="section-badge">21項目</span>
+      </div>
+      <div class="section-content">
+        <!-- 正常系テスト -->
+        <div class="subsection">
+          <div class="subsection-header">
+            <span>正常系テスト</span>
+            <span class="subsection-count">7項目</span>
+          </div>
+          <ul class="test-list">
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-USER-001">
+              <span class="test-id">E2E-USER-001</span>
+              <span class="test-name">TC-001 ユーザー一覧表示</span>
+              <span class="test-status status-pending">未実行</span>
+            </li>
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-USER-002">
+              <span class="test-id">E2E-USER-002</span>
+              <span class="test-name">TC-002 新規ユーザー招待</span>
+              <span class="test-status status-pending">未実行</span>
+            </li>
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-USER-003">
+              <span class="test-id">E2E-USER-003</span>
+              <span class="test-name">TC-003 管理者として招待</span>
+              <span class="test-status status-pending">未実行</span>
+            </li>
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-USER-004">
+              <span class="test-id">E2E-USER-004</span>
+              <span class="test-name">TC-004 ロール変更（一般ユーザー → 管理者）</span>
+              <span class="test-status status-pending">未実行</span>
+            </li>
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-USER-005">
+              <span class="test-id">E2E-USER-005</span>
+              <span class="test-name">TC-005 ロール変更（管理者 → 一般ユーザー）</span>
+              <span class="test-status status-pending">未実行</span>
+            </li>
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-USER-006">
+              <span class="test-id">E2E-USER-006</span>
+              <span class="test-name">TC-006 ユーザー削除</span>
+              <span class="test-status status-pending">未実行</span>
+            </li>
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-USER-007">
+              <span class="test-id">E2E-USER-007</span>
+              <span class="test-name">TC-007 削除キャンセル</span>
+              <span class="test-status status-pending">未実行</span>
+            </li>
+          </ul>
+        </div>
+
+        <!-- 異常系テスト -->
+        <div class="subsection">
+          <div class="subsection-header">
+            <span>異常系テスト</span>
+            <span class="subsection-count">6項目</span>
+          </div>
+          <ul class="test-list">
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-USER-008">
+              <span class="test-id">E2E-USER-008</span>
+              <span class="test-name">TC-101 最終管理者の削除拒否</span>
+              <span class="test-status status-pending">未実行</span>
+            </li>
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-USER-010">
+              <span class="test-id">E2E-USER-010</span>
+              <span class="test-name">TC-103 空のメールアドレスで招待</span>
+              <span class="test-status status-pending">未実行</span>
+            </li>
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-USER-011">
+              <span class="test-id">E2E-USER-011</span>
+              <span class="test-name">TC-104 不正なメールアドレス形式</span>
+              <span class="test-status status-pending">未実行</span>
+            </li>
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-USER-012">
+              <span class="test-id">E2E-USER-012</span>
+              <span class="test-name">TC-105 自分自身のロール変更拒否</span>
+              <span class="test-status status-pending">未実行</span>
+            </li>
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-USER-013">
+              <span class="test-id">E2E-USER-013</span>
+              <span class="test-name">TC-106 既存ユーザーへの招待ブロック</span>
+              <span class="test-status status-pending">未実行</span>
+            </li>
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-USER-014">
+              <span class="test-id">E2E-USER-014</span>
+              <span class="test-name">TC-107 削除済みユーザーへの再招待は許可</span>
+              <span class="test-status status-pending">未実行</span>
+            </li>
+          </ul>
+        </div>
+
+        <!-- 権限テスト -->
+        <div class="subsection">
+          <div class="subsection-header">
+            <span>権限テスト</span>
+            <span class="subsection-count">2項目</span>
+          </div>
+          <ul class="test-list">
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-USER-015">
+              <span class="test-id">E2E-USER-015</span>
+              <span class="test-name">TC-201 一般ユーザーのアクセス拒否</span>
+              <span class="test-status status-pending">未実行</span>
+            </li>
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-USER-016">
+              <span class="test-id">E2E-USER-016</span>
+              <span class="test-name">TC-202 未認証アクセス</span>
+              <span class="test-status status-pending">未実行</span>
+            </li>
+          </ul>
+        </div>
+
+        <!-- UI/UXテスト -->
+        <div class="subsection">
+          <div class="subsection-header">
+            <span>UI/UXテスト</span>
+            <span class="subsection-count">4項目</span>
+          </div>
+          <ul class="test-list">
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-USER-017">
+              <span class="test-id">E2E-USER-017</span>
+              <span class="test-name">TC-301 招待モーダルのキーボード操作</span>
+              <span class="test-status status-pending">未実行</span>
+            </li>
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-USER-018">
+              <span class="test-id">E2E-USER-018</span>
+              <span class="test-name">TC-302 通知の自動消去</span>
+              <span class="test-status status-pending">未実行</span>
+            </li>
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-USER-019">
+              <span class="test-id">E2E-USER-019</span>
+              <span class="test-name">TC-303 ロール変更の即時反映</span>
+              <span class="test-status status-pending">未実行</span>
+            </li>
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-USER-020">
+              <span class="test-id">E2E-USER-020</span>
+              <span class="test-name">TC-304 ローディング状態</span>
+              <span class="test-status status-pending">未実行</span>
+            </li>
+          </ul>
+        </div>
+
+        <!-- レスポンシブテスト -->
+        <div class="subsection">
+          <div class="subsection-header">
+            <span>レスポンシブテスト</span>
+            <span class="subsection-count">2項目</span>
+          </div>
+          <ul class="test-list">
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-USER-021">
+              <span class="test-id">E2E-USER-021</span>
+              <span class="test-name">TC-401〜TC-403 レスポンシブ表示（一括）</span>
+              <span class="test-status status-pending">未実行</span>
+            </li>
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-USER-022">
+              <span class="test-id">E2E-USER-022</span>
+              <span class="test-name">TC-404 削除ダイアログのレスポンシブ対応</span>
+              <span class="test-status status-pending">未実行</span>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- 5. 取引先設定ページ -->
+    <div class="section">
+      <div class="section-header" onclick="toggleSection(this)">
+        <span class="section-title">5. 取引先設定ページ（P-005）</span>
+        <span class="section-badge">40項目</span>
+      </div>
+      <div class="section-content">
+        <!-- ページアクセステスト -->
+        <div class="subsection">
+          <div class="subsection-header">
+            <span>ページアクセステスト</span>
+            <span class="subsection-count">3項目</span>
+          </div>
+          <ul class="test-list">
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-COMP-001">
+              <span class="test-id">E2E-COMP-001</span>
+              <span class="test-name">TC-001 管理者がページにアクセス</span>
+              <span class="test-status status-pending">未実行</span>
+            </li>
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-COMP-002">
+              <span class="test-id">E2E-COMP-002</span>
+              <span class="test-name">TC-002 一般ユーザーがアクセス拒否</span>
+              <span class="test-status status-pending">未実行</span>
+            </li>
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-COMP-003">
+              <span class="test-id">E2E-COMP-003</span>
+              <span class="test-name">TC-003 未認証ユーザーがリダイレクト</span>
+              <span class="test-status status-pending">未実行</span>
+            </li>
+          </ul>
+        </div>
+
+        <!-- 取引先一覧表示テスト（デスクトップ） -->
+        <div class="subsection">
+          <div class="subsection-header">
+            <span>取引先一覧表示テスト（デスクトップ）</span>
+            <span class="subsection-count">4項目</span>
+          </div>
+          <ul class="test-list">
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-COMP-004">
+              <span class="test-id">E2E-COMP-004</span>
+              <span class="test-name">TC-011 テーブル表示の確認</span>
+              <span class="test-status status-pending">未実行</span>
+            </li>
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-COMP-005">
+              <span class="test-id">E2E-COMP-005</span>
+              <span class="test-name">TC-012 有効状態の表示</span>
+              <span class="test-status status-pending">未実行</span>
+            </li>
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-COMP-006">
+              <span class="test-id">E2E-COMP-006</span>
+              <span class="test-name">TC-013 無効状態の表示</span>
+              <span class="test-status status-pending">未実行</span>
+            </li>
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-COMP-007">
+              <span class="test-id">E2E-COMP-007</span>
+              <span class="test-name">TC-014 行ホバー効果</span>
+              <span class="test-status status-pending">未実行</span>
+            </li>
+          </ul>
+        </div>
+
+        <!-- 取引先一覧表示テスト（モバイル） -->
+        <div class="subsection">
+          <div class="subsection-header">
+            <span>取引先一覧表示テスト（モバイル）</span>
+            <span class="subsection-count">3項目</span>
+          </div>
+          <ul class="test-list">
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-COMP-008">
+              <span class="test-id">E2E-COMP-008</span>
+              <span class="test-name">TC-021 カードレイアウト表示</span>
+              <span class="test-status status-pending">未実行</span>
+            </li>
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-COMP-009">
+              <span class="test-id">E2E-COMP-009</span>
+              <span class="test-name">TC-022 カード内容の確認</span>
+              <span class="test-status status-pending">未実行</span>
+            </li>
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-COMP-010">
+              <span class="test-id">E2E-COMP-010</span>
+              <span class="test-name">TC-023 カードタップ効果</span>
+              <span class="test-status status-pending">未実行</span>
+            </li>
+          </ul>
+        </div>
+
+        <!-- 取引先詳細モーダル - 基本操作 -->
+        <div class="subsection">
+          <div class="subsection-header">
+            <span>取引先詳細モーダル - 基本操作</span>
+            <span class="subsection-count">4項目</span>
+          </div>
+          <ul class="test-list">
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-COMP-011">
+              <span class="test-id">E2E-COMP-011</span>
+              <span class="test-name">TC-031 モーダル表示</span>
+              <span class="test-status status-pending">未実行</span>
+            </li>
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-COMP-012">
+              <span class="test-id">E2E-COMP-012</span>
+              <span class="test-name">TC-032 モーダルを閉じる（キャンセル）</span>
+              <span class="test-status status-pending">未実行</span>
+            </li>
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-COMP-013">
+              <span class="test-id">E2E-COMP-013</span>
+              <span class="test-name">TC-033 モーダルを閉じる（オーバーレイ）</span>
+              <span class="test-status status-pending">未実行</span>
+            </li>
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-COMP-014">
+              <span class="test-id">E2E-COMP-014</span>
+              <span class="test-name">TC-034 モーダルを閉じる（ESCキー）</span>
+              <span class="test-status status-pending">未実行</span>
+            </li>
+          </ul>
+        </div>
+
+        <!-- タブ1: 基本情報 -->
+        <div class="subsection">
+          <div class="subsection-header">
+            <span>タブ1: 基本情報</span>
+            <span class="subsection-count">5項目</span>
+          </div>
+          <ul class="test-list">
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-COMP-015">
+              <span class="test-id">E2E-COMP-015</span>
+              <span class="test-name">TC-041 基本情報表示</span>
+              <span class="test-status status-pending">未実行</span>
+            </li>
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-COMP-016">
+              <span class="test-id">E2E-COMP-016</span>
+              <span class="test-name">TC-042 表示名を変更</span>
+              <span class="test-status status-pending">未実行</span>
+            </li>
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-COMP-017">
+              <span class="test-id">E2E-COMP-017</span>
+              <span class="test-name">TC-043 状態を無効に変更</span>
+              <span class="test-status status-pending">未実行</span>
+            </li>
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-COMP-018">
+              <span class="test-id">E2E-COMP-018</span>
+              <span class="test-name">TC-044 状態を有効に戻す</span>
+              <span class="test-status status-pending">未実行</span>
+            </li>
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-COMP-019">
+              <span class="test-id">E2E-COMP-019</span>
+              <span class="test-name">TC-045 表示名を空にしてエラー</span>
+              <span class="test-status status-pending">未実行</span>
+            </li>
+          </ul>
+        </div>
+
+        <!-- タブ2: テンプレート -->
+        <div class="subsection">
+          <div class="subsection-header">
+            <span>タブ2: テンプレート</span>
+            <span class="subsection-count">6項目</span>
+          </div>
+          <ul class="test-list">
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-COMP-020">
+              <span class="test-id">E2E-COMP-020</span>
+              <span class="test-name">TC-051 テンプレート情報表示</span>
+              <span class="test-status status-pending">未実行</span>
+            </li>
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-COMP-021">
+              <span class="test-id">E2E-COMP-021</span>
+              <span class="test-name">TC-052 テンプレートをダウンロード</span>
+              <span class="test-status status-pending">未実行</span>
+            </li>
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-COMP-022">
+              <span class="test-id">E2E-COMP-022</span>
+              <span class="test-name">TC-053 ファイルを選択</span>
+              <span class="test-status status-pending">未実行</span>
+            </li>
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-COMP-023">
+              <span class="test-id">E2E-COMP-023</span>
+              <span class="test-name">TC-054 ファイルをアップロードして保存</span>
+              <span class="test-status status-pending">未実行</span>
+            </li>
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-COMP-024">
+              <span class="test-id">E2E-COMP-024</span>
+              <span class="test-name">TC-055 不正なファイル形式でエラー</span>
+              <span class="test-status status-pending">未実行</span>
+            </li>
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-COMP-024a">
+              <span class="test-id">E2E-COMP-024a</span>
+              <span class="test-name">TC-056 ファイル名に取引先名がないエラー</span>
+              <span class="test-status status-pending">未実行</span>
+            </li>
+          </ul>
+        </div>
+
+        <!-- タブ3: 処理ルール -->
+        <div class="subsection">
+          <div class="subsection-header">
+            <span>タブ3: 処理ルール</span>
+            <span class="subsection-count">3項目</span>
+          </div>
+          <ul class="test-list">
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-COMP-025">
+              <span class="test-id">E2E-COMP-025</span>
+              <span class="test-name">TC-061 処理ルール表示（ネクストビッツ）</span>
+              <span class="test-status status-pending">未実行</span>
+            </li>
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-COMP-026">
+              <span class="test-id">E2E-COMP-026</span>
+              <span class="test-name">TC-062 処理ルール表示（オフ・ビート・ワークス）</span>
+              <span class="test-status status-pending">未実行</span>
+            </li>
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-COMP-027">
+              <span class="test-id">E2E-COMP-027</span>
+              <span class="test-name">TC-063 編集不可の確認</span>
+              <span class="test-status status-pending">未実行</span>
+            </li>
+          </ul>
+        </div>
+
+        <!-- レスポンシブデザインテスト -->
+        <div class="subsection">
+          <div class="subsection-header">
+            <span>レスポンシブデザインテスト</span>
+            <span class="subsection-count">4項目</span>
+          </div>
+          <ul class="test-list">
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-COMP-028">
+              <span class="test-id">E2E-COMP-028</span>
+              <span class="test-name">TC-081 デスクトップ → モバイル切替</span>
+              <span class="test-status status-pending">未実行</span>
+            </li>
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-COMP-029">
+              <span class="test-id">E2E-COMP-029</span>
+              <span class="test-name">TC-082 モバイル → デスクトップ切替</span>
+              <span class="test-status status-pending">未実行</span>
+            </li>
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-COMP-030">
+              <span class="test-id">E2E-COMP-030</span>
+              <span class="test-name">TC-083 モーダル：モバイル表示</span>
+              <span class="test-status status-pending">未実行</span>
+            </li>
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-COMP-031">
+              <span class="test-id">E2E-COMP-031</span>
+              <span class="test-name">TC-084 モーダル：タブレット表示</span>
+              <span class="test-status status-pending">未実行</span>
+            </li>
+          </ul>
+        </div>
+
+        <!-- 複数タブ切替テスト -->
+        <div class="subsection">
+          <div class="subsection-header">
+            <span>複数タブ切替テスト</span>
+            <span class="subsection-count">4項目</span>
+          </div>
+          <ul class="test-list">
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-COMP-032">
+              <span class="test-id">E2E-COMP-032</span>
+              <span class="test-name">TC-091 全タブ順次切替</span>
+              <span class="test-status status-pending">未実行</span>
+            </li>
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-COMP-033">
+              <span class="test-id">E2E-COMP-033</span>
+              <span class="test-name">TC-092 タブ切替時の高さ固定（デスクトップ）</span>
+              <span class="test-status status-pending">未実行</span>
+            </li>
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-COMP-034">
+              <span class="test-id">E2E-COMP-034</span>
+              <span class="test-name">TC-093 タブ切替時の高さ固定（モバイル）</span>
+              <span class="test-status status-pending">未実行</span>
+            </li>
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-COMP-035">
+              <span class="test-id">E2E-COMP-035</span>
+              <span class="test-name">TC-094 テンプレート選択後のタブ切替</span>
+              <span class="test-status status-pending">未実行</span>
+            </li>
+          </ul>
+        </div>
+
+        <!-- エラーハンドリングテスト -->
+        <div class="subsection">
+          <div class="subsection-header">
+            <span>エラーハンドリングテスト</span>
+            <span class="subsection-count">3項目</span>
+          </div>
+          <ul class="test-list">
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-COMP-036">
+              <span class="test-id">E2E-COMP-036</span>
+              <span class="test-name">TC-101 API通信エラーシミュレート</span>
+              <span class="test-status status-pending">未実行</span>
+            </li>
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-COMP-037">
+              <span class="test-id">E2E-COMP-037</span>
+              <span class="test-name">TC-102 保存失敗シミュレート</span>
+              <span class="test-status status-pending">未実行</span>
+            </li>
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-COMP-038">
+              <span class="test-id">E2E-COMP-038</span>
+              <span class="test-name">TC-103 ファイルアップロード失敗</span>
+              <span class="test-status status-pending">未実行</span>
+            </li>
+          </ul>
+        </div>
+
+        <!-- 同時保存テスト -->
+        <div class="subsection">
+          <div class="subsection-header">
+            <span>同時保存テスト</span>
+            <span class="subsection-count">1項目</span>
+          </div>
+          <ul class="test-list">
+            <li class="test-item">
+              <input type="checkbox" class="test-checkbox" data-id="E2E-COMP-039">
+              <span class="test-id">E2E-COMP-039</span>
+              <span class="test-name">TC-111 テンプレートファイルを保存</span>
+              <span class="test-status status-pending">未実行</span>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <footer>
+      月次処理自動化システム E2Eテスト チェックリスト
+    </footer>
+  </div>
+
+  <script>
+    // セクションの開閉
+    function toggleSection(header) {
+      const content = header.nextElementSibling;
+      content.style.display = content.style.display === 'none' ? 'block' : 'none';
+    }
+
+    // チェックボックスの状態変更時
+    document.querySelectorAll('.test-checkbox').forEach(checkbox => {
+      checkbox.addEventListener('change', function() {
+        const item = this.closest('.test-item');
+        const status = item.querySelector('.test-status');
+
+        if (this.checked) {
+          status.textContent = 'Pass';
+          status.className = 'test-status status-pass';
+        } else {
+          status.textContent = '未実行';
+          status.className = 'test-status status-pending';
+        }
+
+        updateProgress();
+        saveState();
+      });
+    });
+
+    // 進捗更新
+    function updateProgress() {
+      const total = 107;
+      const checkboxes = document.querySelectorAll('.test-checkbox');
+      let pass = 0;
+
+      checkboxes.forEach(cb => {
+        if (cb.checked) pass++;
+      });
+
+      const pending = total - pass;
+      const passPercent = Math.round((pass / total) * 100);
+      const pendingPercent = 100 - passPercent;
+
+      document.getElementById('pass-count').textContent = pass;
+      document.getElementById('fail-count').textContent = 0;
+      document.getElementById('pending-count').textContent = pending;
+
+      document.getElementById('progress-pass').style.width = passPercent + '%';
+      document.getElementById('pass-percent').textContent = passPercent;
+      document.getElementById('pending-percent').textContent = pendingPercent;
+    }
+
+    // 状態をlocalStorageに保存
+    function saveState() {
+      const state = {};
+      document.querySelectorAll('.test-checkbox').forEach(cb => {
+        state[cb.dataset.id] = cb.checked;
+      });
+      localStorage.setItem('e2e-test-state', JSON.stringify(state));
+    }
+
+    // 状態をlocalStorageから復元
+    function loadState() {
+      const saved = localStorage.getItem('e2e-test-state');
+      if (saved) {
+        const state = JSON.parse(saved);
+        document.querySelectorAll('.test-checkbox').forEach(cb => {
+          if (state[cb.dataset.id]) {
+            cb.checked = true;
+            const item = cb.closest('.test-item');
+            const status = item.querySelector('.test-status');
+            status.textContent = 'Pass';
+            status.className = 'test-status status-pass';
+          }
+        });
+        updateProgress();
+      }
+    }
+
+    // 初期化
+    loadState();
+  </script>
+</body>
+</html>
