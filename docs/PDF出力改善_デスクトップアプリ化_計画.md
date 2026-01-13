@@ -1185,6 +1185,305 @@ $excel.Quit()
 
 ---
 
+---
+
+## 12. 開発プロンプト（AI駆動開発用）
+
+### 12.1 概要
+
+現在LibreOfficeで行っているExcel→PDF変換を、Excel直接出力（ExportAsFixedFormat）に切り替え可能にする。
+その後、社内配布用にElectron化（.exe）を行う。
+
+### 12.2 重要な前提
+
+- LibreOffice版は削除せず、環境変数で切り替え可能にする
+- 問題発生時はPDF_ENGINE=libreofficeに戻すことで即座にロールバック可能
+- Excel直接出力はWSL2環境でのみ動作（AWS Lambdaでは引き続きLibreOffice使用）
+
+---
+
+### 12.3 Phase 1: PDF出力エンジン切り替え対応
+
+#### 1-1. 基盤実装
+**依存**: なし（最初に着手）
+
+**タスク**:
+- 環境変数分岐（PDF_ENGINE=libreoffice|excel）
+- WSLパス→Windowsパス変換ユーティリティ
+- PowerShellスクリプト生成（Excel COM + ExportAsFixedFormat使用）
+- 既存LibreOffice版を関数分離（後方互換性維持）
+- Excel直接出力版を新規追加
+
+**対象ファイル**:
+- backend/python/pdf_generator.py（メイン変更）
+- backend/.env（PDF_ENGINE追加）
+- backend/.env.example（PDF_ENGINE追加）
+
+**成功基準**:
+- [ ] PDF_ENGINE=excel で Excel直接出力関数が呼ばれる
+- [ ] PDF_ENGINE=libreoffice で 既存LibreOffice関数が呼ばれる
+- [ ] 環境変数未設定時は libreoffice がデフォルト
+
+---
+
+#### 1-2. 動作確認・デバッグ
+**依存**: 1-1完了後
+
+**タスク**:
+- 単体テスト（パス変換、PowerShell実行）
+- 結合テスト（ネクストビッツ用Excel → PDF）
+- 結合テスト（オフ・ビート・ワークス用Excel → PDF）
+- 環境変数切り替えテスト（libreoffice ↔ excel）
+- PDF品質確認（LibreOffice版との比較）
+
+**テスト用ファイル**:
+- source/ネクストビッツ/ 内のテンプレートExcel
+- source/オフ・ビート・ワークス/ 内のテンプレートExcel
+
+**成功基準**:
+- [ ] ネクストビッツ: 注文書PDF + 検収書PDF が生成される
+- [ ] オフ・ビート・ワークス: 注文書PDF + 検収書PDF が生成される
+- [ ] 生成PDFの品質が手動Excel→PDF出力と同等
+- [ ] LibreOffice版が引き続き正常動作する
+
+---
+
+#### 1-3. 統合・調整
+**依存**: 1-2完了後
+
+**タスク**:
+- エラーハンドリング強化（Excel未インストール、タイムアウト等）
+- ログ出力追加（使用エンジン、処理時間、エラー詳細）
+- .env / .env.example 更新
+- Node.js側の動作確認（processService.tsからの呼び出し）
+
+**対象ファイル**:
+- backend/python/pdf_generator.py
+- backend/.env
+- backend/.env.example
+- backend/src/services/processService.ts（確認のみ、変更なしの想定）
+
+**成功基準**:
+- [ ] Excelが起動しない場合に明確なエラーメッセージ
+- [ ] タイムアウト（2分）で適切にエラー終了
+- [ ] ログに使用エンジン（libreoffice/excel）が記録される
+- [ ] フロントエンドからの処理実行が正常動作
+
+---
+
+#### 1-4. ドキュメント・仕上げ
+**依存**: 1-3完了後
+
+**タスク**:
+- CLAUDE.md更新（PDF_ENGINE設定の説明追加）
+- README更新（セットアップ手順、環境要件）
+- コードコメント追加（新規関数のdocstring）
+- 動作確認チェックリスト作成
+
+**対象ファイル**:
+- CLAUDE.md
+- README.md
+- backend/python/pdf_generator.py（コメント追加）
+
+**成功基準**:
+- [ ] 新規開発者がドキュメントを読んで環境構築できる
+- [ ] PDF_ENGINEの切り替え方法が明記されている
+
+---
+
+### 12.4 Phase 2: Electron化
+
+#### 2-1. Electron基盤構築
+**依存**: Phase 1完了後（PDF出力が安定してから）
+
+**タスク**:
+- プロジェクト初期化（electron, electron-builder インストール）
+- electron/ ディレクトリ作成
+- メインプロセス実装（BrowserWindow作成、アプリライフサイクル）
+- プリロードスクリプト実装（contextBridge設定）
+- 開発用スクリプト設定（package.json）
+
+**新規作成ファイル**:
+- electron/main.ts
+- electron/preload.ts
+- electron/tsconfig.json
+
+**成功基準**:
+- [ ] npm run electron:dev で Electronウィンドウが起動
+- [ ] ウィンドウ内にReactアプリが表示される
+
+---
+
+#### 2-2. フロントエンド統合
+**依存**: 2-1完了後
+**並列可能**: 2-3と並列作業可
+
+**タスク**:
+- Viteビルド設定調整（base: './'）
+- API URL設定（環境判定してlocalhost固定）
+
+**対象ファイル**:
+- frontend/vite.config.ts
+- frontend/src/lib/api.ts（必要に応じて）
+
+**成功基準**:
+- [ ] npm run build でElectron用にビルドできる
+- [ ] ビルド後のHTMLがElectronから読み込める
+
+---
+
+#### 2-3. バックエンド統合
+**依存**: 2-1完了後
+**並列可能**: 2-2と並列作業可
+
+**タスク**:
+- Expressサーバー起動処理（Electron内で起動）
+- Python実行パス調整（開発時/本番時の分岐）
+- アプリ終了時のクリーンアップ処理
+
+**新規作成ファイル**:
+- electron/backend-runner.ts
+
+**成功基準**:
+- [ ] Electron起動時にAPIサーバーが自動起動
+- [ ] localhost:3001 でAPIが応答する
+- [ ] アプリ終了時にサーバープロセスが終了
+
+---
+
+#### 2-4. Python同梱
+**依存**: 2-3完了後
+
+**タスク**:
+- PyInstallerでPython処理をexe化
+- エントリーポイント作成（全Python処理を統合）
+- electron-builder設定（extraResources）
+- 動作確認（単体でexeが動作するか）
+
+**対象ファイル**:
+- backend/python/（PyInstaller対象）
+- package.json または electron-builder.yml
+
+**成功基準**:
+- [ ] pdf_processor.exe が単体で動作する
+- [ ] electron-builderの設定でexeが同梱される
+
+---
+
+#### 2-5. ビルド・テスト
+**依存**: 2-4完了後
+
+**タスク**:
+- 開発モードテスト（全機能動作確認）
+- 本番ビルドテスト（npm run electron:build）
+- 配布テスト（別フォルダで起動、ログイン、PDF生成）
+- Windows Defender警告の確認・対処
+
+**成功基準**:
+- [ ] release/ に .exe が生成される
+- [ ] .exe をダブルクリックでアプリ起動
+- [ ] ログイン → PDF処理 → ダウンロード が動作
+- [ ] 別フォルダに移動しても動作する
+
+---
+
+### 12.5 依存関係図
+
+```
+Phase 1: PDF出力エンジン切り替え
+─────────────────────────────────
+1-1 基盤実装
+    ↓
+1-2 動作確認
+    ↓
+1-3 統合・調整
+    ↓
+1-4 ドキュメント
+    ↓
+─────────────────────────────────
+Phase 2: Electron化
+─────────────────────────────────
+2-1 Electron基盤
+    ↓
+    ├── 2-2 フロントエンド統合（並列可）
+    └── 2-3 バックエンド統合（並列可）
+            ↓
+        2-4 Python同梱
+            ↓
+        2-5 ビルド・テスト
+```
+
+---
+
+### 12.6 ロールバック手順
+
+#### PDF出力で問題発生時
+```bash
+# backend/.env
+PDF_ENGINE=libreoffice  # excel → libreoffice に変更
+
+# バックエンド再起動
+cd backend && npm run dev
+```
+即座にLibreOffice版に戻る。コード変更不要。
+
+#### Electron化で問題発生時
+Webアプリ版（localhost:5174 + localhost:3001）は引き続き動作。
+Electron化は独立した追加機能のため、既存機能に影響なし。
+
+---
+
+### 12.7 環境要件
+
+#### 開発環境（WSL2）
+- Node.js 20+
+- Python 3.11+
+- LibreOffice 7.0+（既存）
+
+#### Excel直接出力に必要（Windows側）
+- Microsoft Excel 2016以降
+- PowerShell 5.1+（Windows標準）
+
+#### Electron配布に必要（利用者PC）
+- Windows 10/11
+- Microsoft Excel 2016以降
+
+---
+
+### 12.8 AI駆動開発での時間見積もり
+
+| Phase | 従来見積 | AI駆動見積 | 短縮率 |
+|-------|---------|-----------|--------|
+| Phase 1: PDF出力切り替え | 2.5日 | 0.5〜1日 | 60-80% |
+| Phase 2: Electron化 | 3日 | 1〜1.5日 | 50-67% |
+| **合計** | 5.5日 | **1.5〜2.5日** | 55-73% |
+
+---
+
+## 13. その他の修正事項
+
+### 13.1 パスワードリセットリンクの有効期限変更
+
+**現状の問題**:
+- パスワードリセットのリンクが24時間以上経っても有効になっている可能性
+- セキュリティ上、長すぎる有効期限は推奨されない
+
+**推奨設定**:
+
+| リンク種類 | 現状 | 推奨値 |
+|-----------|------|--------|
+| パスワードリセット | 要確認 | **1時間（3600秒）** |
+| 招待リンク | 24時間 | 24時間（現状維持でOK） |
+
+**対応手順**:
+1. Supabase Dashboard → Authentication → Providers → Email
+2. 「OTP Expiry」の設定を確認・修正
+3. パスワードリセットの有効期限を3600秒（1時間）に設定
+
+**優先度**: 中（セキュリティ改善）
+
+---
+
 ## 変更履歴
 
 | 日付 | バージョン | 変更内容 |
@@ -1192,4 +1491,6 @@ $excel.Quit()
 | 2025-12-26 | 1.0 | 初版作成 |
 | 2025-12-26 | 1.1 | 開発順序を明確化（Step 1: CubePDF対応 → Step 2: Electron化） |
 | 2025-12-26 | 1.2 | CubePDF制限事項の調査結果追加、Excel直接出力方式の発見・テスト結果追加 |
+| 2026-01-09 | 1.3 | 開発プロンプト（AI駆動開発用）を追加、依存関係・成功基準・ロールバック手順を明記 |
+| 2026-01-13 | 1.4 | パスワードリセットリンクの有効期限変更を追加 |
 
