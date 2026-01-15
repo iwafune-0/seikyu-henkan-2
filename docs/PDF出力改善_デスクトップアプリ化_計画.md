@@ -1,8 +1,8 @@
-# CubePDF対応 実装計画
+# PDF出力改善 + デスクトップアプリ化 実装計画
 
 **作成日**: 2025-12-26
 **ステータス**: 計画中
-**関連ドキュメント**: `docs/PDF出力_CubePDF_Electron_検討.md`
+**関連ドキュメント**: `docs/PDF出力_CubePDF_Electron_検討.md`（検討経緯）
 
 ---
 
@@ -13,19 +13,20 @@
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                                                                 │
-│  Step 1: CubePDF対応（約2.5日）                                  │
-│  ────────────────────────────                                   │
-│  現在のWebアプリのまま、PDF生成部分だけCubePDFを使うように変更     │
+│  Phase 1: Excel直接出力対応（約1.5日）                           │
+│  ─────────────────────────────────                              │
+│  現在のWebアプリのまま、PDF生成部分をExcel直接出力に変更          │
 │  → LibreOffice版は残したまま、環境変数で切り替え可能に            │
+│  → ユーザー管理機能のElectron対応も同時実装                      │
 │                                                                 │
 │                         ↓                                       │
 │                                                                 │
 │                    動作確認・品質確認                            │
-│                    PDF出力がCubePDF直接出力と同等か確認           │
+│                    PDF出力品質がLibreOffice版より改善されたか確認 │
 │                                                                 │
 │                         ↓                                       │
 │                                                                 │
-│  Step 2: Electron化（約2-3日）← 配布が必要になったら             │
+│  Phase 2: Electron化（約1.5日）← 配布が必要になったら            │
 │  ──────────────────────────                                     │
 │  Webアプリを.exeにパッケージング                                 │
 │  → 他の社員も使えるように社内配布                                │
@@ -37,9 +38,9 @@
 
 | 順序 | 理由 |
 |------|------|
-| CubePDF対応を先に | Electron化しなくても、WSL2からCubePDFは呼び出せる |
+| Excel直接出力を先に | Electron化しなくても、WSL2からExcel直接出力は呼び出せる |
 | Electron化は後で | 配布のためであり、機能実装とは別の話 |
-| 段階的に進める | CubePDF対応の問題を早期に発見できる |
+| 段階的に進める | PDF出力の問題を早期に発見できる |
 
 ### 現在のシステム構成（Webアプリ）
 
@@ -82,18 +83,20 @@
 
 ### 1.1 現状の問題
 
-現在のシステムはLibreOfficeでExcel→PDF変換を行っているが、CubePDFとの出力差異がある。
+現在のシステムはLibreOfficeでExcel→PDF変換を行っているが、出力サイズが小さくなる問題がある。
 
-| 項目 | CubePDF（目標） | LibreOffice（現状） | 差異 |
-|------|----------------|-------------------|------|
+| 項目 | 目標（Excel直接出力） | LibreOffice（現状） | 差異 |
+|------|---------------------|-------------------|------|
 | コンテンツ高さ | 25.53cm | 22.17cm | **14%小さい** |
 | 文字サイズ | 8.3pt | 6.6pt | **14%小さい** |
 
+※ 当初CubePDFを検討したが、GUI非表示で自動化できないため断念。詳細は`PDF出力_CubePDF_Electron_検討.md`を参照。
+
 ### 1.2 目的
 
-- **LibreOffice版を維持**しつつ、**CubePDF版を追加**する
-- 環境変数で切り替え可能にする
-- 社内配布時はCubePDF、AWS運用時はLibreOfficeを使用
+- **LibreOffice版を維持**しつつ、**Excel直接出力版を追加**する
+- 環境変数（PDF_ENGINE）で切り替え可能にする
+- 社内配布時はExcel直接出力、AWS運用時はLibreOfficeを使用
 
 ---
 
@@ -105,14 +108,14 @@
 pdf_generator.py
 ├── generate_pdf()              # メイン関数（環境変数で分岐）
 ├── generate_pdf_libreoffice()  # LibreOffice版（既存・維持）
-└── generate_pdf_cubepdf()      # CubePDF版（新規追加）
+└── generate_pdf_excel()        # Excel直接出力版（新規追加）
 ```
 
 ### 2.2 環境変数による切り替え
 
 ```bash
 # .env
-PDF_ENGINE=libreoffice  # または cubepdf
+PDF_ENGINE=libreoffice  # または excel
 ```
 
 ### 2.3 処理フロー
@@ -126,25 +129,25 @@ PDF_ENGINE=libreoffice  # または cubepdf
 │         ┌───────────┴───────────┐                       │
 │         ▼                       ▼                       │
 │  ┌─────────────┐         ┌─────────────┐                │
-│  │ libreoffice │         │   cubepdf   │                │
+│  │ libreoffice │         │    excel    │                │
 │  └──────┬──────┘         └──────┬──────┘                │
 │         ▼                       ▼                       │
 │  generate_pdf_          generate_pdf_                   │
-│  libreoffice()          cubepdf()                       │
+│  libreoffice()          excel()                         │
 │         │                       │                       │
 │         ▼                       ▼                       │
 │  ┌─────────────┐         ┌─────────────────┐            │
 │  │ LibreOffice │         │ WSL2 → Windows  │            │
 │  │ (Linux/WSL) │         │ → PowerShell    │            │
 │  └──────┬──────┘         │ → Excel         │            │
-│         │                │ → CubePDF       │            │
+│         │                │ → ExportAsFixed │            │
 │         │                └──────┬──────────┘            │
 │         ▼                       ▼                       │
 │      PDF出力                 PDF出力                    │
 └─────────────────────────────────────────────────────────┘
 ```
 
-### 2.4 WSL2からCubePDFを呼び出す仕組み
+### 2.4 WSL2からExcel直接出力を呼び出す仕組み
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -160,12 +163,14 @@ PDF_ENGINE=libreoffice  # または cubepdf
 ├────────────────────────────────────────────┼────────────────────┤
 │  Windows側                                 │                    │
 │                                            ↓                    │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐              │
-│  │   Excel     │→ │  CubePDF    │→ │   PDF出力   │              │
-│  │ (COM経由)   │  │ (プリンター) │  │             │              │
-│  └─────────────┘  └─────────────┘  └─────────────┘              │
+│  ┌─────────────┐  ┌─────────────────────────────┐               │
+│  │   Excel     │→ │ ExportAsFixedFormat(0, path)│               │
+│  │ (COM経由)   │  │ → PDF直接出力               │               │
+│  └─────────────┘  └─────────────────────────────┘               │
 └─────────────────────────────────────────────────────────────────┘
 ```
+
+**ポイント**: CubePDFは使用しない。Excel標準機能のExportAsFixedFormatでPDF直接出力。
 
 ---
 
@@ -206,8 +211,8 @@ def generate_pdf(excel_path: str, output_path: str) -> dict:
     """
     engine = os.getenv('PDF_ENGINE', 'libreoffice').lower()
 
-    if engine == 'cubepdf':
-        return generate_pdf_cubepdf(excel_path, output_path)
+    if engine == 'excel':
+        return generate_pdf_excel(excel_path, output_path)
     else:
         return generate_pdf_libreoffice(excel_path, output_path)
 ```
@@ -225,18 +230,16 @@ def generate_pdf_libreoffice(excel_path: str, output_path: str) -> dict:
     pass
 ```
 
-#### 3.2.3 CubePDF版（新規追加）
+#### 3.2.3 Excel直接出力版（新規追加）
 
 ```python
-def generate_pdf_cubepdf(excel_path: str, output_path: str) -> dict:
+def generate_pdf_excel(excel_path: str, output_path: str) -> dict:
     """
-    CubePDFでExcel→PDF変換
-    WSL2からWindows側のExcel + CubePDFを呼び出し
+    ExcelのExportAsFixedFormatでPDF直接出力
+    WSL2からWindows側のExcelを呼び出し
 
     前提条件:
     - Windows側にMicrosoft Excelがインストール済み
-    - Windows側にCubePDFがインストール済み
-    - CubePDFが仮想プリンターとして登録済み
     """
     try:
         # WSL2パスをWindowsパスに変換
@@ -244,7 +247,7 @@ def generate_pdf_cubepdf(excel_path: str, output_path: str) -> dict:
         win_output_path = convert_wsl_to_windows_path(output_path)
 
         # PowerShellスクリプトを生成
-        ps_script = generate_cubepdf_script(win_excel_path, win_output_path)
+        ps_script = generate_excel_export_script(win_excel_path, win_output_path)
 
         # PowerShell実行
         result = subprocess.run(
@@ -257,7 +260,7 @@ def generate_pdf_cubepdf(excel_path: str, output_path: str) -> dict:
         if result.returncode != 0:
             return {
                 "success": False,
-                "message": f"CubePDF実行エラー: {result.stderr}",
+                "message": f"Excel PDF出力エラー: {result.stderr}",
                 "output_path": None
             }
 
@@ -271,7 +274,7 @@ def generate_pdf_cubepdf(excel_path: str, output_path: str) -> dict:
 
         return {
             "success": True,
-            "message": "PDF生成成功（CubePDF）",
+            "message": "PDF生成成功（Excel ExportAsFixedFormat）",
             "output_path": output_path
         }
 
@@ -334,28 +337,18 @@ def get_wsl_distro_name() -> str:
     return 'Ubuntu'  # デフォルト
 
 
-def generate_cubepdf_script(excel_path: str, output_path: str) -> str:
+def generate_excel_export_script(excel_path: str, output_path: str) -> str:
     """
-    CubePDFでPDF生成するPowerShellスクリプトを生成
+    ExcelのExportAsFixedFormatでPDF出力するPowerShellスクリプトを生成
 
     処理フロー:
     1. Excelを開く
-    2. CubePDFの設定ファイルを一時生成（出力先指定）
-    3. CubePDFプリンターで印刷
-    4. Excelを閉じる
-    """
-    # CubePDFの設定ファイル（出力先を指定）
-    cubepdf_settings = f'''
-$settingsPath = "$env:LOCALAPPDATA\\CubeSoft\\CubePDF\\Settings.json"
-$settings = @{{
-    "Destination" = "{output_path.replace(chr(92), chr(92)+chr(92))}"
-    "PostProcess" = "None"
-    "Format" = "Pdf"
-}}
-$settings | ConvertTo-Json | Set-Content -Path $settingsPath -Encoding UTF8
-'''
+    2. ExportAsFixedFormat (xlTypePDF=0) でPDF直接出力
+    3. Excelを閉じる
 
-    # Excel操作スクリプト
+    ※ CubePDFはGUI非表示での実行が困難なため、Excel標準機能を使用
+    """
+    # Excel操作スクリプト（ExportAsFixedFormat使用）
     excel_script = f'''
 $excel = New-Object -ComObject Excel.Application
 $excel.Visible = $false
@@ -364,13 +357,9 @@ $excel.DisplayAlerts = $false
 try {{
     $workbook = $excel.Workbooks.Open("{excel_path}")
 
-    # 全シートを印刷
-    foreach ($sheet in $workbook.Worksheets) {{
-        $sheet.PrintOut([Type]::Missing, [Type]::Missing, 1, $false, "CubePDF")
-    }}
-
-    # CubePDFの処理完了を待機
-    Start-Sleep -Seconds 3
+    # ExportAsFixedFormat でPDF出力
+    # Type 0 = xlTypePDF
+    $workbook.ExportAsFixedFormat(0, "{output_path}")
 
     $workbook.Close($false)
 }} finally {{
@@ -379,7 +368,7 @@ try {{
 }}
 '''
 
-    return cubepdf_settings + excel_script
+    return excel_script
 ```
 
 ---
@@ -394,15 +383,16 @@ try {{
 | LibreOffice | 7.0+ |
 | Python | 3.11+ |
 
-### 4.2 CubePDF版（新規）
+### 4.2 Excel直接出力版（新規）
 
 | 項目 | 要件 | 確認済み |
 |------|------|---------|
 | OS | Windows 10/11 + WSL2 | ✅ |
 | Microsoft Excel | 2016以降 | ✅ Office16確認済み |
-| CubePDF | 最新版（無料） | ✅ インストール済み |
 | Python | 3.11+（WSL2内） | ✅ |
 | PowerShell | 5.1+（Windows標準） | ✅ |
+
+**※ CubePDFは不要**: CubePDFはGUI非表示での実行が困難なため、ExcelのExportAsFixedFormat機能を使用
 
 ### 4.3 環境確認コマンド
 
@@ -411,10 +401,6 @@ try {{
 # PowerShell
 which powershell.exe
 # → /mnt/c/WINDOWS/System32/WindowsPowerShell/v1.0//powershell.exe
-
-# CubePDF
-ls "/mnt/c/Program Files/CubePDF/"
-# → CubePdf.exe 等が存在
 
 # Excel
 ls "/mnt/c/Program Files/Microsoft Office/root/Office16/"
@@ -430,8 +416,8 @@ ls "/mnt/c/Program Files/Microsoft Office/root/Office16/"
 ```bash
 # PDF出力エンジン
 # libreoffice: LibreOffice使用（Linux/AWS Lambda）
-# cubepdf: CubePDF使用（Windows/社内配布）
-PDF_ENGINE=cubepdf
+# excel: Excel ExportAsFixedFormat使用（Windows/社内配布）
+PDF_ENGINE=excel
 
 # 既存の設定
 VITE_SUPABASE_URL=https://xxx.supabase.co
@@ -448,7 +434,7 @@ PDF_ENGINE=libreoffice
 ### 5.3 .env.local（社内配布）
 
 ```bash
-PDF_ENGINE=cubepdf
+PDF_ENGINE=excel
 ```
 
 ---
@@ -461,28 +447,28 @@ PDF_ENGINE=cubepdf
 |-------------|------|----------|
 | UT-001 | WSLパス→Windowsパス変換 | 正しく変換される |
 | UT-002 | PowerShellスクリプト生成 | 有効なスクリプトが生成される |
-| UT-003 | PDF生成（CubePDF） | PDFファイルが生成される |
+| UT-003 | PDF生成（Excel ExportAsFixedFormat） | PDFファイルが生成される |
 | UT-004 | エラーハンドリング | 適切なエラーメッセージ |
 
 ### 6.2 結合テスト
 
 | テストケース | 内容 | 期待結果 |
 |-------------|------|----------|
-| IT-001 | ネクストビッツ処理（CubePDF） | PDF品質がCubePDF直接出力と同等 |
-| IT-002 | オフ・ビート・ワークス処理（CubePDF） | PDF品質がCubePDF直接出力と同等 |
-| IT-003 | 環境変数切り替え | libreoffice/cubepdfが正しく切り替わる |
+| IT-001 | ネクストビッツ処理（Excel出力） | PDF品質が期待通り |
+| IT-002 | オフ・ビート・ワークス処理（Excel出力） | PDF品質が期待通り |
+| IT-003 | 環境変数切り替え | libreoffice/excelが正しく切り替わる |
 
 ### 6.3 品質比較テスト
 
-| 項目 | LibreOffice版 | CubePDF版 | 目標 |
-|------|--------------|-----------|------|
-| コンテンツ高さ | 22.17cm | ? | 25.53cm（CubePDF直接と同等） |
-| 文字サイズ | 6.6pt | ? | 8.3pt（CubePDF直接と同等） |
+| 項目 | LibreOffice版 | Excel直接出力版 | 目標 |
+|------|--------------|----------------|------|
+| コンテンツ高さ | 22.17cm | ? | 25.53cm以上 |
+| 文字サイズ | 6.6pt | ? | 8.3pt以上 |
 | レイアウト崩れ | なし | なし | 崩れなし |
 
 ---
 
-## 7. Step 1: CubePDF対応 実装スケジュール（詳細タスク）
+## 7. Step 1: Excel直接出力対応 実装スケジュール（詳細タスク）
 
 ---
 
@@ -503,8 +489,8 @@ PDF_ENGINE=cubepdf
 def convert_excel_sheets_to_pdf(excel_path: str, output_dir: str) -> Dict[str, str]:
     engine = os.getenv('PDF_ENGINE', 'libreoffice').lower()
 
-    if engine == 'cubepdf':
-        return convert_excel_sheets_to_pdf_cubepdf(excel_path, output_dir)
+    if engine == 'excel':
+        return convert_excel_sheets_to_pdf_excel(excel_path, output_dir)
     else:
         return convert_excel_sheets_to_pdf_libreoffice(excel_path, output_dir)
 ```
@@ -533,10 +519,9 @@ def convert_excel_sheets_to_pdf(excel_path: str, output_dir: str) -> Dict[str, s
 
 | タスク | 詳細 |
 |--------|------|
-| `generate_cubepdf_script()` | PowerShellスクリプト生成 |
-| CubePDF設定ファイル生成 | 出力先・フォーマット指定 |
-| Excel COM操作 | ワークブック開く→印刷→閉じる |
-| シート別印刷 | 注文書シート、検収書シートを別々にPDF化 |
+| `generate_excel_export_script()` | PowerShellスクリプト生成 |
+| Excel COM操作 | ワークブック開く→ExportAsFixedFormat→閉じる |
+| シート別出力 | 注文書シート、検収書シートを別々にPDF化 |
 
 ```powershell
 # 生成されるスクリプトのイメージ
@@ -544,32 +529,28 @@ $excel = New-Object -ComObject Excel.Application
 $excel.Visible = $false
 $workbook = $excel.Workbooks.Open("C:\path\to\file.xlsx")
 
-# 注文書シートを印刷
-$workbook.Worksheets("注文書").PrintOut(1, 1, 1, $false, "CubePDF")
-Start-Sleep -Seconds 2
-
-# 検収書シートを印刷
-$workbook.Worksheets("検収書").PrintOut(1, 1, 1, $false, "CubePDF")
-Start-Sleep -Seconds 2
+# ExportAsFixedFormat でPDF出力
+# Type 0 = xlTypePDF
+$workbook.ExportAsFixedFormat(0, "C:\path\to\output.pdf")
 
 $workbook.Close($false)
 $excel.Quit()
 ```
 
-#### 1-1-4. CubePDF版メイン関数実装（2時間）
+#### 1-1-4. Excel直接出力版メイン関数実装（2時間）
 
 **対象ファイル**: `backend/python/pdf_generator.py`
 
 | タスク | 詳細 |
 |--------|------|
-| `convert_excel_sheets_to_pdf_cubepdf()` | CubePDF版のメイン関数 |
+| `convert_excel_sheets_to_pdf_excel()` | Excel直接出力版のメイン関数 |
 | PowerShell実行 | `subprocess.run(['powershell.exe', ...])` |
 | 出力ファイル確認 | PDF生成の成功確認 |
 | エラーハンドリング | タイムアウト、実行エラー |
 
 ```python
-def convert_excel_sheets_to_pdf_cubepdf(excel_path: str, output_dir: str) -> Dict[str, str]:
-    """CubePDFでExcel→PDF変換（WSL2からWindows呼び出し）"""
+def convert_excel_sheets_to_pdf_excel(excel_path: str, output_dir: str) -> Dict[str, str]:
+    """Excel ExportAsFixedFormatでPDF変換（WSL2からWindows呼び出し）"""
     # 1. WSLパス → Windowsパス変換
     # 2. PowerShellスクリプト生成
     # 3. subprocess.run()で実行
@@ -577,17 +558,7 @@ def convert_excel_sheets_to_pdf_cubepdf(excel_path: str, output_dir: str) -> Dic
     # 5. 結果を返す
 ```
 
-#### 1-1-5. CubePDF設定ファイル対応（1時間）
-
-**課題**: CubePDFはGUIで出力先を指定するため、自動化が難しい
-
-| 方式 | 詳細 |
-|------|------|
-| 方式A | CubePDFの設定ファイル（`Settings.json`）を事前に書き換え |
-| 方式B | CubePDF CLIオプション使用（`/output`、`/silent`） |
-| 方式C | レジストリで出力先を設定 |
-
-**調査が必要**: CubePDFのサイレントモード（GUI非表示）での出力先指定方法
+**※ CubePDFは使用しない**: CubePDFはGUI非表示での実行が困難なため、ExcelのExportAsFixedFormat機能を使用
 
 ---
 
@@ -612,25 +583,25 @@ python3 -c "from pdf_generator import convert_wsl_to_windows_path; print(convert
 | テスト | 内容 |
 |--------|------|
 | 入力 | ネクストビッツのテンプレートExcel |
-| 処理 | CubePDFでPDF生成 |
+| 処理 | Excel ExportAsFixedFormatでPDF生成 |
 | 確認 | 注文書PDF、検収書PDFが生成されるか |
-| 品質確認 | CubePDF直接出力と比較 |
+| 品質確認 | 期待通りのPDF品質か |
 
 #### 1-2-3. 結合テスト - オフ・ビート・ワークス（1時間）
 
 | テスト | 内容 |
 |--------|------|
 | 入力 | オフ・ビート・ワークスのテンプレートExcel |
-| 処理 | CubePDFでPDF生成 |
+| 処理 | Excel ExportAsFixedFormatでPDF生成 |
 | 確認 | 注文書PDF、検収書PDFが生成されるか |
-| 品質確認 | CubePDF直接出力と比較 |
+| 品質確認 | 期待通りのPDF品質か |
 
 #### 1-2-4. 切り替えテスト（30分）
 
 | テスト | 内容 |
 |--------|------|
 | `PDF_ENGINE=libreoffice` | LibreOffice版が動作するか |
-| `PDF_ENGINE=cubepdf` | CubePDF版が動作するか |
+| `PDF_ENGINE=excel` | Excel直接出力版が動作するか |
 | 環境変数なし | デフォルト（LibreOffice）で動作するか |
 
 ---
@@ -641,7 +612,6 @@ python3 -c "from pdf_generator import convert_wsl_to_windows_path; print(convert
 
 | エラーケース | 対応 |
 |-------------|------|
-| CubePDF未インストール | 分かりやすいエラーメッセージ |
 | Excel未インストール | 分かりやすいエラーメッセージ |
 | PowerShell実行エラー | stderr内容をログ出力 |
 | タイムアウト | 2分でタイムアウト、リトライなし |
@@ -662,7 +632,7 @@ python3 -c "from pdf_generator import convert_wsl_to_windows_path; print(convert
 
 ```bash
 # 追加する設定
-PDF_ENGINE=cubepdf  # または libreoffice
+PDF_ENGINE=excel  # または libreoffice
 ```
 
 #### 1-3-4. Node.js側の対応確認（1時間）
@@ -684,15 +654,15 @@ PDF_ENGINE=cubepdf  # または libreoffice
 | 追加内容 |
 |---------|
 | PDF_ENGINE環境変数の説明 |
-| CubePDF版の前提条件 |
+| Excel直接出力版の前提条件 |
 | 切り替え方法 |
 
 #### 1-4-2. README更新（30分）
 
 | 追加内容 |
 |---------|
-| CubePDF版のセットアップ手順 |
-| 環境要件（Excel、CubePDF） |
+| Excel直接出力版のセットアップ手順 |
+| 環境要件（Excel） |
 | トラブルシューティング |
 
 #### 1-4-3. コードコメント追加（30分）
@@ -707,10 +677,10 @@ PDF_ENGINE=cubepdf  # または libreoffice
 | チェック項目 |
 |-------------|
 | LibreOffice版が動作する |
-| CubePDF版が動作する |
+| Excel直接出力版が動作する |
 | 環境変数で切り替えできる |
 | エラー時に分かりやすいメッセージが出る |
-| 生成されたPDFの品質がCubePDF直接出力と同等 |
+| 生成されたPDFの品質が期待通り |
 
 ---
 
@@ -718,11 +688,11 @@ PDF_ENGINE=cubepdf  # または libreoffice
 
 | Phase | タスク数 | 工数 |
 |-------|---------|------|
-| 1-1: 基盤実装 | 5タスク | 1日 |
+| 1-1: 基盤実装 | 4タスク | 1日 |
 | 1-2: 動作確認 | 4タスク | 0.5日 |
 | 1-3: 統合・調整 | 4タスク | 0.5日 |
 | 1-4: ドキュメント | 4タスク | 0.5日 |
-| **合計** | **17タスク** | **2.5日** |
+| **合計** | **16タスク** | **2.5日** |
 
 ---
 
@@ -730,10 +700,10 @@ PDF_ENGINE=cubepdf  # または libreoffice
 
 | 項目 | 内容 | 優先度 |
 |------|------|--------|
-| CubePDFサイレントモード | GUI非表示で出力先指定する方法 | 高 |
-| CubePDF設定ファイル | `Settings.json` の場所と書式 | 高 |
-| シート別PDF出力 | Excelで特定シートのみ印刷する方法 | 中 |
+| シート別PDF出力 | Excelで特定シートのみExportAsFixedFormatする方法 | 中 |
 | WSL2 → Windows COM | WSL2からWindows COMが呼べるか | 中 |
+
+**※ CubePDF関連の調査は不要**: CubePDFはGUI非表示での実行が困難なため、ExcelのExportAsFixedFormat機能を使用
 
 **Step 1 合計: 約2.5日**
 
@@ -741,7 +711,7 @@ PDF_ENGINE=cubepdf  # または libreoffice
 
 ## 8. Step 2: Electron化（社内配布）
 
-**前提**: Step 1（CubePDF対応）の動作確認が完了していること
+**前提**: Step 1（Excel直接出力対応）の動作確認が完了していること
 
 ### 8.1 なぜElectron化が必要か
 
@@ -765,7 +735,7 @@ PDF_ENGINE=cubepdf  # または libreoffice
 │  請求変換システム.exe（1ファイル）        │
 │  ┌─────────┐  ┌─────────┐  ┌─────────┐  │
 │  │ React   │  │ Node.js │  │ Python  │  │
-│  │ (画面)  │  │ (API)   │  │+CubePDF │  │
+│  │ (画面)  │  │ (API)   │  │+Excel   │  │
 │  └─────────┘  └─────────┘  └─────────┘  │
 │  全部1つのアプリに内蔵                   │
 └─────────────────────────────────────────┘
@@ -982,7 +952,7 @@ portable:
 | `npm run electron:dev` | 開発モードで起動するか |
 | フロントエンド表示 | 画面が正しく表示されるか |
 | API通信 | バックエンドと通信できるか |
-| PDF生成 | CubePDFでPDFが生成されるか |
+| PDF生成 | Excel ExportAsFixedFormatでPDFが生成されるか |
 
 ##### 2-5-2. ビルドテスト（1時間）
 
@@ -1018,9 +988,9 @@ portable:
 
 ### 8.5 前提条件
 
-- [ ] Step 1（CubePDF対応）が完了していること
-- [ ] CubePDFでのPDF出力品質が確認済みであること
-- [ ] 各社員のPCにCubePDF + Excelがインストールされていること
+- [ ] Step 1（Excel直接出力対応）が完了していること
+- [ ] Excel ExportAsFixedFormatでのPDF出力品質が確認済みであること
+- [ ] 各社員のPCにExcelがインストールされていること
 
 ---
 
@@ -1030,7 +1000,7 @@ portable:
 
 | 項目 | 内容 |
 |------|------|
-| 事前準備 | CubePDF、Excelのインストール確認 |
+| 事前準備 | Excelのインストール確認 |
 | 初回起動 | Windows Defender警告の対処方法 |
 | 使い方 | .exeダブルクリック → ログイン → 処理実行 |
 | トラブル | よくあるエラーと対処法 |
@@ -1050,7 +1020,6 @@ portable:
 
 | リスク | 影響 | 対策 |
 |--------|------|------|
-| CubePDFの仕様変更 | PDF生成失敗 | バージョン固定、動作確認 |
 | Excel COMエラー | 処理中断 | リトライ処理、タイムアウト設定 |
 | WSL2↔Windows通信遅延 | 処理時間増加 | 非同期処理、進捗表示 |
 | Windows Defender警告 | ユーザー混乱 | 社内除外設定、手順書作成 |
@@ -1059,20 +1028,16 @@ portable:
 
 ## 10. 参考情報
 
-### 10.1 CubePDF公式
+### 10.1 関連ドキュメント
 
-- ダウンロード: https://www.cube-soft.jp/cubepdf/
-- ドキュメント: https://docs.cube-soft.jp/
-
-### 10.2 関連ドキュメント
-
-- `docs/PDF出力_CubePDF_Electron_検討.md` - 初期検討内容
+- `docs/PDF出力_CubePDF_Electron_検討.md` - 初期検討内容（CubePDF断念の経緯）
 - `docs/requirements.md` - システム要件定義
 
-### 10.3 技術参考
+### 10.2 技術参考
 
 - WSL2からWindowsアプリ呼び出し: https://docs.microsoft.com/ja-jp/windows/wsl/interop
 - Excel COM API: https://docs.microsoft.com/ja-jp/office/vba/api/overview/excel
+- Excel ExportAsFixedFormat: https://docs.microsoft.com/ja-jp/office/vba/api/excel.workbook.exportasfixedformat
 - Electron: https://www.electronjs.org/
 - electron-builder: https://www.electron.build/
 
@@ -1080,9 +1045,9 @@ portable:
 
 ---
 
-## 11. 追加調査結果（2025-12-26）
+## 11. 調査経緯と決定事項（2025-12-26）
 
-### 11.1 CubePDFの制限事項
+### 11.1 CubePDFの制限事項（断念理由）
 
 公式FAQを調査した結果、重要な制限が判明：
 
@@ -1169,19 +1134,15 @@ $excel.Quit()
 | **PDF品質** | CubePDF相当 | **要確認** | 14%縮小問題あり |
 | **動作環境** | Windowsのみ | Windowsのみ | Linux/WSL2 |
 
-### 11.6 次回検討事項
+### 11.6 決定事項
 
-1. **PDF品質の確認**
-   - `test_excel_direct.pdf` を開いて品質確認
-   - CubePDF手動出力との比較（文字サイズ、レイアウト）
-   - 印刷プレビューでの確認
+**採用方式**: Excel直接出力（ExportAsFixedFormat）
 
-2. **方式の最終決定**
-   - Excel直接出力で品質OKなら → この方式で実装（最もシンプル）
-   - 品質NGなら → CubeVP方式を検討
-
-3. **実装計画の更新**
-   - 選択した方式に基づいてPhase分けを修正
+**決定理由**:
+- CubePDFはGUI非表示での実行が困難
+- CubeVP方式は追加インストールと複雑な設定が必要
+- Excel直接出力は追加インストール不要、引数で出力先指定可能、実装がシンプル
+- 実機テストで正常動作確認済み
 
 ---
 
@@ -1217,7 +1178,7 @@ $excel.Quit()
 
 ### 12.3 Phase 1: PDF出力エンジン切り替え対応 + Electron版機能準備
 
-#### 1-1. 基盤実装
+#### 1-1. 基盤実装（PDF出力切り替え）
 **依存**: なし（最初に着手）
 
 **タスク**:
@@ -1239,53 +1200,8 @@ $excel.Quit()
 
 ---
 
-#### 1-2. 動作確認・デバッグ
-**依存**: 1-1完了後
-
-**タスク**:
-- 単体テスト（パス変換、PowerShell実行）
-- 結合テスト（ネクストビッツ用Excel → PDF）
-- 結合テスト（オフ・ビート・ワークス用Excel → PDF）
-- 環境変数切り替えテスト（libreoffice ↔ excel）
-- PDF品質確認（LibreOffice版との比較）
-
-**テスト用ファイル**:
-- source/ネクストビッツ/ 内のテンプレートExcel
-- source/オフ・ビート・ワークス/ 内のテンプレートExcel
-
-**成功基準**:
-- [ ] ネクストビッツ: 注文書PDF + 検収書PDF が生成される
-- [ ] オフ・ビート・ワークス: 注文書PDF + 検収書PDF が生成される
-- [ ] 生成PDFの品質が手動Excel→PDF出力と同等
-- [ ] LibreOffice版が引き続き正常動作する
-
----
-
-#### 1-3. 統合・調整
-**依存**: 1-2完了後
-
-**タスク**:
-- エラーハンドリング強化（Excel未インストール、タイムアウト等）
-- ログ出力追加（使用エンジン、処理時間、エラー詳細）
-- .env / .env.example 更新
-- Node.js側の動作確認（processService.tsからの呼び出し）
-
-**対象ファイル**:
-- backend/python/pdf_generator.py
-- backend/.env
-- backend/.env.example
-- backend/src/services/processService.ts（確認のみ、変更なしの想定）
-
-**成功基準**:
-- [ ] Excelが起動しない場合に明確なエラーメッセージ
-- [ ] タイムアウト（2分）で適切にエラー終了
-- [ ] ログに使用エンジン（libreoffice/excel）が記録される
-- [ ] フロントエンドからの処理実行が正常動作
-
----
-
-#### 1-4. ユーザー管理機能のElectron対応
-**依存**: 1-3完了後
+#### 1-2. ユーザー管理機能のElectron対応
+**依存**: 1-1完了後（PDF出力とは独立した機能のため、1-1の後すぐに着手可能）
 
 **背景**:
 Electron版ではメール送信が使えないため、ユーザー管理機能を以下のように切り替える必要がある：
@@ -1343,6 +1259,56 @@ Electron版ではメール送信が使えないため、ユーザー管理機能
 - [ ] ユーザー追加後、DBにユーザーが登録される
 - [ ] パスワードリセット後、新パスワードでログインできる
 - [ ] UIが既存のP-004と統一されている
+
+---
+
+#### 1-3. 動作確認・デバッグ
+**依存**: 1-1, 1-2完了後（全機能実装後に確認）
+
+**タスク**:
+- 単体テスト（パス変換、PowerShell実行）
+- 結合テスト（ネクストビッツ用Excel → PDF）
+- 結合テスト（オフ・ビート・ワークス用Excel → PDF）
+- 環境変数切り替えテスト（PDF_ENGINE: libreoffice ↔ excel）
+- 環境変数切り替えテスト（APP_MODE: web ↔ electron）
+- PDF品質確認（LibreOffice版との比較）
+- ユーザー管理機能の動作確認（直接追加、パスワードリセット）
+
+**テスト用ファイル**:
+- source/ネクストビッツ/ 内のテンプレートExcel
+- source/オフ・ビート・ワークス/ 内のテンプレートExcel
+
+**成功基準**:
+- [ ] ネクストビッツ: 注文書PDF + 検収書PDF が生成される
+- [ ] オフ・ビート・ワークス: 注文書PDF + 検収書PDF が生成される
+- [ ] 生成PDFの品質が手動Excel→PDF出力と同等
+- [ ] LibreOffice版が引き続き正常動作する
+- [ ] APP_MODE=electron でユーザー直接追加が動作する
+- [ ] APP_MODE=electron でパスワード直接リセットが動作する
+- [ ] APP_MODE=web で従来の招待メール機能が動作する
+
+---
+
+#### 1-4. 統合・調整
+**依存**: 1-3完了後
+
+**タスク**:
+- エラーハンドリング強化（Excel未インストール、タイムアウト等）
+- ログ出力追加（使用エンジン、処理時間、エラー詳細）
+- .env / .env.example 更新（PDF_ENGINE、APP_MODE）
+- Node.js側の動作確認（processService.tsからの呼び出し）
+
+**対象ファイル**:
+- backend/python/pdf_generator.py
+- backend/.env
+- backend/.env.example
+- backend/src/services/processService.ts（確認のみ、変更なしの想定）
+
+**成功基準**:
+- [ ] Excelが起動しない場合に明確なエラーメッセージ
+- [ ] タイムアウト（2分）で適切にエラー終了
+- [ ] ログに使用エンジン（libreoffice/excel）が記録される
+- [ ] フロントエンドからの処理実行が正常動作
 
 ---
 
@@ -1471,11 +1437,11 @@ Phase 1: PDF出力エンジン切り替え + Electron版機能準備
 ─────────────────────────────────────────────────────
 1-1 基盤実装（PDF出力切り替え）
     ↓
-1-2 動作確認
+1-2 ユーザー管理機能のElectron対応（PDF出力と独立、1-1の後すぐ着手可）
     ↓
-1-3 統合・調整
+1-3 動作確認（全機能実装後にまとめて確認）
     ↓
-1-4 ユーザー管理機能のElectron対応（フロントエンド + バックエンド + DB）
+1-4 統合・調整（エラーハンドリング、ログ）
     ↓
 1-5 ドキュメント
     ↓
@@ -1550,10 +1516,10 @@ Electron化は独立した追加機能のため、既存機能に影響なし。
 **Phase 1 内訳**:
 | タスク | AI駆動見積 |
 |--------|-----------|
-| 1-1 基盤実装 | 2〜3時間 |
-| 1-2 動作確認 | 1〜2時間 |
-| 1-3 統合・調整 | 1〜2時間 |
-| 1-4 ユーザー管理機能対応 | 3〜4時間 |
+| 1-1 基盤実装（PDF出力切り替え） | 2〜3時間 |
+| 1-2 ユーザー管理機能対応 | 3〜4時間 |
+| 1-3 動作確認 | 1〜2時間 |
+| 1-4 統合・調整 | 1〜2時間 |
 | 1-5 ドキュメント | 1時間 |
 
 ---
@@ -1592,4 +1558,7 @@ Electron化は独立した追加機能のため、既存機能に影響なし。
 | 2026-01-09 | 1.3 | 開発プロンプト（AI駆動開発用）を追加、依存関係・成功基準・ロールバック手順を明記 |
 | 2026-01-13 | 1.4 | パスワードリセットリンクの有効期限変更を追加 |
 | 2026-01-14 | 1.5 | Phase 1にユーザー管理機能のElectron対応（1-4）を追加。APP_MODE環境変数による招待/直接追加の切り替え、バックエンドAPI追加を明記 |
+| 2026-01-15 | 1.6 | Phase 1のタスク順序を修正。機能実装を先に完了させ、動作確認・統合を後にする論理的な順序に変更 |
+| 2026-01-15 | 1.7 | CubePDF参照をExcel直接出力（ExportAsFixedFormat）に全面更新。CubePDFはGUI非表示不可のため断念、調査経緯はSection 11に記録として保持 |
+| 2026-01-15 | 1.8 | Phase 1のタスク番号を振り直し（1-1→1-2→1-3→1-4→1-5の順序に統一） |
 
