@@ -1,9 +1,14 @@
 #!/usr/bin/env python3
 """
-PDF生成スクリプト（LibreOffice使用）
+PDF生成スクリプト（LibreOffice / Excel直接出力 切り替え対応）
 
 Excelファイルの各シートを個別のPDFに変換します。
-LibreOfficeのコマンドラインツール（soffice）を使用します。
+環境変数 PDF_ENGINE で出力エンジンを切り替えます。
+
+環境変数:
+    PDF_ENGINE: 出力エンジンの選択
+        - libreoffice（デフォルト）: LibreOfficeのsofficeコマンドを使用
+        - excel: Windows側のExcel ExportAsFixedFormatを使用（WSL2経由）
 
 使用法:
     python3 pdf_generator.py <excel_path> <output_dir>
@@ -17,7 +22,8 @@ LibreOfficeのコマンドラインツール（soffice）を使用します。
     {
         "success": true,
         "order_pdf_path": "/tmp/注文書.pdf",
-        "inspection_pdf_path": "/tmp/検収書.pdf"
+        "inspection_pdf_path": "/tmp/検収書.pdf",
+        "engine": "libreoffice" | "excel"
     }
 
 処理ルール（docs/processing_rules.md）:
@@ -332,9 +338,163 @@ def convert_sheet_to_pdf(excel_path: str, sheet_name: str, output_path: str, cal
             os.remove(temp_excel_path)
 
 
-def convert_excel_sheets_to_pdf(excel_path: str, output_dir: str) -> Dict[str, str]:
+def get_pdf_engine() -> str:
     """
-    Excelファイルの注文書シートと検収書シートをそれぞれPDFに変換
+    環境変数からPDF出力エンジンを取得
+
+    Returns:
+        'libreoffice' または 'excel'（デフォルト: 'libreoffice'）
+    """
+    engine = os.getenv('PDF_ENGINE', 'libreoffice').lower()
+    if engine not in ('libreoffice', 'excel'):
+        print(f"警告: 不明なPDF_ENGINE値 '{engine}'。デフォルトの'libreoffice'を使用します。", file=sys.stderr)
+        return 'libreoffice'
+    return engine
+
+
+def convert_wsl_to_windows_path(wsl_path: str) -> str:
+    """
+    WSL2パスをWindowsパスに変換
+
+    Args:
+        wsl_path: WSL2内のファイルパス
+
+    Returns:
+        Windowsパス（例: C:\\Users\\... または \\\\wsl$\\Ubuntu\\...）
+
+    Examples:
+        /mnt/c/Users/test.xlsx → C:\\Users\\test.xlsx
+        /home/user/file.xlsx → \\\\wsl$\\Ubuntu\\home\\user\\file.xlsx
+        /tmp/output.pdf → \\\\wsl$\\Ubuntu\\tmp\\output.pdf
+    """
+    path = Path(wsl_path).resolve()
+    path_str = str(path)
+
+    # /mnt/c/... 形式の場合
+    if path_str.startswith('/mnt/'):
+        drive = path_str[5].upper()
+        rest = path_str[6:].replace('/', '\\')
+        return f"{drive}:{rest}"
+
+    # WSL内部パスの場合
+    distro = get_wsl_distro_name()
+    return f"\\\\wsl$\\{distro}{path_str.replace('/', '\\')}"
+
+
+def get_wsl_distro_name() -> str:
+    """
+    WSLディストリビューション名を取得
+
+    Returns:
+        ディストリビューション名（取得失敗時は 'Ubuntu'）
+    """
+    try:
+        result = subprocess.run(
+            ['wslpath', '-w', '/'],
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
+        if result.returncode == 0:
+            # \\wsl$\Ubuntu\ のような形式から抽出
+            win_path = result.stdout.strip()
+            parts = win_path.split('\\')
+            for i, part in enumerate(parts):
+                if part == 'wsl$' and i + 1 < len(parts):
+                    return parts[i + 1]
+    except Exception:
+        pass
+    return 'Ubuntu'  # デフォルト
+
+
+def generate_excel_export_script(excel_path: str, order_pdf_path: str, inspection_pdf_path: str) -> str:
+    """
+    ExcelのExportAsFixedFormatでPDF出力するPowerShellスクリプトを生成
+
+    Args:
+        excel_path: Excelファイルのパス（Windowsパス形式）
+        order_pdf_path: 注文書PDFの出力パス（Windowsパス形式）
+        inspection_pdf_path: 検収書PDFの出力パス（Windowsパス形式）
+
+    Returns:
+        PowerShellスクリプト文字列
+
+    Note:
+        - CubePDFはGUI非表示での実行が困難なため、Excel標準機能を使用
+        - xlTypePDF = 0 でPDF形式を指定
+        - シート別にExportAsFixedFormatを呼び出し
+    """
+    # パス内のバックスラッシュをエスケープ
+    excel_path_escaped = excel_path.replace('\\', '\\\\')
+    order_pdf_escaped = order_pdf_path.replace('\\', '\\\\')
+    inspection_pdf_escaped = inspection_pdf_path.replace('\\', '\\\\')
+
+    script = f'''
+$ErrorActionPreference = "Stop"
+
+$excel = $null
+$workbook = $null
+
+try {{
+    $excel = New-Object -ComObject Excel.Application
+    $excel.Visible = $false
+    $excel.DisplayAlerts = $false
+
+    $workbook = $excel.Workbooks.Open("{excel_path_escaped}")
+
+    # 注文書シートをPDF出力
+    $orderSheet = $workbook.Worksheets.Item(1)
+    $orderSheet.ExportAsFixedFormat(0, "{order_pdf_escaped}")
+
+    # 検収書シートをPDF出力
+    $inspectionSheet = $workbook.Worksheets.Item(2)
+    $inspectionSheet.ExportAsFixedFormat(0, "{inspection_pdf_escaped}")
+
+    $workbook.Close($false)
+    $excel.Quit()
+
+    Write-Output "SUCCESS"
+}} catch {{
+    Write-Error $_.Exception.Message
+    exit 1
+}} finally {{
+    if ($workbook -ne $null) {{
+        [System.Runtime.Interopservices.Marshal]::ReleaseComObject($workbook) | Out-Null
+    }}
+    if ($excel -ne $null) {{
+        [System.Runtime.Interopservices.Marshal]::ReleaseComObject($excel) | Out-Null
+    }}
+    [System.GC]::Collect()
+    [System.GC]::WaitForPendingFinalizers()
+}}
+'''
+    return script
+
+
+def check_excel_available() -> bool:
+    """
+    Windows側でExcelが利用可能かチェック（WSL2環境用）
+
+    Returns:
+        利用可能ならTrue、不可ならFalse
+    """
+    try:
+        # PowerShellでExcel COMオブジェクトが作成できるかチェック
+        result = subprocess.run(
+            ['powershell.exe', '-ExecutionPolicy', 'Bypass', '-Command',
+             '$excel = New-Object -ComObject Excel.Application; $excel.Quit(); Write-Output "OK"'],
+            capture_output=True,
+            text=True,
+            timeout=30
+        )
+        return result.returncode == 0 and 'OK' in result.stdout
+    except Exception:
+        return False
+
+
+def convert_excel_sheets_to_pdf_excel(excel_path: str, output_dir: str) -> Dict[str, str]:
+    """
+    Excel ExportAsFixedFormatでPDF変換（WSL2からWindows呼び出し）
 
     Args:
         excel_path: Excelファイルのパス
@@ -342,10 +502,72 @@ def convert_excel_sheets_to_pdf(excel_path: str, output_dir: str) -> Dict[str, s
 
     Returns:
         生成されたPDFファイルのパス辞書
-        {
-            "order_pdf_path": "/tmp/order.pdf",
-            "inspection_pdf_path": "/tmp/inspection.pdf"
+
+    Raises:
+        RuntimeError: 変換失敗時
+    """
+    # 出力ファイルパス
+    order_pdf_path = os.path.join(output_dir, f"order_{os.getpid()}.pdf")
+    inspection_pdf_path = os.path.join(output_dir, f"inspection_{os.getpid()}.pdf")
+
+    try:
+        # WSLパス → Windowsパス変換
+        win_excel_path = convert_wsl_to_windows_path(excel_path)
+        win_order_pdf_path = convert_wsl_to_windows_path(order_pdf_path)
+        win_inspection_pdf_path = convert_wsl_to_windows_path(inspection_pdf_path)
+
+        # PowerShellスクリプト生成
+        ps_script = generate_excel_export_script(
+            win_excel_path,
+            win_order_pdf_path,
+            win_inspection_pdf_path
+        )
+
+        # PowerShell実行
+        # 日本語Windowsの場合、出力はcp932でエンコードされるため、
+        # text=Falseでバイト列として受け取り、手動でデコードする
+        result = subprocess.run(
+            ['powershell.exe', '-ExecutionPolicy', 'Bypass', '-Command', ps_script],
+            capture_output=True,
+            text=False,
+            timeout=120  # 2分タイムアウト
+        )
+
+        if result.returncode != 0:
+            # エラーメッセージをデコード（cp932 → UTF-8、失敗時は置換）
+            try:
+                error_msg = result.stderr.decode('cp932', errors='replace').strip() if result.stderr else "不明なエラー"
+            except Exception:
+                error_msg = result.stderr.decode('utf-8', errors='replace').strip() if result.stderr else "不明なエラー"
+            raise RuntimeError(f"Excel PDF出力エラー: {error_msg}")
+
+        # 出力ファイルの存在確認
+        if not os.path.exists(order_pdf_path):
+            raise RuntimeError(f"注文書PDFが生成されませんでした: {order_pdf_path}")
+        if not os.path.exists(inspection_pdf_path):
+            raise RuntimeError(f"検収書PDFが生成されませんでした: {inspection_pdf_path}")
+
+        return {
+            "order_pdf_path": order_pdf_path,
+            "inspection_pdf_path": inspection_pdf_path
         }
+
+    except subprocess.TimeoutExpired:
+        raise RuntimeError("PDF変換がタイムアウトしました（120秒以内に完了しませんでした）")
+    except Exception as e:
+        raise RuntimeError(f"Excel PDF出力エラー: {str(e)}") from e
+
+
+def convert_excel_sheets_to_pdf_libreoffice(excel_path: str, output_dir: str) -> Dict[str, str]:
+    """
+    LibreOfficeでExcel→PDF変換（既存処理）
+
+    Args:
+        excel_path: Excelファイルのパス
+        output_dir: 出力ディレクトリのパス
+
+    Returns:
+        生成されたPDFファイルのパス辞書
 
     Raises:
         RuntimeError: 変換失敗時
@@ -432,6 +654,36 @@ def convert_excel_sheets_to_pdf(excel_path: str, output_dir: str) -> Dict[str, s
             os.remove(temp_full_pdf_path)
 
 
+def convert_excel_sheets_to_pdf(excel_path: str, output_dir: str) -> Dict[str, str]:
+    """
+    Excelファイルの注文書シートと検収書シートをそれぞれPDFに変換
+
+    環境変数 PDF_ENGINE に応じてエンジンを切り替え:
+        - libreoffice（デフォルト）: LibreOfficeを使用
+        - excel: Windows側のExcel ExportAsFixedFormatを使用
+
+    Args:
+        excel_path: Excelファイルのパス
+        output_dir: 出力ディレクトリのパス
+
+    Returns:
+        生成されたPDFファイルのパス辞書
+        {
+            "order_pdf_path": "/tmp/order.pdf",
+            "inspection_pdf_path": "/tmp/inspection.pdf"
+        }
+
+    Raises:
+        RuntimeError: 変換失敗時
+    """
+    engine = get_pdf_engine()
+
+    if engine == 'excel':
+        return convert_excel_sheets_to_pdf_excel(excel_path, output_dir)
+    else:
+        return convert_excel_sheets_to_pdf_libreoffice(excel_path, output_dir)
+
+
 def main():
     """
     メイン関数
@@ -449,6 +701,9 @@ def main():
     output_dir = sys.argv[2]
 
     try:
+        # 使用エンジンを取得
+        engine = get_pdf_engine()
+
         # PDF生成（注文書・検収書シートをそれぞれPDFに変換）
         result = convert_excel_sheets_to_pdf(excel_path, output_dir)
 
@@ -456,7 +711,8 @@ def main():
         print(json.dumps({
             "success": True,
             "order_pdf_path": result["order_pdf_path"],
-            "inspection_pdf_path": result["inspection_pdf_path"]
+            "inspection_pdf_path": result["inspection_pdf_path"],
+            "engine": engine
         }, ensure_ascii=False))
 
     except Exception as e:
@@ -465,7 +721,8 @@ def main():
         print(json.dumps({
             "error": str(e),
             "error_type": type(e).__name__,
-            "traceback": traceback.format_exc()
+            "traceback": traceback.format_exc(),
+            "engine": get_pdf_engine()
         }, ensure_ascii=False), file=sys.stderr)
         sys.exit(1)
 

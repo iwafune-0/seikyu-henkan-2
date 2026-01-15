@@ -31,6 +31,9 @@ export const API_PATHS = {
   USERS: {
     LIST: '/api/users',
     INVITE: '/api/users/invite',
+    CREATE_DIRECT: '/api/users/create-direct', // Electron用: 直接ユーザー作成
+    RESET_PASSWORD_DIRECT: (id: string) => `/api/users/${id}/reset-password-direct`, // Electron用: 直接パスワードリセット
+    APP_MODE: '/api/users/app-mode', // アプリモード取得
     UPDATE_ROLE: (id: string) => `/api/users/${id}/role`,
     DELETE: (id: string) => `/api/users/${id}`,
   },
@@ -139,6 +142,36 @@ export interface DeleteUserRequest {
 export interface DeleteUserResponse {
   success: boolean
   message: string
+}
+
+// Electron用: 直接ユーザー作成
+export interface CreateUserDirectRequest {
+  email: string
+  password: string
+  role: UserRole
+}
+
+export interface CreateUserDirectResponse {
+  success: boolean
+  message: string
+  user?: User
+}
+
+// Electron用: 直接パスワードリセット
+export interface ResetPasswordDirectRequest {
+  new_password: string
+}
+
+export interface ResetPasswordDirectResponse {
+  success: boolean
+  message: string
+}
+
+// アプリモード取得レスポンス
+export type AppMode = 'web' | 'electron'
+
+export interface AppModeResponse {
+  mode: AppMode
 }
 
 // ========================================

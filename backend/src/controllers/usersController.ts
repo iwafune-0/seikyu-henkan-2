@@ -10,8 +10,16 @@ import {
   inviteUser,
   updateUserRole,
   deleteUser,
+  getAppMode,
+  createUserDirect,
+  resetPasswordDirect,
 } from '../services/usersService'
-import { InviteUserRequest, UpdateUserRoleRequest } from '../types/index'
+import {
+  InviteUserRequest,
+  UpdateUserRoleRequest,
+  CreateUserDirectRequest,
+  ResetPasswordDirectRequest,
+} from '../types/index'
 
 /**
  * ユーザー管理コントローラー
@@ -185,6 +193,143 @@ export async function deleteUserController(
         error.message.includes('最終管理者') ||
         error.message.includes('削除できません')
       ) {
+        sendBadRequest(res, error.message)
+        return
+      }
+    }
+    sendInternalError(res, error)
+  }
+}
+
+/**
+ * GET /api/users/app-mode
+ * アプリケーションモードを取得
+ *
+ * @param req - Expressリクエストオブジェクト
+ * @param res - Expressレスポンスオブジェクト
+ */
+export async function getAppModeController(
+  _req: Request,
+  res: Response
+): Promise<void> {
+  try {
+    const mode = getAppMode()
+    sendSuccess(res, { mode }, 'アプリケーションモードを取得しました')
+  } catch (error) {
+    sendInternalError(res, error)
+  }
+}
+
+/**
+ * POST /api/users/create-direct
+ * ユーザーを直接作成（Electron用）
+ *
+ * リクエストボディ:
+ * - email: string（必須）
+ * - password: string（必須）
+ * - role: 'admin' | 'user'（必須）
+ *
+ * @param req - Expressリクエストオブジェクト
+ * @param res - Expressレスポンスオブジェクト
+ */
+export async function createUserDirectController(
+  req: Request,
+  res: Response
+): Promise<void> {
+  try {
+    const { email, password, role } = req.body as CreateUserDirectRequest
+
+    // リクエストボディのバリデーション
+    if (!email || typeof email !== 'string') {
+      sendBadRequest(res, 'メールアドレスは必須です')
+      return
+    }
+
+    if (!password || typeof password !== 'string') {
+      sendBadRequest(res, 'パスワードは必須です')
+      return
+    }
+
+    if (password.length < 6) {
+      sendBadRequest(res, 'パスワードは6文字以上で入力してください')
+      return
+    }
+
+    if (!role || (role !== 'admin' && role !== 'user')) {
+      sendBadRequest(res, 'ロールは "admin" または "user" である必要があります')
+      return
+    }
+
+    // メールアドレスの形式チェック
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(email)) {
+      sendBadRequest(res, 'メールアドレスの形式が不正です')
+      return
+    }
+
+    const result = await createUserDirect({ email, password, role })
+    sendSuccess(res, result, result.message, 201)
+  } catch (error) {
+    if (error instanceof Error) {
+      if (
+        error.message.includes('既に登録されています') ||
+        error.message.includes('形式が不正') ||
+        error.message.includes('Electronモード')
+      ) {
+        sendBadRequest(res, error.message)
+        return
+      }
+    }
+    sendInternalError(res, error)
+  }
+}
+
+/**
+ * POST /api/users/:id/reset-password-direct
+ * パスワードを直接リセット（Electron用）
+ *
+ * パラメータ:
+ * - id: string（ユーザーID）
+ *
+ * リクエストボディ:
+ * - new_password: string（必須）
+ *
+ * @param req - Expressリクエストオブジェクト
+ * @param res - Expressレスポンスオブジェクト
+ */
+export async function resetPasswordDirectController(
+  req: Request,
+  res: Response
+): Promise<void> {
+  try {
+    const { id: userId } = req.params
+    const { new_password } = req.body as ResetPasswordDirectRequest
+
+    // パラメータのバリデーション
+    if (!userId) {
+      sendBadRequest(res, 'ユーザーIDは必須です')
+      return
+    }
+
+    if (!new_password || typeof new_password !== 'string') {
+      sendBadRequest(res, '新しいパスワードは必須です')
+      return
+    }
+
+    if (new_password.length < 6) {
+      sendBadRequest(res, 'パスワードは6文字以上で入力してください')
+      return
+    }
+
+    const result = await resetPasswordDirect(userId, { new_password })
+    sendSuccess(res, result, result.message)
+  } catch (error) {
+    if (error instanceof Error) {
+      if (error.message.includes('ユーザーが見つかりません')) {
+        sendNotFound(res, error.message)
+        return
+      }
+      if (error.message.includes('Electronモード')) {
         sendBadRequest(res, error.message)
         return
       }

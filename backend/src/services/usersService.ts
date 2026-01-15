@@ -7,6 +7,11 @@ import {
   UpdateUserRoleRequest,
   UpdateUserRoleResponse,
   DeleteUserResponse,
+  CreateUserDirectRequest,
+  CreateUserDirectResponse,
+  ResetPasswordDirectRequest,
+  ResetPasswordDirectResponse,
+  AppMode,
 } from '../types/index'
 
 /**
@@ -279,4 +284,179 @@ async function countActiveAdmins(): Promise<number> {
   }
 
   return data.length
+}
+
+/**
+ * アプリケーションモードを取得
+ *
+ * @returns 現在のアプリケーションモード（web | electron）
+ */
+export function getAppMode(): AppMode {
+  const mode = process.env.APP_MODE?.toLowerCase()
+  if (mode === 'electron') {
+    return 'electron'
+  }
+  return 'web' // デフォルトはweb
+}
+
+/**
+ * ユーザーを直接作成（Electron用）
+ *
+ * Supabase Admin APIを使用して直接ユーザーを作成
+ * 招待メールは送信しない
+ *
+ * @param request 作成リクエスト（email, password, role）
+ * @returns 作成成功レスポンス
+ * @throws Error 作成失敗時（重複メール、パスワード要件不足等）
+ */
+export async function createUserDirect(
+  request: CreateUserDirectRequest
+): Promise<CreateUserDirectResponse> {
+  const { email, password, role } = request
+
+  try {
+    // 1. アプリモードの確認
+    if (getAppMode() !== 'electron') {
+      throw new Error('この操作はElectronモードでのみ利用可能です')
+    }
+
+    // 2. 既存ユーザーのチェック（is_deleted=falseのみ）
+    const { data: existingUser, error: checkError } = await supabase
+      .from('profiles')
+      .select('id, is_deleted')
+      .eq('email', email)
+      .single()
+
+    if (checkError && checkError.code !== 'PGRST116') {
+      throw new Error(`ユーザー存在チェックに失敗しました: ${checkError.message}`)
+    }
+
+    // 既存ユーザー（削除されていない）への作成は拒否
+    if (existingUser && !existingUser.is_deleted) {
+      throw new Error('このメールアドレスは既に登録されています')
+    }
+
+    // 3. Supabase Admin APIでユーザー作成
+    const { data: authData, error: createError } = await supabase.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true, // メール確認をスキップ
+      user_metadata: { role },
+    })
+
+    if (createError) {
+      throw new Error(`ユーザーの作成に失敗しました: ${createError.message}`)
+    }
+
+    // 4. 削除済みユーザーの復元、または新規ユーザーのプロファイル作成
+    if (existingUser && existingUser.is_deleted) {
+      // 削除済みユーザーの復元
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({
+          id: authData.user.id,
+          is_deleted: false,
+          deleted_at: null,
+          role,
+        })
+        .eq('email', email)
+
+      if (updateError) {
+        console.warn('削除済みユーザーの復元に失敗しました:', updateError.message)
+      }
+    } else {
+      // 新規ユーザーのプロファイル作成
+      const { error: insertError } = await supabase
+        .from('profiles')
+        .insert({
+          id: authData.user.id,
+          email,
+          role,
+          is_deleted: false,
+        })
+
+      if (insertError) {
+        console.warn('プロファイル作成に失敗しました:', insertError.message)
+        // auth.usersには作成済みなので、エラーでも続行
+      }
+    }
+
+    // 5. 作成されたユーザーのプロファイルを取得
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', authData.user.id)
+      .single()
+
+    if (profileError) {
+      console.warn('プロファイル取得に失敗しました:', profileError.message)
+    }
+
+    return {
+      success: true,
+      message: `ユーザーを作成しました: ${email}`,
+      user: profile as User,
+    }
+  } catch (error) {
+    if (error instanceof Error) {
+      throw error
+    }
+    throw new Error('ユーザー作成中に不明なエラーが発生しました')
+  }
+}
+
+/**
+ * パスワードを直接リセット（Electron用）
+ *
+ * Supabase Admin APIを使用して直接パスワードを変更
+ * リセットメールは送信しない
+ *
+ * @param userId 対象ユーザーID
+ * @param request リセットリクエスト（new_password）
+ * @returns リセット成功レスポンス
+ * @throws Error リセット失敗時
+ */
+export async function resetPasswordDirect(
+  userId: string,
+  request: ResetPasswordDirectRequest
+): Promise<ResetPasswordDirectResponse> {
+  const { new_password } = request
+
+  try {
+    // 1. アプリモードの確認
+    if (getAppMode() !== 'electron') {
+      throw new Error('この操作はElectronモードでのみ利用可能です')
+    }
+
+    // 2. 対象ユーザーの存在確認
+    const { data: targetUser, error: getUserError } = await supabase
+      .from('profiles')
+      .select('email')
+      .eq('id', userId)
+      .eq('is_deleted', false)
+      .single()
+
+    if (getUserError || !targetUser) {
+      throw new Error('ユーザーが見つかりません')
+    }
+
+    // 3. Supabase Admin APIでパスワード更新
+    const { error: updateError } = await supabase.auth.admin.updateUserById(userId, {
+      password: new_password,
+    })
+
+    if (updateError) {
+      throw new Error(`パスワードのリセットに失敗しました: ${updateError.message}`)
+    }
+
+    return {
+      success: true,
+      message: `パスワードをリセットしました: ${targetUser.email}`,
+    }
+  } catch (error) {
+    if (error instanceof Error) {
+      throw error
+    }
+    throw new Error('パスワードリセット中に不明なエラーが発生しました')
+  }
 }
