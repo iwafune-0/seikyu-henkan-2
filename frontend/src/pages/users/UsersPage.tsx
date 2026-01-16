@@ -22,6 +22,8 @@ import {
   DialogContent,
   DialogActions,
   FormControl,
+  IconButton,
+  InputAdornment,
   InputLabel,
   MenuItem,
   Paper,
@@ -40,7 +42,7 @@ import {
   useTheme,
   type SelectChangeEvent,
 } from '@mui/material'
-import { PersonAdd as PersonAddIcon } from '@mui/icons-material'
+import { PersonAdd as PersonAddIcon, Visibility, VisibilityOff } from '@mui/icons-material'
 import { AuthenticatedLayout } from '@/components/layouts/AuthenticatedLayout'
 import { UsersService } from '@/services/usersService'
 import { useAuthStore } from '@/stores/auth'
@@ -66,12 +68,14 @@ export function UsersPage() {
   const [createDirectModalOpen, setCreateDirectModalOpen] = useState(false)
   const [createDirectEmail, setCreateDirectEmail] = useState('')
   const [createDirectPassword, setCreateDirectPassword] = useState('')
+  const [showCreateDirectPassword, setShowCreateDirectPassword] = useState(false)
   const [createDirectRole, setCreateDirectRole] = useState<UserRole>('user')
 
   // パスワードリセットモーダル（Electronモード用）
   const [resetPasswordModalOpen, setResetPasswordModalOpen] = useState(false)
   const [resetPasswordTarget, setResetPasswordTarget] = useState<User | null>(null)
   const [resetPasswordNew, setResetPasswordNew] = useState('')
+  const [showResetPasswordNew, setShowResetPasswordNew] = useState(false)
 
   // 削除モーダル
   const [deleteModalOpen, setDeleteModalOpen] = useState(false)
@@ -279,6 +283,7 @@ export function UsersPage() {
   const handleOpenCreateDirectModal = () => {
     setCreateDirectEmail('')
     setCreateDirectPassword('')
+    setShowCreateDirectPassword(false)
     setCreateDirectRole('user')
     setCreateDirectModalOpen(true)
   }
@@ -328,6 +333,7 @@ export function UsersPage() {
   const handleOpenResetPasswordModal = (user: User) => {
     setResetPasswordTarget(user)
     setResetPasswordNew('')
+    setShowResetPasswordNew(false)
     setResetPasswordModalOpen(true)
   }
 
@@ -615,7 +621,7 @@ export function UsersPage() {
               />
               <TextField
                 label="初期パスワード"
-                type="password"
+                type={showCreateDirectPassword ? 'text' : 'password'}
                 value={createDirectPassword}
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCreateDirectPassword(e.target.value)}
                 fullWidth
@@ -623,6 +629,19 @@ export function UsersPage() {
                 placeholder="6文字以上"
                 required
                 helperText="6文字以上で入力してください"
+                InputProps={{
+                  endAdornment: (
+                    <InputAdornment position="end">
+                      <IconButton
+                        aria-label={showCreateDirectPassword ? 'パスワードを隠す' : 'パスワードを表示'}
+                        onClick={() => setShowCreateDirectPassword(!showCreateDirectPassword)}
+                        edge="end"
+                      >
+                        {showCreateDirectPassword ? <Visibility /> : <VisibilityOff />}
+                      </IconButton>
+                    </InputAdornment>
+                  ),
+                }}
               />
               <FormControl fullWidth margin="normal">
                 <InputLabel>ロール</InputLabel>
@@ -661,7 +680,7 @@ export function UsersPage() {
               </Typography>
               <TextField
                 label="新しいパスワード"
-                type="password"
+                type={showResetPasswordNew ? 'text' : 'password'}
                 value={resetPasswordNew}
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => setResetPasswordNew(e.target.value)}
                 fullWidth
@@ -669,6 +688,19 @@ export function UsersPage() {
                 placeholder="6文字以上"
                 required
                 helperText="6文字以上で入力してください"
+                InputProps={{
+                  endAdornment: (
+                    <InputAdornment position="end">
+                      <IconButton
+                        aria-label={showResetPasswordNew ? 'パスワードを隠す' : 'パスワードを表示'}
+                        onClick={() => setShowResetPasswordNew(!showResetPasswordNew)}
+                        edge="end"
+                      >
+                        {showResetPasswordNew ? <Visibility /> : <VisibilityOff />}
+                      </IconButton>
+                    </InputAdornment>
+                  ),
+                }}
               />
             </Box>
           </DialogContent>
