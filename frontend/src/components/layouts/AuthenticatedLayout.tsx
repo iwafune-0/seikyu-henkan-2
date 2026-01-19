@@ -55,7 +55,7 @@ export function AuthenticatedLayout({ children }: AuthenticatedLayoutProps) {
             <button
               type="button"
               onClick={() => setUserMenuOpen(!userMenuOpen)}
-              className="flex items-center gap-2 px-4 py-2 text-base bg-muted/50 border border-border hover:bg-accent rounded-md transition-colors cursor-pointer"
+              className="flex items-center gap-2 px-4 py-2 text-base hover:bg-accent rounded-md transition-colors cursor-pointer"
             >
               <div className="text-right">
                 <p className="font-medium">{user?.email}</p>
@@ -126,7 +126,7 @@ export function AuthenticatedLayout({ children }: AuthenticatedLayoutProps) {
             <button
               type="button"
               onClick={() => setUserMenuOpen(!userMenuOpen)}
-              className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium bg-muted/50 border border-border hover:bg-accent rounded-md transition-colors flex-shrink-0 cursor-pointer"
+              className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium hover:bg-accent rounded-md transition-colors flex-shrink-0 cursor-pointer"
             >
               <span className="max-w-[100px] truncate">{user?.email?.split('@')[0]}</span>
               <div className="flex items-center">
