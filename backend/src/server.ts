@@ -47,6 +47,22 @@ app.get('/health', (_req, res) => {
 })
 
 // ========================================
+// 公開APIエンドポイント（認証不要）
+// ========================================
+
+/**
+ * GET /api/public/app-mode
+ * アプリモードを取得（認証不要）
+ * ログイン前の画面でAPP_MODEを判定するために使用
+ */
+app.get('/api/public/app-mode', (_req, res) => {
+  const appMode = process.env.APP_MODE || 'web'
+  res.json({
+    mode: appMode as 'web' | 'electron',
+  })
+})
+
+// ========================================
 // APIルート（Phase 7以降で追加）
 // ========================================
 
@@ -66,8 +82,9 @@ app.use('/api/history', historyRoutes)
 import processRoutes from './routes/process'
 app.use('/api/process', processRoutes)
 
-// TODO: 認証ルート
-// app.use('/api/auth', authRoutes)
+// 認証ルート（パスワード変更など）
+import authRoutes from './routes/auth'
+app.use('/api/auth', authRoutes)
 
 // ========================================
 // エラーハンドラ（最後に配置）

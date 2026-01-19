@@ -165,6 +165,10 @@ export function ResetPasswordPage() {
                 パスワードリセット用のリンクを送信します。
               </p>
 
+              <p className="text-xs text-muted-foreground mb-4">
+                ※ パスワードを覚えている場合は、ログイン後に変更できます。
+              </p>
+
               {/* メールアドレス */}
               <div>
                 <label htmlFor="email" className="block text-sm font-medium mb-2">

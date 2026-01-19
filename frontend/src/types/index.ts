@@ -21,11 +21,17 @@
 // APIパス定義（フロントエンド・バックエンド共通）
 // ========================================
 export const API_PATHS = {
+  // 公開API（認証不要）
+  PUBLIC: {
+    APP_MODE: '/api/public/app-mode',
+  },
+
   // 認証関連
   LOGIN: '/api/auth/login',
   LOGOUT: '/api/auth/logout',
   RESET_PASSWORD: '/api/auth/reset-password',
   ACCEPT_INVITATION: '/api/auth/accept-invitation',
+  CHANGE_PASSWORD: '/api/auth/change-password',
 
   // ユーザー関連
   USERS: {
@@ -105,6 +111,17 @@ export interface AcceptInvitationRequest {
   token: string
   password: string
   confirm_password: string
+}
+
+// パスワード変更（ログイン中ユーザー用）
+export interface ChangePasswordRequest {
+  current_password: string
+  new_password: string
+}
+
+export interface ChangePasswordResponse {
+  success: boolean
+  message: string
 }
 
 // ========================================

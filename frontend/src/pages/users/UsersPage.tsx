@@ -69,6 +69,8 @@ export function UsersPage() {
   const [createDirectEmail, setCreateDirectEmail] = useState('')
   const [createDirectPassword, setCreateDirectPassword] = useState('')
   const [showCreateDirectPassword, setShowCreateDirectPassword] = useState(false)
+  const [createDirectPasswordConfirm, setCreateDirectPasswordConfirm] = useState('')
+  const [showCreateDirectPasswordConfirm, setShowCreateDirectPasswordConfirm] = useState(false)
   const [createDirectRole, setCreateDirectRole] = useState<UserRole>('user')
 
   // パスワードリセットモーダル（Electronモード用）
@@ -76,6 +78,8 @@ export function UsersPage() {
   const [resetPasswordTarget, setResetPasswordTarget] = useState<User | null>(null)
   const [resetPasswordNew, setResetPasswordNew] = useState('')
   const [showResetPasswordNew, setShowResetPasswordNew] = useState(false)
+  const [resetPasswordConfirm, setResetPasswordConfirm] = useState('')
+  const [showResetPasswordConfirm, setShowResetPasswordConfirm] = useState(false)
 
   // 削除モーダル
   const [deleteModalOpen, setDeleteModalOpen] = useState(false)
@@ -284,6 +288,8 @@ export function UsersPage() {
     setCreateDirectEmail('')
     setCreateDirectPassword('')
     setShowCreateDirectPassword(false)
+    setCreateDirectPasswordConfirm('')
+    setShowCreateDirectPasswordConfirm(false)
     setCreateDirectRole('user')
     setCreateDirectModalOpen(true)
   }
@@ -291,6 +297,7 @@ export function UsersPage() {
   // 直接追加モーダルを閉じる
   const handleCloseCreateDirectModal = () => {
     setCreateDirectModalOpen(false)
+    setCreateDirectPasswordConfirm('')
   }
 
   // ユーザー直接作成
@@ -303,8 +310,33 @@ export function UsersPage() {
       showSnackbar('パスワードを入力してください', 'error')
       return
     }
-    if (createDirectPassword.length < 6) {
-      showSnackbar('パスワードは6文字以上で入力してください', 'error')
+    if (createDirectPassword.length < 8) {
+      showSnackbar('パスワードは8文字以上で入力してください', 'error')
+      return
+    }
+
+    // 英数字のみ許可
+    if (!/^[a-zA-Z0-9]+$/.test(createDirectPassword)) {
+      showSnackbar('パスワードは英数字のみ使用できます', 'error')
+      return
+    }
+
+    // 英字と数字の両方を含むかチェック
+    const hasLetter = /[a-zA-Z]/.test(createDirectPassword)
+    const hasNumber = /[0-9]/.test(createDirectPassword)
+    if (!hasLetter || !hasNumber) {
+      showSnackbar('パスワードは英字と数字の両方を含めてください', 'error')
+      return
+    }
+
+    // 確認パスワードのチェック
+    if (!createDirectPasswordConfirm) {
+      showSnackbar('パスワード（確認）を入力してください', 'error')
+      return
+    }
+
+    if (createDirectPassword !== createDirectPasswordConfirm) {
+      showSnackbar('パスワードが一致しません', 'error')
       return
     }
 
@@ -334,6 +366,8 @@ export function UsersPage() {
     setResetPasswordTarget(user)
     setResetPasswordNew('')
     setShowResetPasswordNew(false)
+    setResetPasswordConfirm('')
+    setShowResetPasswordConfirm(false)
     setResetPasswordModalOpen(true)
   }
 
@@ -342,6 +376,7 @@ export function UsersPage() {
     setResetPasswordModalOpen(false)
     setResetPasswordTarget(null)
     setResetPasswordNew('')
+    setResetPasswordConfirm('')
   }
 
   // パスワード直接リセット
@@ -351,8 +386,33 @@ export function UsersPage() {
       showSnackbar('新しいパスワードを入力してください', 'error')
       return
     }
-    if (resetPasswordNew.length < 6) {
-      showSnackbar('パスワードは6文字以上で入力してください', 'error')
+    if (resetPasswordNew.length < 8) {
+      showSnackbar('パスワードは8文字以上で入力してください', 'error')
+      return
+    }
+
+    // 英数字のみ許可
+    if (!/^[a-zA-Z0-9]+$/.test(resetPasswordNew)) {
+      showSnackbar('パスワードは英数字のみ使用できます', 'error')
+      return
+    }
+
+    // 英字と数字の両方を含むかチェック
+    const hasLetterReset = /[a-zA-Z]/.test(resetPasswordNew)
+    const hasNumberReset = /[0-9]/.test(resetPasswordNew)
+    if (!hasLetterReset || !hasNumberReset) {
+      showSnackbar('パスワードは英字と数字の両方を含めてください', 'error')
+      return
+    }
+
+    // 確認パスワードのチェック
+    if (!resetPasswordConfirm) {
+      showSnackbar('パスワード（確認）を入力してください', 'error')
+      return
+    }
+
+    if (resetPasswordNew !== resetPasswordConfirm) {
+      showSnackbar('パスワードが一致しません', 'error')
       return
     }
 
@@ -626,9 +686,9 @@ export function UsersPage() {
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCreateDirectPassword(e.target.value)}
                 fullWidth
                 margin="normal"
-                placeholder="6文字以上"
+                placeholder="英数字のみ、8文字以上"
                 required
-                helperText="6文字以上で入力してください"
+                helperText="英数字のみ、英字・数字を両方含む8文字以上"
                 InputProps={{
                   endAdornment: (
                     <InputAdornment position="end">
@@ -638,6 +698,29 @@ export function UsersPage() {
                         edge="end"
                       >
                         {showCreateDirectPassword ? <Visibility /> : <VisibilityOff />}
+                      </IconButton>
+                    </InputAdornment>
+                  ),
+                }}
+              />
+              <TextField
+                label="初期パスワード（確認）"
+                type={showCreateDirectPasswordConfirm ? 'text' : 'password'}
+                value={createDirectPasswordConfirm}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCreateDirectPasswordConfirm(e.target.value)}
+                fullWidth
+                margin="normal"
+                placeholder="もう一度入力してください"
+                required
+                InputProps={{
+                  endAdornment: (
+                    <InputAdornment position="end">
+                      <IconButton
+                        aria-label={showCreateDirectPasswordConfirm ? 'パスワードを隠す' : 'パスワードを表示'}
+                        onClick={() => setShowCreateDirectPasswordConfirm(!showCreateDirectPasswordConfirm)}
+                        edge="end"
+                      >
+                        {showCreateDirectPasswordConfirm ? <Visibility /> : <VisibilityOff />}
                       </IconButton>
                     </InputAdornment>
                   ),
@@ -685,9 +768,9 @@ export function UsersPage() {
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => setResetPasswordNew(e.target.value)}
                 fullWidth
                 margin="normal"
-                placeholder="6文字以上"
+                placeholder="英数字のみ、8文字以上"
                 required
-                helperText="6文字以上で入力してください"
+                helperText="英数字のみ、英字・数字を両方含む8文字以上"
                 InputProps={{
                   endAdornment: (
                     <InputAdornment position="end">
@@ -697,6 +780,29 @@ export function UsersPage() {
                         edge="end"
                       >
                         {showResetPasswordNew ? <Visibility /> : <VisibilityOff />}
+                      </IconButton>
+                    </InputAdornment>
+                  ),
+                }}
+              />
+              <TextField
+                label="新しいパスワード（確認）"
+                type={showResetPasswordConfirm ? 'text' : 'password'}
+                value={resetPasswordConfirm}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setResetPasswordConfirm(e.target.value)}
+                fullWidth
+                margin="normal"
+                placeholder="もう一度入力してください"
+                required
+                InputProps={{
+                  endAdornment: (
+                    <InputAdornment position="end">
+                      <IconButton
+                        aria-label={showResetPasswordConfirm ? 'パスワードを隠す' : 'パスワードを表示'}
+                        onClick={() => setShowResetPasswordConfirm(!showResetPasswordConfirm)}
+                        edge="end"
+                      >
+                        {showResetPasswordConfirm ? <Visibility /> : <VisibilityOff />}
                       </IconButton>
                     </InputAdornment>
                   ),

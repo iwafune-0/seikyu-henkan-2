@@ -250,8 +250,22 @@ export async function createUserDirectController(
       return
     }
 
-    if (password.length < 6) {
-      sendBadRequest(res, 'パスワードは6文字以上で入力してください')
+    if (password.length < 8) {
+      sendBadRequest(res, 'パスワードは8文字以上で入力してください')
+      return
+    }
+
+    // 英数字のみ許可
+    if (!/^[a-zA-Z0-9]+$/.test(password)) {
+      sendBadRequest(res, 'パスワードは英数字のみ使用できます')
+      return
+    }
+
+    // 英字と数字の両方を含むかチェック
+    const hasLetter = /[a-zA-Z]/.test(password)
+    const hasNumber = /[0-9]/.test(password)
+    if (!hasLetter || !hasNumber) {
+      sendBadRequest(res, 'パスワードは英字と数字の両方を含めてください')
       return
     }
 
@@ -316,8 +330,22 @@ export async function resetPasswordDirectController(
       return
     }
 
-    if (new_password.length < 6) {
-      sendBadRequest(res, 'パスワードは6文字以上で入力してください')
+    if (new_password.length < 8) {
+      sendBadRequest(res, 'パスワードは8文字以上で入力してください')
+      return
+    }
+
+    // 英数字のみ許可
+    if (!/^[a-zA-Z0-9]+$/.test(new_password)) {
+      sendBadRequest(res, 'パスワードは英数字のみ使用できます')
+      return
+    }
+
+    // 英字と数字の両方を含むかチェック
+    const hasLetter = /[a-zA-Z]/.test(new_password)
+    const hasNumber = /[0-9]/.test(new_password)
+    if (!hasLetter || !hasNumber) {
+      sendBadRequest(res, 'パスワードは英字と数字の両方を含めてください')
       return
     }
 

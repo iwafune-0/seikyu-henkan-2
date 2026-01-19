@@ -18,6 +18,7 @@ import {
   Dialog,
   DialogTitle,
   DialogContent,
+  DialogActions,
   FormControl,
   InputLabel,
   MenuItem,
@@ -837,6 +838,11 @@ export function HistoryPage() {
               </Box>
             )}
           </DialogContent>
+          <DialogActions>
+            <Button onClick={handleCloseDetailModal} variant="contained">
+              閉じる
+            </Button>
+          </DialogActions>
         </Dialog>
 
         {/* エラー詳細モーダル */}

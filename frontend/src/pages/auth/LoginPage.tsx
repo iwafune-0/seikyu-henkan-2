@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { API_PATHS, type AppMode } from '@/types'
 
 // 目のアイコン（パスワード表示）
 const EyeIcon = () => (
@@ -19,6 +20,12 @@ import { useNavigate, useLocation, Link } from 'react-router-dom'
 import { PublicLayout } from '@/components/layouts/PublicLayout'
 import { useAuthStore } from '@/stores/auth'
 
+// 管理者連絡先（ハードコード）
+const ADMIN_CONTACT = {
+  name: '岩船',
+  email: 'iwafune-hiroko@terracom.co.jp',
+}
+
 export function LoginPage() {
   const navigate = useNavigate()
   const location = useLocation()
@@ -31,6 +38,28 @@ export function LoginPage() {
   const [success, setSuccess] = useState('')
   const [isLoading, setIsLoading] = useState(false)
 
+  // アプリモード（web | electron）
+  const [appMode, setAppMode] = useState<AppMode>('web')
+  // 管理者連絡先ダイアログ
+  const [contactDialogOpen, setContactDialogOpen] = useState(false)
+
+  // アプリモード取得（認証不要の公開API）
+  useEffect(() => {
+    const fetchAppMode = async () => {
+      try {
+        const response = await fetch(`http://localhost:3001${API_PATHS.PUBLIC.APP_MODE}`)
+        if (response.ok) {
+          const data = await response.json()
+          setAppMode(data.mode)
+        }
+      } catch (err) {
+        // エラー時はデフォルト（web）のまま
+        console.warn('アプリモード取得に失敗しました:', err)
+      }
+    }
+    fetchAppMode()
+  }, [])
+
   // 他のページからのメッセージを表示
   useEffect(() => {
     if (location.state?.message) {
@@ -39,6 +68,15 @@ export function LoginPage() {
       window.history.replaceState({}, document.title)
     }
   }, [location])
+
+  // パスワードをお忘れですか？クリック
+  const handleForgotPassword = (e: React.MouseEvent) => {
+    if (appMode === 'electron') {
+      e.preventDefault()
+      setContactDialogOpen(true)
+    }
+    // web版はLink遷移（デフォルト動作）
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -169,6 +207,7 @@ export function LoginPage() {
             <div className="text-center">
               <Link
                 to="/reset-password"
+                onClick={handleForgotPassword}
                 className="text-sm text-primary hover:underline"
               >
                 パスワードをお忘れですか？
@@ -177,6 +216,43 @@ export function LoginPage() {
           </form>
         </div>
       </div>
+
+      {/* 管理者連絡先ダイアログ（Electron版用） */}
+      {contactDialogOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
+          onClick={() => setContactDialogOpen(false)}
+        >
+          <div
+            className="bg-card border border-border rounded-lg shadow-lg p-6 m-4 max-w-sm w-full"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-lg font-semibold mb-4">パスワードをお忘れの方へ</h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              パスワードをお忘れの場合は、管理者にご連絡ください。
+            </p>
+            <p className="text-xs text-muted-foreground mb-4">
+              ※ パスワードを覚えている場合は、ログイン後に変更できます。
+            </p>
+            <div className="bg-muted/50 rounded-md p-4 mb-4">
+              <p className="text-sm">
+                <span className="text-muted-foreground">担当:</span>{' '}
+                <span className="font-medium">{ADMIN_CONTACT.name}</span>
+              </p>
+              <p className="text-sm mt-1">
+                <span className="text-muted-foreground">メール:</span>{' '}
+                <span className="font-medium select-all">{ADMIN_CONTACT.email}</span>
+              </p>
+            </div>
+            <button
+              onClick={() => setContactDialogOpen(false)}
+              className="w-full bg-primary text-primary-foreground py-2 rounded-md hover:bg-primary/90 transition-colors"
+            >
+              閉じる
+            </button>
+          </div>
+        </div>
+      )}
     </PublicLayout>
   )
 }
