@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, type ReactNode } from 'react'
-import { LogOut, Key, ChevronDown } from 'lucide-react'
+import { LogOut, Key, ChevronDown, User } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { Sidebar } from '@/components/navigation/Sidebar'
 import { useAuthStore } from '@/stores/auth'
@@ -55,7 +55,7 @@ export function AuthenticatedLayout({ children }: AuthenticatedLayoutProps) {
             <button
               type="button"
               onClick={() => setUserMenuOpen(!userMenuOpen)}
-              className="flex items-center gap-2 px-4 py-2 text-base hover:bg-accent rounded-md transition-colors cursor-pointer"
+              className="flex items-center gap-2 px-4 py-2 text-base bg-muted/50 border border-border hover:bg-accent rounded-md transition-colors cursor-pointer"
             >
               <div className="text-right">
                 <p className="font-medium">{user?.email}</p>
@@ -63,7 +63,10 @@ export function AuthenticatedLayout({ children }: AuthenticatedLayoutProps) {
                   {user?.role === 'admin' ? '管理者' : '一般ユーザー'}
                 </p>
               </div>
-              <ChevronDown className={`w-4 h-4 transition-transform ${userMenuOpen ? 'rotate-180' : ''}`} />
+              <div className="flex items-center">
+                <User className="w-5 h-5 text-muted-foreground" />
+                <ChevronDown className={`w-3 h-3 text-muted-foreground transition-transform ${userMenuOpen ? 'rotate-180' : ''}`} />
+              </div>
             </button>
             {/* ドロップダウンメニュー */}
             {userMenuOpen && (
@@ -123,10 +126,13 @@ export function AuthenticatedLayout({ children }: AuthenticatedLayoutProps) {
             <button
               type="button"
               onClick={() => setUserMenuOpen(!userMenuOpen)}
-              className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium hover:bg-accent rounded-md transition-colors flex-shrink-0 cursor-pointer"
+              className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium bg-muted/50 border border-border hover:bg-accent rounded-md transition-colors flex-shrink-0 cursor-pointer"
             >
               <span className="max-w-[100px] truncate">{user?.email?.split('@')[0]}</span>
-              <ChevronDown className={`w-4 h-4 transition-transform ${userMenuOpen ? 'rotate-180' : ''}`} />
+              <div className="flex items-center">
+                <User className="w-4 h-4 text-muted-foreground" />
+                <ChevronDown className={`w-3 h-3 text-muted-foreground transition-transform ${userMenuOpen ? 'rotate-180' : ''}`} />
+              </div>
             </button>
             {/* モバイル用ドロップダウンメニュー */}
             {userMenuOpen && (
