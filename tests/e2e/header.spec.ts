@@ -1,9 +1,17 @@
 import { test, expect } from '@playwright/test'
+import { createTestUser, deleteTestUserByEmail } from './helpers/supabase-admin'
 
 // テスト用認証情報
 const TEST_ADMIN = {
   email: 'iwafune-hiroko@terracom.co.jp',
   password: 'IwafuneTerra2025',
+}
+
+// E2E-HEADER-005専用テストユーザー
+const TEST_PASSWORD_CHANGE_USER = {
+  email: 'e2e-header-005-test@example.com',
+  password: 'TestPassword123',
+  newPassword: 'NewPassword456',
 }
 
 /**
@@ -109,11 +117,79 @@ test.describe('共通ヘッダー機能', () => {
     })
 
     // E2E-HEADER-005: パスワード変更成功（正常系）
-    // 注意: このテストは実際にパスワードを変更するため、スキップしています。
-    // 手動テストで確認してください。
-    test.skip('E2E-HEADER-005: パスワード変更成功（正常系）', async ({ page }) => {
-      // 実装するとテストユーザーのパスワードが変更されてしまうため、
-      // 必要な場合は一時ユーザーを作成してテストしてください。
+    // 専用テストユーザーを作成→テスト→削除する方式
+    test('E2E-HEADER-005: パスワード変更成功（正常系）', async ({ page }) => {
+      // テスト前処理: 既存の一時ユーザーがあれば削除
+      await deleteTestUserByEmail(TEST_PASSWORD_CHANGE_USER.email)
+
+      // テストユーザーを作成
+      console.log('テスト前処理: 一時テストユーザーを作成します')
+      await createTestUser(
+        TEST_PASSWORD_CHANGE_USER.email,
+        TEST_PASSWORD_CHANGE_USER.password,
+        'user'
+      )
+
+      try {
+        // ストレージをクリアして一時ユーザーでログイン
+        await page.context().clearCookies()
+        await page.goto('/login')
+        await page.evaluate(() => {
+          localStorage.clear()
+          sessionStorage.clear()
+        })
+        await page.reload()
+
+        // 一時ユーザーでログイン
+        await page.fill('#email', TEST_PASSWORD_CHANGE_USER.email)
+        await page.fill('#password', TEST_PASSWORD_CHANGE_USER.password)
+        await page.click('button[type="submit"]')
+
+        // /process にリダイレクトされることを確認
+        await expect(page).toHaveURL(/\/process/, { timeout: 15000 })
+
+        // デスクトップ表示
+        await page.setViewportSize({ width: 1280, height: 720 })
+
+        // ユーザーメニューを開く
+        const desktopHeader = page.locator('header.hidden.lg\\:block')
+        const userMenuButton = desktopHeader.locator('button').filter({ hasText: TEST_PASSWORD_CHANGE_USER.email })
+        await userMenuButton.click()
+
+        // パスワード変更ダイアログを開く
+        await desktopHeader.locator('text=パスワード変更').click()
+        await expect(page.locator('role=dialog')).toBeVisible()
+
+        // パスワードを入力
+        const dialog = page.locator('role=dialog')
+        const passwordInputs = dialog.locator('input[type="password"]')
+        await passwordInputs.nth(0).fill(TEST_PASSWORD_CHANGE_USER.password)  // 現在のパスワード
+        await passwordInputs.nth(1).fill(TEST_PASSWORD_CHANGE_USER.newPassword)  // 新しいパスワード
+        await passwordInputs.nth(2).fill(TEST_PASSWORD_CHANGE_USER.newPassword)  // 確認
+
+        // パスワード変更ボタンをクリック
+        await page.click('button:has-text("パスワードを変更")')
+
+        // 成功メッセージが表示されることを確認
+        await expect(page.locator('[role="alert"]').filter({ hasText: /変更しました|成功/ })).toBeVisible({ timeout: 10000 })
+
+        // 自動ログアウト後、ログインページにリダイレクトされることを確認（1.5秒待機）
+        await expect(page).toHaveURL(/\/login/, { timeout: 10000 })
+
+        // 新しいパスワードでログインできることを確認
+        await page.fill('#email', TEST_PASSWORD_CHANGE_USER.email)
+        await page.fill('#password', TEST_PASSWORD_CHANGE_USER.newPassword)
+        await page.click('button[type="submit"]')
+
+        // /process にリダイレクトされることを確認
+        await expect(page).toHaveURL(/\/process/, { timeout: 15000 })
+
+        console.log('E2E-HEADER-005: パスワード変更成功テスト完了')
+      } finally {
+        // テスト後処理: テストユーザーを削除
+        console.log('テスト後処理: 一時テストユーザーを削除します')
+        await deleteTestUserByEmail(TEST_PASSWORD_CHANGE_USER.email)
+      }
     })
 
     // E2E-HEADER-006: キャンセルボタンで閉じる
