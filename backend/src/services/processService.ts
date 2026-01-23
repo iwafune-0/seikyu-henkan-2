@@ -442,7 +442,9 @@ async function runPythonScript(
 ): Promise<string> {
   return new Promise((resolve, reject) => {
     const scriptPath = path.join(__dirname, '../../python', scriptName)
-    const pythonProcess = spawn('python3', [scriptPath, ...args])
+    const pythonProcess = spawn('python3', [scriptPath, ...args], {
+      env: { ...process.env },
+    })
 
     let stdout = ''
     let stderr = ''

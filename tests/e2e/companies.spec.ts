@@ -514,59 +514,68 @@ test.describe('P-005: 取引先設定ページ', () => {
 
     // E2E-COMP-017: TC-043 状態を無効に変更
     test('E2E-COMP-017: 状態を無効に変更', async ({ page }) => {
-      // /companies にアクセス
-      await page.goto('/companies')
+      // テスト前処理: 会社情報をバックアップ
+      const companyId = await getCompanyId('ネクストビッツ')
+      if (!companyId) {
+        console.log('E2E-COMP-017: 取引先が見つからないためスキップ')
+        return
+      }
 
-      // ページが読み込まれるまで待機
-      await expect(page.locator('h1, h2, h3, h4, h5, h6').filter({ hasText: '取引先設定' })).toBeVisible()
+      const backup = await backupCompanyTemplate(companyId)
+      console.log('テスト前処理: 会社情報をバックアップしました')
 
-      // ネクストビッツの行をクリック
-      const nextbitsRow = page.locator('tbody tr').filter({ hasText: 'ネクストビッツ' })
-      await nextbitsRow.click()
+      try {
+        // /companies にアクセス
+        await page.goto('/companies')
 
-      // モーダルが開くことを確認
-      const modal = page.getByRole('dialog')
-      await expect(modal).toBeVisible({ timeout: 5000 })
+        // ページが読み込まれるまで待機
+        await expect(page.locator('h1, h2, h3, h4, h5, h6').filter({ hasText: '取引先設定' })).toBeVisible()
 
-      // スイッチ要素を取得（複数マッチする場合があるのでfirst()を使用）
-      const switchContainer = modal.locator('[class*="MuiSwitch"]').first()
-      await expect(switchContainer).toBeVisible()
+        // ネクストビッツの行をクリック
+        const nextbitsRow = page.locator('tbody tr').filter({ hasText: 'ネクストビッツ' })
+        await nextbitsRow.click()
 
-      // 現在の状態を確認（スイッチがONかOFFか）
-      const switchInput = switchContainer.locator('input')
-      const isActive = await switchInput.isChecked()
-
-      if (isActive) {
-        // 状態スイッチを無効に切り替え
-        await switchContainer.click()
-
-        // 保存ボタンをクリック
-        await page.getByRole('button', { name: '保存' }).click()
-
-        // Snackbarで成功メッセージを確認
-        const snackbar = page.locator('[role="alert"]').filter({ hasText: /取引先設定を保存しました/ })
-        await expect(snackbar).toBeVisible({ timeout: 5000 })
-
-        // モーダルが閉じることを確認
-        await expect(modal).not.toBeVisible({ timeout: 5000 })
-
-        // 一覧で「無効」チップが表示されていることを確認（複数マッチする場合があるのでfirst()を使用）
-        const updatedRow = page.locator('tbody tr').filter({ hasText: 'ネクストビッツ' })
-        await expect(updatedRow.locator('[class*="MuiChip"]').filter({ hasText: '無効' }).first()).toBeVisible()
-
-        console.log('E2E-COMP-017: 状態を無効に変更 - 成功')
-
-        // テスト後処理: 有効に戻す
-        console.log('テスト後処理: 状態を有効に戻します')
-        await updatedRow.click()
+        // モーダルが開くことを確認
+        const modal = page.getByRole('dialog')
         await expect(modal).toBeVisible({ timeout: 5000 })
-        const restoreSwitchContainer = modal.locator('[class*="MuiSwitch"]').first()
-        await restoreSwitchContainer.click()
-        await page.getByRole('button', { name: '保存' }).click()
-        await page.waitForTimeout(2000)
-      } else {
-        console.log('E2E-COMP-017: 既に無効状態のためスキップ')
-        await page.getByRole('button', { name: 'キャンセル' }).click()
+
+        // スイッチ要素を取得（複数マッチする場合があるのでfirst()を使用）
+        const switchContainer = modal.locator('[class*="MuiSwitch"]').first()
+        await expect(switchContainer).toBeVisible()
+
+        // 現在の状態を確認（スイッチがONかOFFか）
+        const switchInput = switchContainer.locator('input')
+        const isActive = await switchInput.isChecked()
+
+        if (isActive) {
+          // 状態スイッチを無効に切り替え
+          await switchContainer.click()
+
+          // 保存ボタンをクリック
+          await page.getByRole('button', { name: '保存' }).click()
+
+          // Snackbarで成功メッセージを確認
+          const snackbar = page.locator('[role="alert"]').filter({ hasText: /取引先設定を保存しました/ })
+          await expect(snackbar).toBeVisible({ timeout: 5000 })
+
+          // モーダルが閉じることを確認
+          await expect(modal).not.toBeVisible({ timeout: 5000 })
+
+          // 一覧で「無効」チップが表示されていることを確認（複数マッチする場合があるのでfirst()を使用）
+          const updatedRow = page.locator('tbody tr').filter({ hasText: 'ネクストビッツ' })
+          await expect(updatedRow.locator('[class*="MuiChip"]').filter({ hasText: '無効' }).first()).toBeVisible()
+
+          console.log('E2E-COMP-017: 状態を無効に変更 - 成功')
+        } else {
+          console.log('E2E-COMP-017: 既に無効状態のためスキップ')
+          await page.getByRole('button', { name: 'キャンセル' }).click()
+        }
+      } finally {
+        // テスト後処理: DBから直接リストア（テスト成功・失敗に関わらず確実に実行）
+        if (backup) {
+          await restoreCompanyTemplate(companyId, backup)
+          console.log('テスト後処理: 会社情報をリストアしました')
+        }
       }
     })
 
@@ -1373,11 +1382,6 @@ test.describe('P-005: 取引先設定ページ', () => {
         const modal = page.getByRole('dialog')
         await expect(modal).toBeVisible({ timeout: 5000 })
 
-        // 基本情報タブで表示名を取得（後で復元用）
-        const inputFields = modal.locator('[role="tabpanel"]:not([hidden]) input')
-        const displayNameField = inputFields.nth(1)
-        const originalDisplayName = await displayNameField.inputValue()
-
         // テンプレートタブに切り替え
         await modal.getByRole('tab', { name: 'テンプレート' }).click()
         await page.waitForTimeout(300)
@@ -1417,22 +1421,11 @@ test.describe('P-005: 取引先設定ページ', () => {
 
         console.log('E2E-COMP-039: テンプレートファイルを保存 - 成功')
 
-        // テスト後処理: 表示名を元に戻す
-        console.log('テスト後処理: 表示名を元に戻します')
-        const restoredRow = page.locator('tbody tr').filter({ hasText: 'ネクストビッツ' })
-        await restoredRow.click()
-        await expect(modal).toBeVisible({ timeout: 5000 })
-        const restoreField = modal.locator('[role="tabpanel"]:not([hidden]) input').nth(1)
-        await restoreField.clear()
-        await restoreField.fill(originalDisplayName)
-        await page.getByRole('button', { name: '保存' }).click()
-        await page.waitForTimeout(2000)
-
       } finally {
-        // テスト後処理: テンプレートをリストア
+        // テスト後処理: テンプレートと表示名をDBから直接リストア
         if (backup) {
           await restoreCompanyTemplate(companyId, backup)
-          console.log('テスト後処理: テンプレートをリストアしました')
+          console.log('テスト後処理: テンプレートと表示名をリストアしました')
         }
       }
     })

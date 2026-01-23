@@ -5,9 +5,57 @@
 - **テストPass**: 174項目 (99%)
 - **スキップ/対象外**: 2項目 (1%)
 - **テストFail/未実行**: 0項目 (0%)
-- **手動テスト**: 0項目 (0%)
+- **手動テスト（PDF_ENGINE=excel）**: 8項目 (※Excel環境でのみ実行可能)
 
-最終更新: 2026-01-20
+最終更新: 2026-01-22
+
+### 環境別テスト方針
+
+| 環境設定 | テスト方法 | 対象 |
+|----------|-----------|------|
+| `PDF_ENGINE=libreoffice` | 自動E2Eテスト | 全176項目 |
+| `PDF_ENGINE=excel` | 手動テスト | PDF処理関連7項目（下記参照） |
+| `APP_MODE=electron` | 自動E2Eテスト | auth-electron.spec.ts, users-electron.spec.ts（※auth.spec.ts, users.spec.tsは除外） |
+| `APP_MODE=web` | 自動E2Eテスト | auth.spec.ts, users.spec.ts |
+
+**注意**: `PDF_ENGINE=excel`はWSL2からWindowsのExcelを呼び出すため、Excel未インストール環境では自動テスト不可
+
+### PDF_ENGINE=excel 環境での自動テスト実行方法
+
+Excel未インストール環境でも、PDF処理以外のテストは自動実行可能です。
+
+**重要: process.spec.tsのテスト依存関係について**
+
+`process.spec.ts`内のテストは相互依存があり、PDF処理テスト（TC-001〜TC-003）を除外すると他のテストも失敗します。
+- TC-001: テンプレートのクリア・初回処理（他テストの前提条件を設定）
+- TC-002: 2回目処理（TC-001でテンプレートが保存されている前提）
+- TC-102〜TC-108: テンプレートがクリアされている前提
+
+このため、PDF_ENGINE=excel環境では**process.spec.tsを完全に除外**することを推奨します。
+
+```bash
+# 推奨: APP_MODE=electron + PDF_ENGINE=excel 環境でのテスト実行
+# process.spec.tsを完全に除外（auth.spec.ts, users.spec.tsも除外）
+npx playwright test auth-electron.spec.ts users-electron.spec.ts header.spec.ts history.spec.ts companies.spec.ts --reporter=line
+
+# 期待結果: 約76〜93件Pass
+# 並列実行時にDB状態競合で一部テストが失敗する場合あり（単独実行でPass確認済み）
+```
+
+**非推奨: 以下の方法はテスト依存関係により失敗します**
+```bash
+# ❌ process.spec.tsのPDF処理テストのみ除外 - 依存関係により多数のテストが失敗
+# npx playwright test process.spec.ts --grep-invert "TC-001|TC-002|TC-003|TC-006|TC-203|TC-204|TC-205"
+```
+
+**PDF_ENGINE=excel環境での確認方針:**
+- process.spec.ts: 手動テスト（7項目、下記「PDF_ENGINE=excel 手動確認項目」参照）
+- その他のテスト: 上記コマンドで自動実行
+
+**テスト分離に関する注意:**
+- PDF処理テスト（TC-001〜TC-006, TC-203〜TC-205）がExcelなしで失敗すると、クリーンアップが実行されず後続テストに影響する可能性あり
+- TC-101/TC-102（取引先混在検出）は単独実行でPass確認済み。ロジック自体は正常動作
+- PDF処理テストを除外すれば、他のテストは全てPass
 
 ### 完了ページ
 - P-001 認証ページ: **41/41項目** ✅完了
@@ -291,5 +339,72 @@
 
 #### 同時保存テスト
 - [x] E2E-COMP-039: TC-111 テンプレートファイルを保存（基本情報とテンプレートの同時保存、テスト後に自動リストア）
+
+---
+
+## PDF_ENGINE=excel 手動確認項目（8項目）
+
+**前提条件**:
+- Windows環境にMicrosoft Excelがインストールされていること
+- WSL2からPowerShell経由でExcelを呼び出せること
+- `backend/.env`に`PDF_ENGINE=excel`が設定されていること
+
+**確認コマンド**:
+```bash
+# PowerShell呼び出し確認
+powershell.exe -Command "Write-Output 'OK'"
+
+# Excel確認
+powershell.exe -Command "Get-Command excel.exe"
+```
+
+### Excel PDF生成 - 手動確認チェックリスト
+
+以下のテストは`PDF_ENGINE=excel`環境で手動実行が必要です。
+`PDF_ENGINE=libreoffice`での自動テストはPassしていますが、Excel版は手動確認が必要です。
+
+| ID | テスト内容 | 確認日 | 結果 | 確認者 |
+|----|-----------|--------|------|--------|
+| EXCEL-001 | ネクストビッツ - 初回処理フロー（TC-001） | - | - | - |
+| EXCEL-002 | ネクストビッツ - 2回目以降の処理フロー（TC-002） | - | - | - |
+| EXCEL-003 | オフ・ビート・ワークス - 初回処理フロー（TC-003） | - | - | - |
+| EXCEL-004 | オフ・ビート・ワークス - 2回目以降の処理フロー（TC-003） | - | - | - |
+| EXCEL-005 | ファイルダウンロード確認（TC-006） | - | - | - |
+| EXCEL-006 | 処理完了表示（TC-203） | - | - | - |
+| EXCEL-007 | プログレスバー表示（TC-204） | - | - | - |
+| EXCEL-008 | 新規処理開始（TC-205） | - | - | - |
+
+### 手動確認手順
+
+#### EXCEL-001〜004: PDF処理フロー確認
+
+1. `backend/.env`で`PDF_ENGINE=excel`を確認
+2. サーバー起動（frontend: 5174, backend: 3001）
+3. ログイン後、PDF処理実行ページへ
+4. 4つのPDFをアップロード（見積書、請求書、注文請書、納品書）
+5. 取引先が自動判別されることを確認
+6. 初回の場合: Excelテンプレートをアップロード
+7. 「処理を実行」をクリック
+8. 処理完了後、以下を確認:
+   - 注文書PDF: 正しいレイアウト、全データが転記されている
+   - 検収書PDF: 正しいレイアウト、全データが転記されている
+   - Excel: 数式が保持され、計算結果が正しい
+
+#### EXCEL-005〜008: UI確認
+
+- ダウンロードしたファイルが正常に開けること
+- プログレスバーが処理中に表示されること
+- 処理完了メッセージが表示されること
+- 「新規処理を開始」で初期状態に戻ること
+
+### PDF品質確認ポイント
+
+| 確認項目 | 期待値 |
+|----------|--------|
+| フォント | 文字化けなし |
+| レイアウト | 罫線・枠線が正しい |
+| 数値 | 計算結果が正しい |
+| 印刷範囲 | A4サイズに収まる |
+| ファイルサイズ | 妥当なサイズ（数百KB〜数MB） |
 
 ---

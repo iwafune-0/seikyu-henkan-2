@@ -24,7 +24,7 @@ const NEXTBITS_FILES = {
   invoice: path.join(NEXTBITS_PATH, 'TRR-25-007_請求書.pdf'),
   order: path.join(NEXTBITS_PATH, 'TRR-25-007_注文請書.pdf'),
   delivery: path.join(NEXTBITS_PATH, 'TRR-25-007_納品書.pdf'),
-  template: path.join(NEXTBITS_PATH, 'テラ【株式会社ネクストビッツ御中】注文検収書_2506.xlsx'),
+  template: path.join(NEXTBITS_PATH, 'E2E_テラ【株式会社ネクストビッツ御中】注文検収書_2506.xlsx'),
 }
 
 // オフ・ビート・ワークスのテストファイル
@@ -33,7 +33,7 @@ const OFFBEAT_FILES = {
   invoice: path.join(OFFBEAT_PATH, '2951023-請求_offbeat-to-terra-202507.pdf'),
   order: path.join(OFFBEAT_PATH, '請書_offbeat-to-terra-202507.pdf'),
   delivery: path.join(OFFBEAT_PATH, '3951023-納品-offbeat-to-terra-202507.pdf'),
-  template: path.join(OFFBEAT_PATH, 'テラ【株式会社オフ・ビート・ワークス御中】注文検収書_2506.xlsx'),
+  template: path.join(OFFBEAT_PATH, 'E2E_テラ【株式会社オフ・ビート・ワークス御中】注文検収書_2506.xlsx'),
 }
 
 // 無効なファイル

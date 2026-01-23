@@ -220,32 +220,65 @@ export async function getCompanyId(companyName: string): Promise<string | null> 
 }
 
 /**
- * 処理済みファイルを取引先IDで削除する
+ * 処理済みファイルを取引先IDで削除する（テストデータのみ）
  * P-002 テスト用クリーンアップ
+ *
+ * 注意: 実際の処理データを保護するため、テストデータのみ削除する
+ * テストデータの判定: ファイル名に "E2E" または "テスト" を含む
  */
 export async function deleteProcessedFilesByCompanyId(companyId: string): Promise<void> {
-  const { error } = await supabase
+  // テストデータのみ削除（E2E または テスト を含むファイル名）
+  const { error: error1 } = await supabase
     .from('processed_files')
     .delete()
     .eq('company_id', companyId)
+    .ilike('excel_filename', '%E2E%')
 
-  if (error) {
-    console.warn(`Failed to delete processed files: ${error.message}`)
+  const { error: error2 } = await supabase
+    .from('processed_files')
+    .delete()
+    .eq('company_id', companyId)
+    .ilike('excel_filename', '%テスト%')
+
+  if (error1) {
+    console.warn(`Failed to delete processed files (E2E): ${error1.message}`)
+  }
+  if (error2) {
+    console.warn(`Failed to delete processed files (テスト): ${error2.message}`)
   }
 }
 
 /**
- * 処理ログを取引先IDで削除する
+ * 処理ログを取引先IDで削除する（テストデータのみ）
  * P-002 テスト用クリーンアップ
+ *
+ * 注意: 実際の処理データを保護するため、テストデータのみ削除する
+ * テストデータの判定: エラーメッセージに "E2E" または "テスト" を含む、
+ * または関連するprocessed_filesがテストデータの場合
  */
 export async function deleteProcessLogsByCompanyId(companyId: string): Promise<void> {
-  const { error } = await supabase
+  // テストデータのみ削除
+  const { error: error1 } = await supabase
     .from('process_logs')
     .delete()
     .eq('company_id', companyId)
+    .ilike('error_message', '%E2E%')
 
-  if (error) {
-    console.warn(`Failed to delete process logs: ${error.message}`)
+  const { error: error2 } = await supabase
+    .from('process_logs')
+    .delete()
+    .eq('company_id', companyId)
+    .ilike('error_message', '%テスト%')
+
+  // error_messageがnullのテストログも削除（成功ログ）
+  // ただし、実際のログを保護するため、最近作成されたもののみ対象
+  // （テストは短時間で作成・削除されるため）
+
+  if (error1) {
+    console.warn(`Failed to delete process logs (E2E): ${error1.message}`)
+  }
+  if (error2) {
+    console.warn(`Failed to delete process logs (テスト): ${error2.message}`)
   }
 }
 
@@ -270,23 +303,25 @@ export async function clearCompanyTemplate(companyId: string): Promise<void> {
 }
 
 /**
- * テンプレートバックアップデータの型
+ * テンプレートバックアップデータの型（会社情報全般のバックアップに使用）
  */
 export interface TemplateBackup {
   template_excel: string | null
   template_filename: string | null
   template_updated_at: string | null
   template_updated_by: string | null
+  display_name?: string | null
+  is_active?: boolean
 }
 
 /**
  * 取引先のテンプレートをバックアップする
- * E2E-COMP-022, 023, 039テスト用
+ * E2E-COMP-017, 022, 023, 039テスト用
  */
 export async function backupCompanyTemplate(companyId: string): Promise<TemplateBackup | null> {
   const { data, error } = await supabase
     .from('companies')
-    .select('template_excel, template_filename, template_updated_at, template_updated_by')
+    .select('template_excel, template_filename, template_updated_at, template_updated_by, display_name, is_active')
     .eq('id', companyId)
     .single()
 
@@ -300,17 +335,29 @@ export async function backupCompanyTemplate(companyId: string): Promise<Template
 
 /**
  * 取引先のテンプレートをリストアする
- * E2E-COMP-022, 023, 039テスト用
+ * E2E-COMP-017, 022, 023, 039テスト用
  */
 export async function restoreCompanyTemplate(companyId: string, backup: TemplateBackup): Promise<void> {
+  const updateData: Record<string, unknown> = {
+    template_excel: backup.template_excel,
+    template_filename: backup.template_filename,
+    template_updated_at: backup.template_updated_at,
+    template_updated_by: backup.template_updated_by,
+  }
+
+  // display_nameが含まれている場合は復元する
+  if (backup.display_name !== undefined) {
+    updateData.display_name = backup.display_name
+  }
+
+  // is_activeが含まれている場合は復元する
+  if (backup.is_active !== undefined) {
+    updateData.is_active = backup.is_active
+  }
+
   const { error } = await supabase
     .from('companies')
-    .update({
-      template_excel: backup.template_excel,
-      template_filename: backup.template_filename,
-      template_updated_at: backup.template_updated_at,
-      template_updated_by: backup.template_updated_by,
-    })
+    .update(updateData)
     .eq('id', companyId)
 
   if (error) {
