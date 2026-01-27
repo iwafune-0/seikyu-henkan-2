@@ -223,7 +223,7 @@ export async function getCompanyId(companyName: string): Promise<string | null> 
  * 取引先のdisplay_nameをリセットする（E2Eテスト後のクリーンアップ用）
  * nameと同じ値に戻す（「株式会社」プレフィックス付き）
  */
-export async function resetCompanyDisplayName(companyName: string): Promise<void> {
+export async function resetCompanyState(companyName: string): Promise<void> {
   const displayNameMap: Record<string, string> = {
     'ネクストビッツ': '株式会社ネクストビッツ',
     'オフ・ビート・ワークス': '株式会社オフ・ビート・ワークス',
@@ -235,15 +235,16 @@ export async function resetCompanyDisplayName(companyName: string): Promise<void
     return
   }
 
+  // display_nameとis_activeの両方を元に戻す
   const { error } = await supabase
     .from('companies')
-    .update({ display_name: correctDisplayName })
+    .update({ display_name: correctDisplayName, is_active: true })
     .ilike('name', `%${companyName}%`)
 
   if (error) {
     console.warn(`Failed to reset display_name for ${companyName}: ${error.message}`)
   } else {
-    console.log(`Reset display_name for ${companyName} to "${correctDisplayName}"`)
+    console.log(`Reset company state for ${companyName}: display_name="${correctDisplayName}", is_active=true`)
   }
 }
 
