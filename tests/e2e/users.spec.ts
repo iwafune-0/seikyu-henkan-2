@@ -5,7 +5,7 @@
  * 前提条件: 管理者としてログイン済み
  */
 import { test, expect } from '@playwright/test'
-import { createTestUser, deleteTestUserByEmail, createDeletedUser } from './helpers/supabase-admin'
+import { createTestUser, deleteTestUserByEmail, createDeletedUser, comprehensiveE2ECleanup } from './helpers/supabase-admin'
 
 // テスト用認証情報
 const TEST_ADMIN = {
@@ -23,6 +23,16 @@ const TEST_REGULAR_USER = {
  * P-004: ユーザー管理ページ
  */
 test.describe('P-004: ユーザー管理ページ', () => {
+  // テスト終了後にE2Eテストユーザーをクリーンアップ
+  test.afterAll(async () => {
+    console.log('[P-004] E2Eテストデータのクリーンアップ開始')
+    const result = await comprehensiveE2ECleanup()
+    console.log(`[P-004] クリーンアップ完了: ユーザー${result.testUsers.length + result.orphanedUsers.length}件, ファイル${result.deletedProcessedFiles}件`)
+    if (result.errors.length > 0) {
+      console.warn('[P-004] クリーンアップエラー:', result.errors)
+    }
+  })
+
   // 各テストの前に管理者としてログイン
   test.beforeEach(async ({ page }) => {
     // ストレージをクリアしてログアウト状態にする

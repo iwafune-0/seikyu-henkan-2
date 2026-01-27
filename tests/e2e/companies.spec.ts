@@ -11,6 +11,7 @@ import {
   getCompanyId,
   backupCompanyTemplate,
   restoreCompanyTemplate,
+  resetCompanyDisplayName,
   TemplateBackup,
 } from './helpers/supabase-admin'
 
@@ -30,6 +31,21 @@ const TEST_REGULAR_USER = {
  * P-005: 取引先設定ページ
  */
 test.describe('P-005: 取引先設定ページ', () => {
+  // 同じリソース（取引先レコード）を操作するテストが多いため、直列実行にする
+  // これにより並列実行時のDB競合を防ぐ
+  test.describe.configure({ mode: 'serial' })
+
+  // テスト終了後にdisplay_nameを復元する
+  test.afterAll(async () => {
+    console.log('[P-005] E2Eテストデータのクリーンアップ開始')
+    // display_nameを元の値に戻す
+    await resetCompanyDisplayName('ネクストビッツ')
+    await resetCompanyDisplayName('オフ・ビート・ワークス')
+    // テストユーザーを削除
+    await deleteTestUserByEmail(TEST_REGULAR_USER.email)
+    console.log('[P-005] クリーンアップ完了')
+  })
+
   // 各テストの前に管理者としてログイン
   test.beforeEach(async ({ page }) => {
     // ストレージをクリアしてログアウト状態にする

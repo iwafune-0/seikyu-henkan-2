@@ -220,6 +220,34 @@ export async function getCompanyId(companyName: string): Promise<string | null> 
 }
 
 /**
+ * 取引先のdisplay_nameをリセットする（E2Eテスト後のクリーンアップ用）
+ * nameと同じ値に戻す（「株式会社」プレフィックス付き）
+ */
+export async function resetCompanyDisplayName(companyName: string): Promise<void> {
+  const displayNameMap: Record<string, string> = {
+    'ネクストビッツ': '株式会社ネクストビッツ',
+    'オフ・ビート・ワークス': '株式会社オフ・ビート・ワークス',
+  }
+
+  const correctDisplayName = displayNameMap[companyName]
+  if (!correctDisplayName) {
+    console.warn(`Unknown company name: ${companyName}`)
+    return
+  }
+
+  const { error } = await supabase
+    .from('companies')
+    .update({ display_name: correctDisplayName })
+    .ilike('name', `%${companyName}%`)
+
+  if (error) {
+    console.warn(`Failed to reset display_name for ${companyName}: ${error.message}`)
+  } else {
+    console.log(`Reset display_name for ${companyName} to "${correctDisplayName}"`)
+  }
+}
+
+/**
  * 処理済みファイルを取引先IDで削除する（テストデータのみ）
  * P-002 テスト用クリーンアップ
  *

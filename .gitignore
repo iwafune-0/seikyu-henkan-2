@@ -49,3 +49,7 @@ env/
 # Sample data (not for version control)
 データ/
 キャプチャ/
+
+# Playwright
+playwright-report/
+tests/temp/.playwright-artifacts-*/

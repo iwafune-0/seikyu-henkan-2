@@ -135,7 +135,8 @@ test.describe('P-004 Electron版: ユーザー管理ページ', () => {
       await expect(modal).not.toBeVisible()
 
       // 一覧に新しいユーザーが表示されることを確認
-      await expect(page.getByText(TEST_CREATE_USER.email)).toBeVisible()
+      // fetchUsers()の非同期完了を待つため、長めのタイムアウトを設定
+      await expect(page.locator('table').getByText(TEST_CREATE_USER.email)).toBeVisible({ timeout: 30000 })
     })
 
     // E2E-USER-024: キャンセルボタンで閉じる

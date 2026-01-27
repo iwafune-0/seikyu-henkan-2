@@ -365,8 +365,11 @@ def restore_drawing_from_template(template_path: str, output_path: str, issue_da
     ]
 
     # 削除するファイル（復元もしない、存在させない）
+    # calcChain.xmlを削除することで、Excelの修復ダイアログを回避
+    # openpyxlが作成するcalcChain.xmlは行数が少ない場合に破損するため、
+    # 削除しておき、Excelが開く際に自動再生成させる
     files_to_remove = [
-        # calcChain.xmlは削除しない（削除すると修復ダイアログが出る）
+        'xl/calcChain.xml',
     ]
 
     template_files = {}

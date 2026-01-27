@@ -499,13 +499,13 @@ async function saveProcessedFiles(
   userId: string,
   companyId: string,
   processDate: string,
-  pdfSlots: PdfSlot[],
-  excelFile: Buffer,
-  excelFilename: string,
-  orderPdf: Buffer,
-  orderPdfFilename: string,
-  inspectionPdf: Buffer,
-  inspectionPdfFilename: string,
+  pdfSlots: PdfSlot[] | null,
+  excelFile: Buffer | null,
+  excelFilename: string | null,
+  orderPdf: Buffer | null,
+  orderPdfFilename: string | null,
+  inspectionPdf: Buffer | null,
+  inspectionPdfFilename: string | null,
   processingTime: number,
   status: 'success' | 'error',
   errorMessage?: string,
@@ -513,13 +513,14 @@ async function saveProcessedFiles(
   errorDetail?: string,
   errorStacktrace?: string
 ): Promise<string> {
-  // PdfSlotから入力PDFを抽出
-  const estimateSlot = pdfSlots.find((s) => s.type === 'estimate')
-  const invoiceSlot = pdfSlots.find((s) => s.type === 'invoice')
-  const orderConfirmationSlot = pdfSlots.find(
+  // PdfSlotから入力PDFを抽出（pdfSlotsがnullの場合は空配列として扱う）
+  const slots = pdfSlots || []
+  const estimateSlot = slots.find((s) => s.type === 'estimate')
+  const invoiceSlot = slots.find((s) => s.type === 'invoice')
+  const orderConfirmationSlot = slots.find(
     (s) => s.type === 'order_confirmation'
   )
-  const deliverySlot = pdfSlots.find((s) => s.type === 'delivery')
+  const deliverySlot = slots.find((s) => s.type === 'delivery')
 
   // BufferをBase64文字列に変換（SupabaseのBYTEA型に正しく保存するため）
   // companiesService.tsのuploadTemplateと同様の方式
@@ -543,13 +544,13 @@ async function saveProcessedFiles(
       input_pdf_3_filename: orderConfirmationSlot?.file?.filename,
       input_pdf_4: toBase64(deliverySlot?.file?.buffer),
       input_pdf_4_filename: deliverySlot?.file?.filename,
-      // 出力ファイル（BYTEA型 - Base64エンコード）
-      excel_file: toBase64(excelFile),
-      excel_filename: excelFilename,
-      order_pdf: toBase64(orderPdf),
-      order_pdf_filename: orderPdfFilename,
-      inspection_pdf: toBase64(inspectionPdf),
-      inspection_pdf_filename: inspectionPdfFilename,
+      // 出力ファイル（BYTEA型 - Base64エンコード、失敗時はnull）
+      excel_file: excelFile ? toBase64(excelFile) : null,
+      excel_filename: excelFilename || null,
+      order_pdf: orderPdf ? toBase64(orderPdf) : null,
+      order_pdf_filename: orderPdfFilename || null,
+      inspection_pdf: inspectionPdf ? toBase64(inspectionPdf) : null,
+      inspection_pdf_filename: inspectionPdfFilename || null,
       // 処理情報
       processing_time: processingTime,
       status,
@@ -924,25 +925,50 @@ export async function executeProcess(
       processId,
     }
   } catch (error) {
-    // エラー時はprocess_logsテーブルにのみ記録
-    // processed_filesテーブルはexcel_fileがNOT NULLなので空Bufferを保存できない
+    // エラー時もprocessed_filesテーブルに記録（処理履歴に失敗として表示するため）
     const errorMessage = error instanceof Error ? error.message : '不明なエラー'
     const errorDetail = error instanceof Error ? error.stack : undefined
+    const endTime = Date.now()
+    const processingTime = Math.round((endTime - startTime) / 1000)
 
     console.error('[executeProcess] エラー発生:', errorMessage)
 
     try {
-      await supabase
-        .from('process_logs')
-        .insert({
-          user_id: userId,
-          company_id: companyId,
-          status: 'error',
-          error_message: errorMessage,
-          error_detail: errorDetail,
-        })
-    } catch (logError) {
-      console.error('[executeProcess] ログ保存エラー:', logError)
+      // processed_filesに失敗レコードを保存
+      const processDate = new Date().toISOString().split('T')[0]
+      await saveProcessedFiles(
+        userId,
+        companyId,
+        processDate,
+        pdfSlots,  // 入力PDFは保存（あれば）
+        null,      // excelFile
+        null,      // excelFilename
+        null,      // orderPdf
+        null,      // orderPdfFilename
+        null,      // inspectionPdf
+        null,      // inspectionPdfFilename
+        processingTime,
+        'error',
+        errorMessage,
+        undefined, // errorCode
+        errorDetail
+      )
+    } catch (saveError) {
+      console.error('[executeProcess] 失敗レコード保存エラー:', saveError)
+      // 保存に失敗した場合はprocess_logsにフォールバック
+      try {
+        await supabase
+          .from('process_logs')
+          .insert({
+            user_id: userId,
+            company_id: companyId,
+            status: 'error',
+            error_message: errorMessage,
+            error_detail: errorDetail,
+          })
+      } catch (logError) {
+        console.error('[executeProcess] ログ保存エラー:', logError)
+      }
     }
 
     throw error
