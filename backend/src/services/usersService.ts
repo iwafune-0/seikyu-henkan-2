@@ -376,8 +376,10 @@ export async function createUserDirect(
         })
 
       if (insertError) {
-        console.warn('プロファイル作成に失敗しました:', insertError.message)
-        // auth.usersには作成済みなので、エラーでも続行
+        console.error('プロファイル作成に失敗しました:', insertError.message)
+        // auth.usersに作成済みのユーザーを削除してロールバック
+        await supabase.auth.admin.deleteUser(authData.user.id)
+        throw new Error(`プロファイル作成に失敗しました: ${insertError.message}`)
       }
     }
 
