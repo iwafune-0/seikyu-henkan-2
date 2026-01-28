@@ -30,23 +30,28 @@
 - **React Router** 7.x
 - **Supabase Auth** (認証)
 
-### バックエンド（Phase 7以降で実装予定）
+### バックエンド
 - **Node.js** 20 + Express + TypeScript（API層）
 - **Python** 3.11（処理層）
   - pdfplumber（PDF解析）
   - openpyxl（Excel編集）
-  - LibreOffice（PDF生成）
+  - PDF生成（PDF_ENGINEで切り替え）
+    - LibreOffice（Linux/AWS Lambda向け）
+    - Excel ExportAsFixedFormat（Windows社内配布向け）
 
 ### データベース・認証
 - **PostgreSQL** 15（Supabase）
 - **Supabase Auth**（招待制）
 - **Row Level Security**（RLS）
 
-### デプロイ（Phase 10で実装予定）
-- **フロントエンド**: AWS Amplify
-- **バックエンド**: AWS Lambda Docker Image
-- **データベース**: Supabase
-- **月額費用**: $0（全て無料枠内）
+### 配布方式（Phase 12で実装予定）
+- **方式**: Electron（デスクトップアプリ）
+- **形式**: .exe形式で社内配布
+- **必須要件**: Microsoft Excel 2016以降（PDF生成に必要）
+- **データベース**: Supabase（クラウド）
+- **月額費用**: $0（無料枠内）
+
+※当初予定のAWS Lambda + Amplifyデプロイは中止。Electronによる.exe配布に方針変更。
 
 ---
 
@@ -76,11 +81,6 @@ VITE_SUPABASE_URL=https://your-project.supabase.co
 VITE_SUPABASE_ANON_KEY=your-anon-key
 ```
 
-**モック開発時（Phase 5以前）**:
-```bash
-VITE_SUPABASE_URL=https://mock-project.supabase.co
-VITE_SUPABASE_ANON_KEY=mock-anon-key
-```
 
 ### 4. バックエンドの準備
 
@@ -114,31 +114,41 @@ pip3 install -r backend/python/requirements.txt --break-system-packages
 python3 -c "import pdfplumber; import openpyxl; print('OK')"
 ```
 
-### 5.1 LibreOfficeのインストール（必須）
+### 5.1 PDF生成エンジンの準備
 
-PDF生成（Excel→PDF変換）にLibreOfficeが必要：
+PDF生成（Excel→PDF変換）には以下のいずれかが必要です。
 
+**A. Windows社内配布の場合（推奨）**: Microsoft Excel 2016以降
+- Excel ExportAsFixedFormatを使用（高品質なPDF出力）
+- `backend/.env`で`PDF_ENGINE=excel`を設定
+
+**B. Linux/AWS Lambdaの場合**: LibreOffice
 ```bash
 sudo apt-get update && sudo apt-get install -y libreoffice-calc
 ```
-
-**動作確認**:
-```bash
-soffice --version
-```
+動作確認: `soffice --version`
+- `backend/.env`で`PDF_ENGINE=libreoffice`を設定（デフォルト）
 
 ### 5.2 バックエンド環境変数の設定（必須）
 
-`backend/.env` にSupabase Service Role Keyを設定：
+`backend/.env.example`をコピーして`backend/.env`を作成し、以下を設定：
 
+```bash
+# Supabase設定（必須）
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+
+# PDF出力エンジン（Windows社内配布の場合）
+PDF_ENGINE=excel
+
+# アプリケーションモード（Electron配布の場合）
+APP_MODE=electron
+```
+
+**Supabase Service Role Keyの取得方法**:
 1. https://supabase.com/dashboard にアクセス
 2. プロジェクト選択 → **Settings** → **API**
 3. **Project API keys** の `service_role` をコピー
-4. `backend/.env` を編集：
-
-```bash
-SUPABASE_SERVICE_ROLE_KEY=コピーしたキーを貼り付け
-```
 
 **注意**: service_role keyは絶対に公開しないでください
 
@@ -310,8 +320,11 @@ seikyu-henkan-2/
 | Phase 6 | バックエンド計画 | ✅ 完了 |
 | Phase 7 | バックエンド実装 | ✅ 完了 |
 | Phase 8 | API統合 | ✅ 完了 |
-| Phase 9 | E2Eテスト | ✅ 完了 |
-| Phase 10 | デプロイメント | ⏳ 未着手 |
+| Phase 9 | E2Eテスト | ✅ 完了（173/176 Pass） |
+| Phase 11 | PDF出力最適化 + Electron版機能準備 | ✅ 完了 |
+| Phase 12 | Electron化 | ⏳ 未着手 |
+
+※Phase 10（AWSデプロイ）は中止、Electron配布に方針変更
 
 詳細は [docs/SCOPE_PROGRESS.md](docs/SCOPE_PROGRESS.md) を参照
 

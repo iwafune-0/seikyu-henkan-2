@@ -188,7 +188,9 @@ process_logs (
 - Python 3.11（処理層）
   - pdfplumber（PDF解析）
   - openpyxl（Excel編集）
-  - LibreOffice（PDF生成）
+  - PDF生成エンジン（PDF_ENGINEで切り替え）
+    - LibreOffice（Linux/AWS Lambda向け）
+    - Excel ExportAsFixedFormat（Windows社内配布向け）
 ```
 
 ### 3.3 データベース・認証
@@ -199,14 +201,18 @@ process_logs (
 - Row Level Security（RLS）
 ```
 
-### 3.4 デプロイ（Phase 10）
+### 3.4 配布方式（Phase 12で実装予定）
 
 ```
-- フロントエンド: AWS Amplify
-- バックエンド: AWS Lambda Docker Image
-- データベース: Supabase
+- 方式: Electron（デスクトップアプリ）
+- 形式: .exe形式で社内配布
+- 必須要件: Microsoft Excel 2016以降（PDF生成に必要）
+- データベース: Supabase（クラウド）
 - 月額費用: $0（無料枠内）
 ```
+
+**補足**: 当初予定のAWS Lambda + Amplifyデプロイは中止。
+Electronによる.exe配布に方針変更（詳細は`docs/PDF出力改善_デスクトップアプリ化_計画.md`参照）。
 
 ---
 
@@ -510,18 +516,35 @@ feature/xxx（機能開発）
 ### 9.1 必須環境変数
 
 ```bash
-# Supabase
+# Supabase（フロントエンド）
 VITE_SUPABASE_URL=https://xxx.supabase.co
 VITE_SUPABASE_ANON_KEY=xxx
 
-# Backend
+# Supabase（バックエンド）
+SUPABASE_URL=https://xxx.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=xxx
-NODE_ENV=development
 
-# AWS（Phase 10のみ）
-AWS_REGION=ap-northeast-1
-AWS_LAMBDA_FUNCTION_NAME=xxx
+# 基本設定
+NODE_ENV=development
+PORT=3001
+FRONTEND_URL=http://localhost:5174
 ```
+
+### 9.2 PDF出力・アプリモード設定
+
+```bash
+# PDF出力エンジン
+# libreoffice: LibreOffice使用（Linux/AWS Lambda）- デフォルト
+# excel: Excel ExportAsFixedFormat使用（Windows社内配布向け）
+PDF_ENGINE=excel
+
+# アプリケーションモード
+# web: Webアプリモード（招待メール送信）- デフォルト
+# electron: Electronアプリモード（管理者が直接ユーザー追加）
+APP_MODE=electron
+```
+
+**社内配布時の推奨設定**: `PDF_ENGINE=excel` + `APP_MODE=electron`
 
 ---
 
@@ -545,11 +568,17 @@ AWS_LAMBDA_FUNCTION_NAME=xxx
 
 **作成日**: 2025-10-07
 **最終更新**: 2026-01-28
-**バージョン**: 1.5
-**Phase 9（E2Eテスト）完了（173/176 Pass） → Phase 11（PDF出力最適化）進行中**
+**バージョン**: 1.6
+**Phase 11（PDF出力最適化 + Electron版機能準備）完了 → Phase 12（Electron化）待機中**
 
 ### 変更履歴
 
+- **v1.6** (2026-01-28): Phase 11完了
+  - Phase 11-1〜11-5完了（PDF出力エンジン切り替え、Electron版対応）
+  - PDF_ENGINE環境変数追加（libreoffice/excel切り替え）
+  - APP_MODE環境変数追加（web/electron切り替え）
+  - E2Eテスト173/176項目 Pass
+  - 配布方式をAWS→Electronに方針変更
 - **v1.5** (2026-01-28): Phase 9 E2Eテスト完了・Phase 11進行中
   - E2Eテスト完了（173/176項目 Pass、3項目スキップ）
   - PDF_ENGINE=excel + APP_MODE=electron環境での動作確認完了
