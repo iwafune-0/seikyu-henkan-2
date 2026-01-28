@@ -7,8 +7,20 @@
 
 import { supabase } from './supabase'
 
-// APIベースURL（開発環境）
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001'
+/**
+ * APIベースURLを取得
+ * Electron環境では常にlocalhost、Web環境では環境変数から取得
+ */
+function getApiBaseUrl(): string {
+  // Electron環境検出
+  if (typeof window !== 'undefined' && window.electronAPI?.isElectron) {
+    return 'http://localhost:3001'
+  }
+  // Web環境: 環境変数から取得
+  return import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001'
+}
+
+const API_BASE_URL = getApiBaseUrl()
 
 /**
  * 認証トークンを取得
@@ -212,5 +224,6 @@ export function triggerDownload(blob: Blob, filename: string): void {
   document.body.appendChild(a)
   a.click()
   document.body.removeChild(a)
-  URL.revokeObjectURL(url)
+  // Electronでダウンロードが完了するまで待機してからURLを破棄
+  setTimeout(() => URL.revokeObjectURL(url), 10000)
 }

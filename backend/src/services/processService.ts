@@ -432,6 +432,9 @@ export async function validateExcelFilename(
 /**
  * Pythonスクリプトを実行する汎用ヘルパー
  *
+ * 開発時: python3コマンドでスクリプトを直接実行
+ * Electron本番時: PYTHON_EXECUTABLE環境変数で指定されたexeを使用
+ *
  * @param scriptName - Pythonスクリプト名（pdf_parser.py等）
  * @param args - コマンドライン引数
  * @returns Pythonスクリプトの標準出力（JSON形式）
@@ -441,8 +444,25 @@ async function runPythonScript(
   args: string[]
 ): Promise<string> {
   return new Promise((resolve, reject) => {
-    const scriptPath = path.join(__dirname, '../../python', scriptName)
-    const pythonProcess = spawn('python3', [scriptPath, ...args], {
+    let pythonCommand: string
+    let pythonArgs: string[]
+
+    // Electron本番時は同梱されたexeを使用
+    const pythonExecutable = process.env.PYTHON_EXECUTABLE
+    if (pythonExecutable) {
+      // PyInstallerでビルドされたexe（サブコマンド方式）
+      pythonCommand = pythonExecutable
+      // スクリプト名から.pyを除去してサブコマンドとして渡す
+      const subcommand = scriptName.replace('.py', '')
+      pythonArgs = [subcommand, ...args]
+    } else {
+      // 開発時: python3コマンド
+      const scriptPath = path.join(__dirname, '../../python', scriptName)
+      pythonCommand = 'python3'
+      pythonArgs = [scriptPath, ...args]
+    }
+
+    const pythonProcess = spawn(pythonCommand, pythonArgs, {
       env: { ...process.env },
     })
 

@@ -1,7 +1,64 @@
 {
+  "name": "seikyu-henkan-2",
+  "version": "1.0.0",
+  "description": "月次処理自動化システム",
+  "main": "electron/dist/main.js",
+  "scripts": {
+    "electron:dev": "concurrently \"npm run dev --prefix frontend\" \"npm run dev --prefix backend\" \"wait-on http://localhost:5174 http://localhost:3001 && electron .\"",
+    "electron:build": "npm run build:python && npm run build:frontend && npm run build:backend && npm run build:electron",
+    "build:frontend": "cd frontend && npm run build",
+    "build:backend": "cd backend && npm run build",
+    "build:python": "pwsh scripts/build-python.ps1",
+    "build:electron": "tsc -p electron/tsconfig.json && electron-builder",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder"
+  },
+  "build": {
+    "appId": "com.terra.seikyu-henkan",
+    "productName": "月次処理自動化システム",
+    "copyright": "Copyright (C) 2026",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "electron/dist/**/*",
+      "frontend/dist/**/*",
+      "backend/dist/**/*",
+      "backend/python/**/*.py",
+      "!**/*.map"
+    ],
+    "extraResources": [
+      {
+        "from": "build/python/pdf_processor/",
+        "to": "python/",
+        "filter": ["**/*"]
+      },
+      {
+        "from": ".env.production",
+        "to": ".env.production"
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "portable",
+          "arch": ["x64"]
+        }
+      ],
+      "icon": "electron/resources/icon.ico"
+    },
+    "portable": {
+      "artifactName": "${productName}-${version}-portable.exe"
+    }
+  },
   "devDependencies": {
     "@playwright/test": "^1.57.0",
     "@supabase/supabase-js": "^2.87.1",
-    "dotenv": "^17.2.3"
+    "concurrently": "^9.1.0",
+    "dotenv": "^17.2.3",
+    "electron": "^33.0.0",
+    "electron-builder": "^25.1.8",
+    "typescript": "^5.3.3",
+    "wait-on": "^8.0.1"
   }
 }
