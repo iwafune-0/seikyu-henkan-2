@@ -164,7 +164,7 @@ def edit_offbeat_excel(wb: openpyxl.Workbook, data: Dict[str, Any]) -> datetime:
     - シート: 注文書, 検収書
 
     注文書シート:
-    - AC2: 発行日（編集: 注文請書の発行日）
+    - AC2: 発行日（編集: 注文請書の発行日から当月1日を設定）
     - AC3: 注文番号（数式: 自動計算）
     - AA17: 摘要（編集: 見積書番号を「見積番号：NNNNNNN」形式で入力）
     - C18~: 件名（編集: 請求書の品目、先頭に「・」を付ける）
@@ -192,7 +192,7 @@ def edit_offbeat_excel(wb: openpyxl.Workbook, data: Dict[str, Any]) -> datetime:
 
     # === 注文書シート編集 ===
 
-    # 発行日（注文請書の発行日から）
+    # 発行日（注文請書の発行日）
     issue_date = None
     issue_date_str = order_confirmation_data.get('issue_date', '')
     if issue_date_str:
@@ -434,10 +434,12 @@ def restore_drawing_from_template(template_path: str, output_path: str, issue_da
                     content_str = content.decode('utf-8')
 
                     # AC3: 注文番号（取引先ごとに異なる形式）
-                    # ネクストビッツ: =TEXT(AC2,"yyyymmdd")&"-01" → "20250801-01"
-                    # オフビートワークス: =TEXT(AC2,"yyyymmdd")&"-02" → "20250801-02"
+                    # ネクストビッツ: =TEXT(AC2,"yyyymmdd")&"-01" → "20250801-01"（AC2は元から月初1日）
+                    # オフビートワークス: =TEXT(DATE(YEAR(AC2),MONTH(AC2),1),"yyyymmdd")&"-02" → "20260101-02"（月初1日に変換）
+                    # どちらも注文番号の日付部分は処理対象月の1日
+                    order_date = issue_date.replace(day=1)
                     order_suffix = '-02' if company_name == 'オフ・ビート・ワークス' else '-01'
-                    ac3_value = issue_date.strftime('%Y%m%d') + order_suffix
+                    ac3_value = order_date.strftime('%Y%m%d') + order_suffix
                     # <v></v> または <v/> を <v>計算結果</v> に置換
                     # AC3セルのパターン: <c r="AC3" ...><f>...</f><v></v></c>
                     content_str = re.sub(
