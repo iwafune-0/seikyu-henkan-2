@@ -614,7 +614,7 @@ def main():
         print(json.dumps({
             "error": "引数が不足しています",
             "usage": "python3 excel_editor.py <company_name> <template_path> <output_path> <data_json>"
-        }, ensure_ascii=False), file=sys.stderr)
+        }, ensure_ascii=True), file=sys.stderr)
         sys.exit(1)
 
     company_name = sys.argv[1]
@@ -623,14 +623,16 @@ def main():
     data_json = sys.argv[4]
 
     try:
-        # JSON文字列をパース
+        # JSON文字列をパース（ASCII-only JSONなのでエンコーディング問題なし）
         data = json.loads(data_json)
 
         # Excel編集
         result = edit_excel(company_name, template_path, output_path, data)
 
-        # 成功時は結果をJSON形式で返す
-        print(json.dumps(result, ensure_ascii=False))
+        # 成功時は結果をJSON形式で返す（バイナリモードで直接書き込み）
+        output = json.dumps(result, ensure_ascii=True) + '\n'
+        sys.stdout.buffer.write(output.encode('ascii'))
+        sys.stdout.buffer.flush()
 
     except Exception as e:
         # エラー時はエラー情報をJSON形式で返す
@@ -639,7 +641,7 @@ def main():
             "error": str(e),
             "error_type": type(e).__name__,
             "traceback": traceback.format_exc()
-        }, ensure_ascii=False), file=sys.stderr)
+        }, ensure_ascii=True), file=sys.stderr)
         sys.exit(1)
 
 

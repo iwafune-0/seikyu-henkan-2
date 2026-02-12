@@ -14,14 +14,21 @@ const PORT = process.env.PORT || 3001
 // ミドルウェア設定
 // ========================================
 
-// CORS設定（フロントエンド: localhost:5174, 127.0.0.1:5174 からのリクエストを許可）
-app.use(
-  cors({
-    origin: [
+// CORS設定
+// Electronモード: file://プロトコルからのリクエスト（origin: null）を許可するため全オリジン許可
+// バックエンドはlocalhost限定なのでセキュリティ上問題なし
+// Webモード: 指定されたオリジンのみ許可
+const corsOrigin = process.env.APP_MODE === 'electron'
+  ? true
+  : [
       'http://localhost:5174',
       'http://127.0.0.1:5174',
       process.env.FRONTEND_URL || '',
-    ].filter(Boolean),
+    ].filter(Boolean)
+
+app.use(
+  cors({
+    origin: corsOrigin,
     credentials: true,
     exposedHeaders: ['Content-Disposition'], // ファイル名取得のため公開
   })

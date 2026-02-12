@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { HashRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { LocalizationProvider } from '@mui/x-date-pickers'
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs'
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute'
@@ -40,7 +40,7 @@ function RootRedirect() {
 function App() {
   return (
     <LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale="ja">
-      <BrowserRouter>
+      <HashRouter>
         <Routes>
           {/* Public routes */}
           <Route path="/login" element={<LoginPage />} />
@@ -85,7 +85,7 @@ function App() {
           <Route path="/" element={<RootRedirect />} />
           <Route path="*" element={<RootRedirect />} />
         </Routes>
-      </BrowserRouter>
+      </HashRouter>
     </LocalizationProvider>
   )
 }

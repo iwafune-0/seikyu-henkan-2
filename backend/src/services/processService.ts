@@ -3,6 +3,7 @@ import { getAllCompanies } from './companiesService'
 import { spawn } from 'child_process'
 import path from 'path'
 import fs from 'fs/promises'
+import os from 'os'
 import type {
   Company,
   PdfType,
@@ -439,6 +440,19 @@ export async function validateExcelFilename(
  * @param args - コマンドライン引数
  * @returns Pythonスクリプトの標準出力（JSON形式）
  */
+/**
+ * JSON文字列をASCII-onlyに変換（非ASCII文字を\uXXXXエスケープ）
+ *
+ * Windows環境ではCLI引数のエンコーディングが不安定なため、
+ * 全ての非ASCII文字をUnicodeエスケープに変換して純粋ASCIIにする。
+ * Python側のjson.loads()は\uXXXXを自動的にUnicodeに復元する。
+ */
+function toAsciiJson(data: unknown): string {
+  return JSON.stringify(data).replace(/[^\x00-\x7F]/g, (char) => {
+    return '\\u' + char.charCodeAt(0).toString(16).padStart(4, '0')
+  })
+}
+
 async function runPythonScript(
   scriptName: string,
   args: string[]
@@ -463,18 +477,18 @@ async function runPythonScript(
     }
 
     const pythonProcess = spawn(pythonCommand, pythonArgs, {
-      env: { ...process.env },
+      env: { ...process.env, PYTHONIOENCODING: 'utf-8' },
     })
 
     let stdout = ''
     let stderr = ''
 
     pythonProcess.stdout.on('data', (data: Buffer) => {
-      stdout += data.toString()
+      stdout += data.toString('utf-8')
     })
 
     pythonProcess.stderr.on('data', (data: Buffer) => {
-      stderr += data.toString()
+      stderr += data.toString('utf-8')
     })
 
     pythonProcess.on('close', (code: number) => {
@@ -607,7 +621,7 @@ export async function executeProcess(
   templateExcel: Buffer
 ): Promise<ProcessResult> {
   const startTime = Date.now()
-  const tmpDir = '/tmp'
+  const tmpDir = os.tmpdir()
   const timestamp = Date.now()
 
   try {
@@ -692,7 +706,7 @@ export async function executeProcess(
       companyName,
       templatePath,
       outputExcelPath,
-      JSON.stringify(combinedData),
+      toAsciiJson(combinedData),
     ])
 
     const excelResult = JSON.parse(excelResultJson)
@@ -762,7 +776,7 @@ export async function executeProcess(
     const validationResultJson = await runPythonScript('excel_validator.py', [
       outputExcelPath,
       companyName,
-      JSON.stringify(validationData),
+      toAsciiJson(validationData),
     ])
 
     const validationResult = JSON.parse(validationResultJson)

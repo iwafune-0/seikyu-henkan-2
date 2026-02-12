@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 """
-Excel検証スクリプト（LibreOffice使用）
+Excel検証スクリプト（LibreOffice / Excel COM 対応）
 
-LibreOfficeでExcelを開いて数式を計算させ、セル値を取得して検証します。
+ExcelまたはLibreOfficeで数式を計算させ、セル値を取得して検証します。
+PDF_ENGINE環境変数で使用するエンジンを切り替えます。
+  - excel: Windows Excel COMを使用（Electron配布向け）
+  - libreoffice: LibreOfficeを使用（Linux/AWS向け、デフォルト）
 
 使用法:
     python3 excel_validator.py <excel_path> <company_name> <invoice_data_json>
@@ -96,6 +99,158 @@ def check_libreoffice() -> bool:
         return result.returncode == 0
     except (FileNotFoundError, subprocess.TimeoutExpired):
         return False
+
+
+def get_pdf_engine() -> str:
+    """
+    環境変数からPDF出力エンジンを取得
+
+    Returns:
+        'libreoffice' または 'excel'（デフォルト: 'libreoffice'）
+    """
+    engine = os.getenv('PDF_ENGINE', 'libreoffice').lower()
+    if engine not in ('libreoffice', 'excel'):
+        print(f"警告: 不明なPDF_ENGINE値 '{engine}'。デフォルトの'libreoffice'を使用します。", file=sys.stderr)
+        return 'libreoffice'
+    return engine
+
+
+def is_native_windows() -> bool:
+    """
+    ネイティブWindows環境（WSLではない）かどうかを判定
+
+    Returns:
+        ネイティブWindowsならTrue
+    """
+    return sys.platform == 'win32'
+
+
+def convert_excel_to_csv_with_excel(excel_path: str, output_dir: str) -> Dict[str, str]:
+    """
+    Excel COMでExcelを開き数式を計算後、各シートをCSVとして保存
+
+    Windows環境でExcel COMオブジェクトを使用して数式を再計算し、
+    その結果を各シートごとにCSVファイルとして出力する。
+
+    Args:
+        excel_path: Excelファイルのパス
+        output_dir: 出力ディレクトリ
+
+    Returns:
+        シート名 -> CSVファイルパスの辞書
+    """
+    import openpyxl
+
+    # まずExcel COMで再計算して保存
+    calc_excel_path = os.path.join(output_dir, f"calculated_{os.getpid()}.xlsx")
+
+    # ネイティブWindowsならパスをそのまま使用、WSLならWindows形式に変換
+    if is_native_windows():
+        win_excel_path = os.path.abspath(excel_path)
+        win_calc_path = os.path.abspath(calc_excel_path)
+    else:
+        # WSL環境: パス変換が必要
+        from pdf_generator import convert_wsl_to_windows_path
+        win_excel_path = convert_wsl_to_windows_path(excel_path)
+        win_calc_path = convert_wsl_to_windows_path(calc_excel_path)
+
+    # PowerShellスクリプト: Excelで開いて再計算→別名保存
+    # デバッグ: パスをログ出力
+    print(f"[DEBUG excel_validator] excel_path: {excel_path}", file=sys.stderr)
+    print(f"[DEBUG excel_validator] win_excel_path: {win_excel_path}", file=sys.stderr)
+    print(f"[DEBUG excel_validator] calc_excel_path: {calc_excel_path}", file=sys.stderr)
+    print(f"[DEBUG excel_validator] win_calc_path: {win_calc_path}", file=sys.stderr)
+    print(f"[DEBUG excel_validator] is_native_windows: {is_native_windows()}", file=sys.stderr)
+
+    # ファイル存在確認
+    if not os.path.exists(excel_path):
+        raise RuntimeError(f"入力Excelファイルが存在しません: {excel_path}")
+
+    # PowerShellではシングルクォートを使用してパスをリテラルとして渡す
+    # ダブルクォート内でのエスケープ問題を回避
+    ps_script = f'''
+$ErrorActionPreference = "Stop"
+$excel = $null
+$workbook = $null
+$excelPath = '{win_excel_path}'
+$calcPath = '{win_calc_path}'
+
+try {{
+    $excel = New-Object -ComObject Excel.Application
+    $excel.Visible = $false
+    $excel.DisplayAlerts = $false
+
+    $workbook = $excel.Workbooks.Open($excelPath)
+    $workbook.Application.CalculateFull()
+    $workbook.SaveAs($calcPath, 51)
+    $workbook.Close($false)
+    $excel.Quit()
+
+    Write-Output "SUCCESS"
+}} catch {{
+    Write-Error $_.Exception.Message
+    exit 1
+}} finally {{
+    if ($workbook -ne $null) {{
+        [System.Runtime.Interopservices.Marshal]::ReleaseComObject($workbook) | Out-Null
+    }}
+    if ($excel -ne $null) {{
+        [System.Runtime.Interopservices.Marshal]::ReleaseComObject($excel) | Out-Null
+    }}
+    [System.GC]::Collect()
+    [System.GC]::WaitForPendingFinalizers()
+}}
+'''
+
+    # PowerShell実行
+    result = subprocess.run(
+        ['powershell.exe', '-ExecutionPolicy', 'Bypass', '-Command', ps_script],
+        capture_output=True,
+        text=False,
+        timeout=120
+    )
+
+    if result.returncode != 0:
+        try:
+            error_msg = result.stderr.decode('cp932', errors='replace').strip() if result.stderr else "不明なエラー"
+        except Exception:
+            error_msg = result.stderr.decode('utf-8', errors='replace').strip() if result.stderr else "不明なエラー"
+        raise RuntimeError(f"Excel数式再計算エラー: {error_msg}")
+
+    # 計算済みExcelをopenpyxlで読み込み（data_only=Trueでキャッシュ値を取得）
+    csv_paths = {}
+
+    if os.path.exists(calc_excel_path):
+        wb = openpyxl.load_workbook(calc_excel_path, data_only=True)
+
+        for sheet_name in wb.sheetnames:
+            csv_filename = f"temp_{sheet_name}_{os.getpid()}.csv"
+            csv_path = os.path.join(output_dir, csv_filename)
+
+            ws = wb[sheet_name]
+
+            with open(csv_path, 'w', encoding='utf-8', newline='') as f:
+                writer = csv.writer(f)
+                for row in ws.iter_rows():
+                    row_data = []
+                    for cell in row:
+                        value = cell.value
+                        if value is None:
+                            row_data.append('')
+                        else:
+                            row_data.append(str(value))
+                    writer.writerow(row_data)
+
+            csv_paths[sheet_name] = csv_path
+
+        wb.close()
+
+        # 計算済みExcel削除
+        os.remove(calc_excel_path)
+    else:
+        raise RuntimeError(f"Excel再計算後のファイルが生成されませんでした: {calc_excel_path}")
+
+    return csv_paths
 
 
 def convert_excel_to_csv_with_libreoffice(excel_path: str, output_dir: str) -> Dict[str, str]:
@@ -1018,8 +1173,12 @@ def validate_excel(excel_path: str, company_name: str, validation_data: Dict[str
     csv_paths = {}
 
     try:
-        # LibreOfficeでCSV変換（数式計算後の値を取得）
-        csv_paths = convert_excel_to_csv_with_libreoffice(excel_path, output_dir)
+        # PDF_ENGINEに応じてCSV変換エンジンを切り替え
+        engine = get_pdf_engine()
+        if engine == 'excel':
+            csv_paths = convert_excel_to_csv_with_excel(excel_path, output_dir)
+        else:
+            csv_paths = convert_excel_to_csv_with_libreoffice(excel_path, output_dir)
 
         # 取引先に応じた検証
         if company_name == "ネクストビッツ":
@@ -1048,7 +1207,7 @@ def main():
         print(json.dumps({
             "error": "引数が不足しています",
             "usage": "python3 excel_validator.py <excel_path> <company_name> <validation_data_json>"
-        }, ensure_ascii=False), file=sys.stderr)
+        }, ensure_ascii=True), file=sys.stderr)
         sys.exit(1)
 
     excel_path = sys.argv[1]
@@ -1056,6 +1215,7 @@ def main():
     validation_data_json = sys.argv[3]
 
     try:
+        # JSON文字列をパース（ASCII-only JSONなのでエンコーディング問題なし）
         validation_data = json.loads(validation_data_json)
         result = validate_excel(excel_path, company_name, validation_data)
 
@@ -1065,7 +1225,10 @@ def main():
                 if "passed" in check:
                     check["passed"] = bool(check["passed"])
 
-        print(json.dumps(result, ensure_ascii=False))
+        # バイナリモードで直接書き込み、エンコーディング層をバイパス
+        output = json.dumps(result, ensure_ascii=True) + '\n'
+        sys.stdout.buffer.write(output.encode('ascii'))
+        sys.stdout.buffer.flush()
 
         if not result["success"]:
             sys.exit(1)
@@ -1076,7 +1239,7 @@ def main():
             "error": str(e),
             "error_type": type(e).__name__,
             "traceback": traceback.format_exc()
-        }, ensure_ascii=False), file=sys.stderr)
+        }, ensure_ascii=True), file=sys.stderr)
         sys.exit(1)
 
 

@@ -355,8 +355,11 @@ def main():
 
     result = parse_pdf(company_name, pdf_type, pdf_path)
 
-    # JSON形式で出力
-    print(json.dumps(result, ensure_ascii=False, indent=2))
+    # JSON形式で出力（バイナリモードで直接書き込み、エンコーディング層をバイパス）
+    # ensure_ascii=TrueでASCII-only文字列を生成し、ASCII/UTF-8バイト列として出力
+    output = json.dumps(result, ensure_ascii=True, indent=2) + '\n'
+    sys.stdout.buffer.write(output.encode('ascii'))
+    sys.stdout.buffer.flush()
 
     # エラーがあれば終了コード1
     if "error" in result:

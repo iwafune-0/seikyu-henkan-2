@@ -14,6 +14,18 @@ PyInstallerでexe化するためのメインスクリプト。
 
 import sys
 import os
+import io
+
+# Windows環境でstdout/stderrのエンコーディングをUTF-8に強制
+# PyInstallerでexe化した場合、PYTHONIOENCODING環境変数が無視され、
+# Windowsデフォルトのcp932が使われてしまう。
+# print()はstdoutのエンコーディングでバイト列に変換するため、
+# cp932バイト列をNode.jsがUTF-8として読むと文字化けする。
+# この再設定により、全サブモジュールのprint()出力もUTF-8になる。
+if hasattr(sys.stdout, 'buffer'):
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+if hasattr(sys.stderr, 'buffer'):
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
 
 # 実行ファイルのディレクトリを基準にパスを設定
 if getattr(sys, 'frozen', False):

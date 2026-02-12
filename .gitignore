@@ -6,6 +6,7 @@
 
 # Dependencies
 node_modules/
+node_modules_prod/
 *.log
 *.pid
 *.seed
@@ -20,6 +21,11 @@ dist/
 # Electron
 electron/dist/
 release/
+assets/
+pdf_processor.spec
+
+# Frontend build output (root)
+/index.html
 
 # IDE
 .vscode/

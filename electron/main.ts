@@ -51,10 +51,12 @@ async function createWindow(): Promise<void> {
   if (isDev) {
     await mainWindow.loadURL('http://localhost:5174')
   } else {
-    await mainWindow.loadFile(
-      path.join(__dirname, '../frontend/dist/index.html')
-    )
+    const indexPath = path.join(__dirname, '../../frontend/dist/index.html')
+    console.log('[Main] Loading frontend from:', indexPath)
+    await mainWindow.loadFile(indexPath)
   }
+
+  console.log('[Main] ウィンドウ作成完了')
 
   mainWindow.on('closed', () => {
     mainWindow = null
@@ -87,9 +89,10 @@ app.whenReady().then(async () => {
     // ウィンドウ作成
     await createWindow()
   } catch (error) {
+    console.error('[Main] 起動エラー:', error)
     dialog.showErrorBox(
       '起動エラー',
-      `アプリケーションの起動に失敗しました:\n${error instanceof Error ? error.message : '不明なエラー'}`
+      `アプリケーションの起動に失敗しました:\n${error instanceof Error ? error.stack || error.message : '不明なエラー'}`
     )
     app.quit()
   }

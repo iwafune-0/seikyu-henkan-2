@@ -41,6 +41,16 @@ import openpyxl
 from typing import Dict, Any
 
 
+def is_native_windows() -> bool:
+    """
+    ネイティブWindows環境（WSLではない）かどうかを判定
+
+    Returns:
+        ネイティブWindowsならTrue
+    """
+    return sys.platform == 'win32'
+
+
 def check_libreoffice() -> bool:
     """
     LibreOfficeがインストールされているかチェック
@@ -244,12 +254,87 @@ def resolve_cross_sheet_formulas(wb: openpyxl.Workbook, source_sheet_name: str) 
                             cell.data_type = ref_cell.data_type if ref_cell.data_type != 'f' else 'n'
 
 
+def _convert_sheet_to_pdf_excel(excel_path: str, sheet_name: str, output_path: str) -> str:
+    """
+    Excel COMで特定シートをPDFに変換（ネイティブWindows / WSL2対応）
+
+    Args:
+        excel_path: Excelファイルのパス
+        sheet_name: 変換対象のシート名
+        output_path: 出力PDFファイルのパス
+
+    Returns:
+        生成されたPDFファイルのパス
+    """
+    if is_native_windows():
+        win_excel_path = os.path.abspath(excel_path)
+        win_output_path = os.path.abspath(output_path)
+    else:
+        win_excel_path = convert_wsl_to_windows_path(excel_path)
+        win_output_path = convert_wsl_to_windows_path(output_path)
+
+    # PowerShellではシングルクォートを使用してパスをリテラルとして渡す
+    ps_script = f'''
+$ErrorActionPreference = "Stop"
+$excel = $null
+$workbook = $null
+$excelPath = '{win_excel_path}'
+$outputPath = '{win_output_path}'
+
+try {{
+    $excel = New-Object -ComObject Excel.Application
+    $excel.Visible = $false
+    $excel.DisplayAlerts = $false
+
+    $workbook = $excel.Workbooks.Open($excelPath)
+    $sheet = $workbook.Worksheets.Item("{sheet_name}")
+    $sheet.ExportAsFixedFormat(0, $outputPath)
+    $workbook.Close($false)
+    $excel.Quit()
+
+    Write-Output "SUCCESS"
+}} catch {{
+    Write-Error $_.Exception.Message
+    exit 1
+}} finally {{
+    if ($workbook -ne $null) {{
+        [System.Runtime.Interopservices.Marshal]::ReleaseComObject($workbook) | Out-Null
+    }}
+    if ($excel -ne $null) {{
+        [System.Runtime.Interopservices.Marshal]::ReleaseComObject($excel) | Out-Null
+    }}
+    [System.GC]::Collect()
+    [System.GC]::WaitForPendingFinalizers()
+}}
+'''
+
+    result = subprocess.run(
+        ['powershell.exe', '-ExecutionPolicy', 'Bypass', '-Command', ps_script],
+        capture_output=True,
+        text=False,
+        timeout=120
+    )
+
+    if result.returncode != 0:
+        try:
+            error_msg = result.stderr.decode('cp932', errors='replace').strip() if result.stderr else "不明なエラー"
+        except Exception:
+            error_msg = result.stderr.decode('utf-8', errors='replace').strip() if result.stderr else "不明なエラー"
+        raise RuntimeError(f"Excel PDF出力エラー ({sheet_name}): {error_msg}")
+
+    if not os.path.exists(output_path):
+        raise RuntimeError(f"PDFファイルが生成されませんでした: {output_path}")
+
+    return output_path
+
+
 def convert_sheet_to_pdf(excel_path: str, sheet_name: str, output_path: str, calculated_values: dict = None) -> str:
     """
     Excelの特定シートをPDFに変換
 
-    LibreOfficeは特定シートのみのPDF出力をサポートしていないため、
-    openpyxlで一時ファイルを作成し、対象シートのみを含むExcelを生成してから変換する。
+    PDF_ENGINEに応じてエンジンを切り替え:
+    - libreoffice: LibreOfficeで変換
+    - excel: Excel COMで変換
 
     Args:
         excel_path: Excelファイルのパス
@@ -261,8 +346,14 @@ def convert_sheet_to_pdf(excel_path: str, sheet_name: str, output_path: str, cal
         生成されたPDFファイルのパス
 
     Raises:
-        RuntimeError: LibreOffice未インストールまたは変換失敗時
+        RuntimeError: エンジン未インストールまたは変換失敗時
     """
+    engine = get_pdf_engine()
+
+    if engine == 'excel':
+        # Excel COMで特定シートをPDF変換
+        return _convert_sheet_to_pdf_excel(excel_path, sheet_name, output_path)
+
     # LibreOfficeチェック
     if not check_libreoffice():
         raise RuntimeError(
@@ -424,31 +515,30 @@ def generate_excel_export_script(excel_path: str, order_pdf_path: str, inspectio
         - xlTypePDF = 0 でPDF形式を指定
         - シート別にExportAsFixedFormatを呼び出し
     """
-    # パス内のバックスラッシュをエスケープ
-    excel_path_escaped = excel_path.replace('\\', '\\\\')
-    order_pdf_escaped = order_pdf_path.replace('\\', '\\\\')
-    inspection_pdf_escaped = inspection_pdf_path.replace('\\', '\\\\')
-
+    # PowerShellではシングルクォートを使用してパスをリテラルとして渡す
     script = f'''
 $ErrorActionPreference = "Stop"
 
 $excel = $null
 $workbook = $null
+$excelPath = '{excel_path}'
+$orderPdfPath = '{order_pdf_path}'
+$inspectionPdfPath = '{inspection_pdf_path}'
 
 try {{
     $excel = New-Object -ComObject Excel.Application
     $excel.Visible = $false
     $excel.DisplayAlerts = $false
 
-    $workbook = $excel.Workbooks.Open("{excel_path_escaped}")
+    $workbook = $excel.Workbooks.Open($excelPath)
 
     # 注文書シートをPDF出力
     $orderSheet = $workbook.Worksheets.Item(1)
-    $orderSheet.ExportAsFixedFormat(0, "{order_pdf_escaped}")
+    $orderSheet.ExportAsFixedFormat(0, $orderPdfPath)
 
     # 検収書シートをPDF出力
     $inspectionSheet = $workbook.Worksheets.Item(2)
-    $inspectionSheet.ExportAsFixedFormat(0, "{inspection_pdf_escaped}")
+    $inspectionSheet.ExportAsFixedFormat(0, $inspectionPdfPath)
 
     $workbook.Close($false)
     $excel.Quit()
@@ -494,7 +584,7 @@ def check_excel_available() -> bool:
 
 def convert_excel_sheets_to_pdf_excel(excel_path: str, output_dir: str) -> Dict[str, str]:
     """
-    Excel ExportAsFixedFormatでPDF変換（WSL2からWindows呼び出し）
+    Excel ExportAsFixedFormatでPDF変換（ネイティブWindows / WSL2対応）
 
     Args:
         excel_path: Excelファイルのパス
@@ -511,10 +601,15 @@ def convert_excel_sheets_to_pdf_excel(excel_path: str, output_dir: str) -> Dict[
     inspection_pdf_path = os.path.join(output_dir, f"inspection_{os.getpid()}.pdf")
 
     try:
-        # WSLパス → Windowsパス変換
-        win_excel_path = convert_wsl_to_windows_path(excel_path)
-        win_order_pdf_path = convert_wsl_to_windows_path(order_pdf_path)
-        win_inspection_pdf_path = convert_wsl_to_windows_path(inspection_pdf_path)
+        # ネイティブWindowsならパスをそのまま使用、WSLならWindows形式に変換
+        if is_native_windows():
+            win_excel_path = os.path.abspath(excel_path)
+            win_order_pdf_path = os.path.abspath(order_pdf_path)
+            win_inspection_pdf_path = os.path.abspath(inspection_pdf_path)
+        else:
+            win_excel_path = convert_wsl_to_windows_path(excel_path)
+            win_order_pdf_path = convert_wsl_to_windows_path(order_pdf_path)
+            win_inspection_pdf_path = convert_wsl_to_windows_path(inspection_pdf_path)
 
         # PowerShellスクリプト生成
         ps_script = generate_excel_export_script(
@@ -694,7 +789,7 @@ def main():
         print(json.dumps({
             "error": "引数が不足しています",
             "usage": "python3 pdf_generator.py <excel_path> <output_dir>"
-        }, ensure_ascii=False), file=sys.stderr)
+        }, ensure_ascii=True), file=sys.stderr)
         sys.exit(1)
 
     excel_path = sys.argv[1]
@@ -707,13 +802,15 @@ def main():
         # PDF生成（注文書・検収書シートをそれぞれPDFに変換）
         result = convert_excel_sheets_to_pdf(excel_path, output_dir)
 
-        # 成功時は出力パスをJSON形式で返す
-        print(json.dumps({
+        # 成功時は出力パスをJSON形式で返す（バイナリモードで直接書き込み）
+        output = json.dumps({
             "success": True,
             "order_pdf_path": result["order_pdf_path"],
             "inspection_pdf_path": result["inspection_pdf_path"],
             "engine": engine
-        }, ensure_ascii=False))
+        }, ensure_ascii=True) + '\n'
+        sys.stdout.buffer.write(output.encode('ascii'))
+        sys.stdout.buffer.flush()
 
     except Exception as e:
         # エラー時はエラー情報をJSON形式で返す
@@ -723,7 +820,7 @@ def main():
             "error_type": type(e).__name__,
             "traceback": traceback.format_exc(),
             "engine": get_pdf_engine()
-        }, ensure_ascii=False), file=sys.stderr)
+        }, ensure_ascii=True), file=sys.stderr)
         sys.exit(1)
 
 

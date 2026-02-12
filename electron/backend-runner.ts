@@ -2,16 +2,17 @@
  * バックエンドサーバー起動モジュール
  *
  * Electron内でExpressサーバーを起動・管理
- * 開発時: 外部プロセスに依存
- * 本番時: 内蔵サーバーを起動
+ * 開発時: 外部プロセスに依存（concurrentlyで別途起動）
+ * 本番時: メインプロセス内でrequire()して起動
+ *   - spawn('node', ...) ではなくrequire()を使用
+ *   - 配布先PCにNode.jsが不要
+ *   - asar内のモジュール解決が自動的に行われる
  */
 
-import { spawn, ChildProcess } from 'child_process'
 import path from 'path'
 import http from 'http'
 import { app } from 'electron'
 
-let serverProcess: ChildProcess | null = null
 let serverStarted = false
 
 /**
@@ -63,45 +64,24 @@ export async function startBackendServer(isDev: boolean): Promise<void> {
     await waitForServer(healthUrl, 60000)
     console.log('[Backend] 開発サーバーに接続しました')
   } else {
-    // 本番時: サーバープロセスを起動
+    // 本番時: メインプロセス内でサーバーを起動
     console.log('[Backend] サーバーを起動中...')
 
-    const backendDir = path.join(app.getAppPath(), 'backend/dist')
-    const serverPath = path.join(backendDir, 'server.js')
-
-    // Python実行パスを設定
+    // Python実行パスを設定（extraResourcesに同梱されたpdf_processor.exe）
     const pythonDir = path.join(process.resourcesPath, 'python')
     process.env.PYTHON_EXECUTABLE = path.join(pythonDir, 'pdf_processor.exe')
 
-    serverProcess = spawn('node', [serverPath], {
-      cwd: backendDir,
-      env: {
-        ...process.env,
-        PORT,
-        NODE_ENV: 'production',
-        PDF_ENGINE: 'excel',
-        APP_MODE: 'electron',
-      },
-      stdio: ['ignore', 'pipe', 'pipe'],
-    })
+    // 環境変数を設定（server.ts内のdotenv.config()は既存の値を上書きしない）
+    process.env.PORT = PORT
+    process.env.NODE_ENV = 'production'
+    process.env.PDF_ENGINE = 'excel'
+    process.env.APP_MODE = 'electron'
 
-    serverProcess.stdout?.on('data', (data) => {
-      console.log(`[Backend] ${data.toString().trim()}`)
-    })
-
-    serverProcess.stderr?.on('data', (data) => {
-      console.error(`[Backend Error] ${data.toString().trim()}`)
-    })
-
-    serverProcess.on('error', (error) => {
-      console.error('[Backend] プロセスエラー:', error)
-    })
-
-    serverProcess.on('exit', (code) => {
-      console.log(`[Backend] プロセス終了: code=${code}`)
-      serverProcess = null
-      serverStarted = false
-    })
+    // バックエンドサーバーをrequire()で読み込み・起動
+    // extraResourcesに配置されるため、process.resourcesPath経由でアクセス
+    // server.tsはモジュール読み込み時にstartServer()を呼び出しListenを開始する
+    const backendPath = path.join(process.resourcesPath, 'backend', 'dist', 'server.js')
+    require(backendPath)
 
     // サーバー起動待機
     await waitForServer(healthUrl)
@@ -113,29 +93,11 @@ export async function startBackendServer(isDev: boolean): Promise<void> {
 
 /**
  * バックエンドサーバーを停止
+ *
+ * メインプロセス内で動作しているため、
+ * Electronアプリ終了時にプロセスごと停止する。
+ * 明示的な停止処理は不要。
  */
 export async function stopBackendServer(): Promise<void> {
-  if (serverProcess) {
-    console.log('[Backend] サーバーを停止中...')
-    serverProcess.kill('SIGTERM')
-
-    // 強制終了のタイムアウト
-    await new Promise<void>((resolve) => {
-      const timeout = setTimeout(() => {
-        if (serverProcess) {
-          serverProcess.kill('SIGKILL')
-        }
-        resolve()
-      }, 5000)
-
-      serverProcess?.on('exit', () => {
-        clearTimeout(timeout)
-        resolve()
-      })
-    })
-
-    serverProcess = null
-    serverStarted = false
-    console.log('[Backend] サーバー停止完了')
-  }
+  serverStarted = false
 }
